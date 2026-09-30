@@ -22,7 +22,7 @@ body { background: #000; }
 .nav__link { color: #eee; padding: 10px 18px; border-radius: 999px; font-size: 15px; font-weight: 650; }
 .nav__link::after { display: none; }
 .nav__link:hover, .nav__link[aria-current="location"] { color: #000; background: #fff; }
-.site-mark { justify-self: end; width: 28px; height: 42px; }
+.site-mark { justify-self: end; width: 44px; height: 42px; }
 .site-mark img { width: 100%; height: 100%; object-fit: contain; }
 .hero { min-height: 0; padding: calc(var(--nav-h) + 8px) 0 28px; overflow: visible; background: radial-gradient(ellipse at 65% 0%, #182530 0%, #000 72%); }
 .hero::after { display: none; }
@@ -114,7 +114,7 @@ body { background: #000; }
   .nav__links { display: flex; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
   .nav__links::-webkit-scrollbar { display: none; }
   .nav__link { padding: 9px 13px; flex: 0 0 auto; font-size: 13px; }
-  .site-mark { width: 22px; height: 34px; }
+  .site-mark { width: 35.5px; height: 34px; }
   .site-avatar { width: 34px; height: 34px; }
   .site-billboard { min-height: 610px; height: auto; }
   .site-billboard .hero__backdrop { background-position: 64% top; opacity: .85; }

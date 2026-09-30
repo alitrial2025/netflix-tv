@@ -1,5 +1,7 @@
 package com.example.tv
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -544,7 +546,9 @@ object TvHomeChannelManager {
             val drawable = ContextCompat.getDrawable(context, R.drawable.ic_netflix_logo) ?: return null
             val bitmap = Bitmap.createBitmap(300, 100, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            val logoHeight = (canvas.width / NetflixProLogoGeometry.WordmarkAspectRatio).toInt()
+            val top = (canvas.height - logoHeight) / 2
+            drawable.setBounds(0, top, canvas.width, top + logoHeight)
             drawable.draw(canvas)
             bitmap
         } catch (e: Exception) {

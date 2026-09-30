@@ -8,10 +8,10 @@
         </shape>
     </item>
 
-    <!-- Centered Full Netflix Wordmark within TV Banner Safe Zone -->
+    <!-- Centered NetflixPro Wordmark within TV Banner Safe Zone -->
     <item
         android:width="200dp"
-        android:height="54dp"
+        android:height="36.79dp"
         android:drawable="@drawable/ic_netflix_logo"
         android:gravity="center" />
 </layer-list>

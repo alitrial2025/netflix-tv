@@ -1,6 +1,8 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class, androidx.tv.foundation.ExperimentalTvFoundationApi::class)
 package com.example.ui.components
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -665,12 +667,12 @@ fun SearchResultMovieCard(
             // Netflix 'N' Badge
             Image(
                 painter = painterResource(id = R.drawable.ic_netflix_n),
-                contentDescription = "Netflix N Logo",
+                contentDescription = "Npro logo",
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(6.dp)
                     .height(18.dp)
-                    .width(10.dp)
+                    .width(18.dp * NetflixProLogoGeometry.MarkAspectRatio)
             )
 
             // Bottom Gradient Overlay when focused — smooth fade in without expanding bounds

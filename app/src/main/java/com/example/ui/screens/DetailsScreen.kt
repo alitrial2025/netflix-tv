@@ -2,6 +2,8 @@
 
 package com.example.ui.screens
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -1050,11 +1052,11 @@ fun DetailsHeaderRow() {
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_netflix_n),
-            contentDescription = "Netflix Logo",
+            contentDescription = "NetflixPro logo",
             // bugfix: the source PNG is not 24x40. Without an explicit contentScale
             // the painter is cropped/distorted unpredictably across devices.
             contentScale = ContentScale.Fit,
-            modifier = Modifier.height(40.dp).width(24.dp)
+            modifier = Modifier.height(40.dp).width(40.dp * NetflixProLogoGeometry.MarkAspectRatio)
         )
     }
 }
@@ -1109,13 +1111,13 @@ fun DetailsLeftInfoColumn(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_netflix_n),
-                        contentDescription = "Netflix N Logo",
+                        contentDescription = "Npro logo",
                         // bugfix: same as the header logo — explicit contentScale avoids
                         // unexpected stretching of the small N glyph.
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .height(17.dp)
-                            .width(9.5.dp)
+                            .width(17.dp * NetflixProLogoGeometry.MarkAspectRatio)
                     )
                     val label = when {
                         isKidContent && isTvSeries -> "KIDS SERIES"

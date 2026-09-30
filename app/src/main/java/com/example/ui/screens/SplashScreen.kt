@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
@@ -84,11 +86,11 @@ fun SplashScreen(
         }
     }
 
-    // Mathematically calculated proportions of "N" within the NETFLIX logo
-    val nLeftPercent = 0.043f
-    val nWidthPercent = 0.0945f
-    val nRightPercent = nLeftPercent + nWidthPercent // 0.1375f
-    val nCenterPercent = nLeftPercent + nWidthPercent / 2f // 0.09025f
+    // Mathematically calculated proportions of "N" within the NETFLIXPRO wordmark
+    val nLeftPercent = 0f
+    val nWidthPercent = NetflixProLogoGeometry.WordmarkNWidthFraction
+    val nRightPercent = nLeftPercent + nWidthPercent
+    val nCenterPercent = nLeftPercent + nWidthPercent / 2f
 
     // Animation states running strictly on GPU compositor
     val wipeProgress = remember { Animatable(1f) }
@@ -190,10 +192,10 @@ fun SplashScreen(
                 },
             contentAlignment = Alignment.Center
         ) {
-            // Original NETFLIX logo with right-to-left Zigzag / Scissors wipe (Zero-allocation GPU path)
+            // NETFLIXPRO wordmark with right-to-left Zigzag / Scissors wipe (Zero-allocation GPU path)
             Image(
                 painter = painterResource(id = R.drawable.ic_netflix_logo),
-                contentDescription = "Netflix Logo",
+                contentDescription = "NetflixPro logo",
                 modifier = Modifier
                     .width(280.dp)
                     .height(76.dp)
@@ -240,16 +242,16 @@ fun SplashScreen(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_netflix_n),
-                    contentDescription = "Netflix N",
+                    contentDescription = "Npro logo",
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .offset(x = 12.dp)
-                        .width(42.dp)
+                        .offset(x = (280f * nCenterPercent - 76f * NetflixProLogoGeometry.MarkAspectRatio / 2f).dp)
+                        .width(76.dp * NetflixProLogoGeometry.MarkAspectRatio)
                         .height(76.dp)
                         .graphicsLayer {
                             alpha = crossfadeAlpha.value
                         },
-                    contentScale = ContentScale.FillBounds
+                    contentScale = ContentScale.Fit
                 )
             }
         }
