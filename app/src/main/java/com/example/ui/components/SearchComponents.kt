@@ -482,7 +482,7 @@ fun SearchSection(
                                 ambientColor = Color.White.copy(alpha = 0.25f)
                             )
                             .border(
-                                BorderStroke(3.dp, Color.White),
+                                BorderStroke(1.5.dp, Color.White),
                                 RoundedCornerShape(12.dp)
                             )
                     )

@@ -328,6 +328,7 @@ fun TvAuthScreen(
                                 } else if (passwordInput.length < 6) {
                                     authError = "Password must be at least 6 characters."
                                 } else {
+                                    authError = null
                                     isAuthenticating = true
                                     viewModel.signInWithEmail(
                                         email = email,

@@ -280,7 +280,7 @@ fun NetflixMovieRow(
                         targetValue = targetOffset.toFloat(),
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = TvMotion.stiffness(550f),
+                            stiffness = TvMotion.carouselStiffness(),
                             visibilityThreshold = 0.005f
                         )
                     )
@@ -588,7 +588,7 @@ fun NetflixMovieRow(
                         this@graphicsLayer.alpha = if (isRowFocused) 1f else 0f
                         this@graphicsLayer.translationY = verticalRingOffsetProvider()
                     }
-                    .border(2.5.dp, Color.White, CardCornerShape)
+                    .border(1.5.dp, Color.White, CardCornerShape)
                     .zIndex(10f)
             )
         }

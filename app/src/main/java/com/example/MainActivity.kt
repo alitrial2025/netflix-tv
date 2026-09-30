@@ -175,6 +175,9 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(currentRoute) {
                         if (currentRoute.isNotEmpty()) {
                             com.example.ui.util.AppDiagnosticsLogger.event("Navigation", "User navigated to screen: $currentRoute")
+                            if (currentRoute != "splash" && currentRoute != "tvAuth") {
+                                viewModel.ensureCatalogStarted()
+                            }
                         }
                     }
 
@@ -627,7 +630,12 @@ class MainActivity : ComponentActivity() {
                                         episodeName = episodeName,
                                         initialPositionMs = resumePositionMs,
                                         trailerOnly = backStackEntry.arguments?.getBoolean("trailer") ?: false,
-                                        onBack = { navController.popBackStack() },
+                                        onBack = {
+                                            if (!navController.popBackStack()) {
+                                                val destination = if (viewModel.selectedProfile.value == null) "profiles" else "home"
+                                                navController.navigate(destination) { launchSingleTop = true }
+                                            }
+                                        },
                                         viewModel = viewModel
                                     )
                                 } else {

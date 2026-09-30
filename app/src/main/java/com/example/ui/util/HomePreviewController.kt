@@ -108,6 +108,7 @@ class HomePreviewController(
         if (previousRequest?.owner == owner && key(previousRequest.movie) == key(movie) &&
             previousRequest.audible == audible && previousRequest.trailerOnly == trailerOnly && work?.isActive == true) return
         val request = Request(owner, movie, audible, trailerOnly)
+        val requestedAt = RuntimeTiming.start()
         desired = request
         val ticket = ++generation
         val previousWork = work
@@ -164,7 +165,8 @@ class HomePreviewController(
                         return@launch
                     }
                     budget.onSuccess()
-                    play(request, choice, resolved, ticket)
+                    RuntimeTiming.elapsed("preview_requested_to_resolved", requestedAt)
+                    play(request, choice, resolved, ticket, requestedAt)
                     return@launch
                 }
             } catch (cancelled: CancellationException) {
@@ -242,7 +244,7 @@ class HomePreviewController(
         viewModel.detachSharedPlaybackView(view)
     }
 
-    private suspend fun play(request: Request, choice: Choice, stream: NetMirrorStream, ticket: Long) {
+    private suspend fun play(request: Request, choice: Choice, stream: NetMirrorStream, ticket: Long, requestedAt: Long) {
         val activePlayer = obtainPlayer()
         val finished = CompletableDeferred<Unit>()
         var seekChosen = false
@@ -254,6 +256,7 @@ class HomePreviewController(
                 !seekChosen || revealed || !firstFrameSeen) return
             if (activePlayer.currentPosition + 1_000L < (choice.startMs ?: 0L)) return
             revealed = true
+            RuntimeTiming.elapsed("preview_requested_to_visible", requestedAt)
             _state.value = HomePreviewState(request.owner, activePlayer, true, key(request.movie))
             onPlayingChanged(true)
         }

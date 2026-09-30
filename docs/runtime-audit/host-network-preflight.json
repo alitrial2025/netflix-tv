@@ -1,0 +1,14 @@
+{
+  "tmdbTrending": {
+    "httpStatus": 200,
+    "results": 20
+  },
+  "providerBootstrapHostChecks": {
+    "net52.cc": 404,
+    "netmirror.app": 404,
+    "netmirror.gg": 404,
+    "mobidetect.art": 404,
+    "mobidetects.com": "proxy CONNECT 403"
+  },
+  "note": "Host read-only preflight, not Android playback; candidate bootstrap pages can reject desktop requests."
+}

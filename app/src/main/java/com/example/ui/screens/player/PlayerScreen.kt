@@ -103,6 +103,9 @@ fun PlayerScreen(
     val isLoggedIn = viewModel.isUserLoggedIn()
     val userSubscription by viewModel.userSubscription.collectAsStateWithLifecycle()
     val isTrailerPlayback = trailerOnly || !isLoggedIn
+    val playbackAccessLocked = remember(movie, userSubscription, isTrailerPlayback) {
+        !isTrailerPlayback && viewModel.isMovieLocked(movie)
+    }
     val playbackOwner = remember(movie.id, movie.title, movie.type) { "player:${java.util.UUID.randomUUID()}" }
     val sharedPlaybackOwner by viewModel.sharedPlaybackOwner.collectAsStateWithLifecycle()
     val ownsPlayback = sharedPlaybackOwner == playbackOwner
@@ -145,6 +148,10 @@ fun PlayerScreen(
     }
     var playbackError by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf<String?>(null) }
     var loadAttempt by remember(movie.id, currentSeason, currentEpisode) { mutableIntStateOf(0) }
+    val playbackStartedAt = remember(movie.id, currentSeason, currentEpisode, loadAttempt) {
+        com.example.ui.util.RuntimeTiming.start()
+    }
+    var firstFrameReported by remember(movie.id, currentSeason, currentEpisode, loadAttempt) { mutableStateOf(false) }
     var sessionRecoveryAttempts by remember(movie.id, currentSeason, currentEpisode) { mutableIntStateOf(0) }
     val renderedMediaId by viewModel.sharedVideoFrameMediaId.collectAsStateWithLifecycle()
     var hasVideoFrame by remember(initialTargetMediaId) {
@@ -325,6 +332,10 @@ fun PlayerScreen(
             }
             override fun onRenderedFirstFrame() {
                 if (ownsCurrentMedia()) {
+                    if (!firstFrameReported) {
+                        firstFrameReported = true
+                        com.example.ui.util.RuntimeTiming.elapsed("player_first_frame", playbackStartedAt)
+                    }
                     hasVideoFrame = true
                     // Persist the newly started episode immediately, even at position zero.
                     if (!startedEpisodeSaved) {
@@ -462,7 +473,7 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(initialTargetMediaId, loadAttempt, playbackActive, userSubscription, ownsPlayback) {
+    LaunchedEffect(initialTargetMediaId, loadAttempt, playbackActive, playbackAccessLocked, ownsPlayback) {
         if (!playbackActive || !viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
         val thisAttempt = kotlinx.coroutines.currentCoroutineContext()[Job]
         resolutionJobHolder.job = thisAttempt
@@ -471,7 +482,7 @@ fun PlayerScreen(
             (exoPlayer.playbackState == Player.STATE_READY || exoPlayer.playbackState == Player.STATE_BUFFERING)
         playbackError = null
         try {
-            if (!isTrailerPlayback && viewModel.isMovieLocked(movie)) {
+            if (playbackAccessLocked) {
                 playbackError = "This title requires an active plan. Return to Details to unlock it."
                 return@LaunchedEffect
             }
@@ -518,23 +529,32 @@ fun PlayerScreen(
             isLoading = true
             hasVideoFrame = false
             playbackMarkers = PlaybackMarkers()
-            val stream = withContext(Dispatchers.IO) {
-                if (isTrailerPlayback) kotlinx.coroutines.withTimeoutOrNull(55_000L) {
-                    val trailer = viewModel.resolveTrailerStream(movie, allowExternalFallback = true)
-                    if (trailer?.type == "youtube") {
-                        withContext(Dispatchers.Main) {
-                            try {
-                                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(trailer.url)))
-                                playbackError = "Trailer opened in YouTube. Press Back to return."
-                            } catch (_: Exception) {
-                                playbackError = "Install or enable YouTube to open this official trailer."
+            val resolutionStartedAt = com.example.ui.util.RuntimeTiming.start()
+            val stream = try {
+                withContext(Dispatchers.IO) {
+                    if (isTrailerPlayback) kotlinx.coroutines.withTimeoutOrNull(55_000L) {
+                        val trailer = viewModel.resolveTrailerStream(movie, allowExternalFallback = true)
+                        if (trailer?.type == "youtube") {
+                            withContext(Dispatchers.Main) {
+                                try {
+                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(trailer.url)))
+                                    playbackError = "Trailer opened in YouTube. Press Back to return."
+                                } catch (_: Exception) {
+                                    playbackError = "Install or enable YouTube to open this official trailer."
+                                }
                             }
-                        }
-                        null
-                    } else trailer?.toNetMirrorStream(movie.title, "trailer_${movie.id}")
-                } else viewModel.resolveStream(movie, currentSeason, currentEpisode)
+                            null
+                        } else trailer?.toNetMirrorStream(movie.title, "trailer_${movie.id}")
+                    } else viewModel.resolveStream(movie, currentSeason, currentEpisode)
+                }
+            } finally {
+                // Include failures/cancellation; readiness alone is not a video frame.
+                com.example.ui.util.RuntimeTiming.elapsed("player_resolution_finished", resolutionStartedAt)
             }
+            com.example.ui.util.RuntimeTiming.elapsed(
+                if (stream == null) "player_resolve_failed" else "player_resolved", resolutionStartedAt
+            )
             ensureActive()
             if (!viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
             if (stream == null) {

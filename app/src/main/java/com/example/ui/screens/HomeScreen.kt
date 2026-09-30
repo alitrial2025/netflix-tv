@@ -1068,7 +1068,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
     // each index boundary. A pixel spring moves immediately and keeps velocity.
     val scrollOffsetState = focusTransition.animateFloat(
         transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(430f), visibilityThreshold = 0.5f)
+            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.carouselStiffness(), visibilityThreshold = 0.5f)
         },
         label = "homeScrollOffsetPx"
     ) { calculateTargetScrollY(it) }
@@ -1372,7 +1372,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
                     translationY = topPx + manualTouchOffsetAnim.value + dragOffsetState.floatValue +
                         (if (isKidProfile && activeTab != "Home") 16.dp.toPx() else 0f)
                 }
-                .border(2.5.dp, Color.White, RoundedCornerShape(8.dp))
+                .border(1.5.dp, Color.White, RoundedCornerShape(8.dp))
                 .zIndex(20f)
         )
         }

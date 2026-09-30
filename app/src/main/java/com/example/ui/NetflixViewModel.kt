@@ -1791,6 +1791,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     val userSubscription: StateFlow<com.example.model.UserSubscription> = _userSubscription.asStateFlow()
 
     private val catalogLoadInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val catalogStarted = java.util.concurrent.atomic.AtomicBoolean(false)
     private var originalCategoryRows: List<Pair<String, List<Movie>>> = emptyList()
 
     fun markHomeReady() = com.example.ui.util.HomeStartupGate.markHomeReady()
@@ -1862,7 +1863,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             // Profile selection (including a saved profile's PIN) belongs to
             // the picker; reading a cache must not select a profile itself.
         }
-        loadData()
+        // A new viewer needs the sign-in keyboard before catalog JSON parsing.
+        // Existing sessions can still warm the catalog during their splash.
+        if (isUserLoggedInOrGuest()) ensureCatalogStarted()
         listenToFirestoreProfiles()
         listenToFirestoreSubscription()
         // Playback resolves its session on demand. Starting Chromium/session generation
@@ -1991,6 +1994,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+
+    fun ensureCatalogStarted() {
+        if (catalogStarted.compareAndSet(false, true)) loadData()
+    }
 
     fun loadData() {
         // A refresh must join the current load rather than double network, JSON and row work.

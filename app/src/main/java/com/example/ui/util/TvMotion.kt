@@ -11,4 +11,7 @@ object TvMotion {
     // Spring duration follows 1 / sqrt(stiffness). Scaling stiffness this way
     // keeps a small glide while retaining velocity when the remote is held down.
     fun stiffness(baseStiffness: Float): Float = baseStiffness / (DurationScale * DurationScale)
+
+    /** Home sections and card rows use the same response when the remote is held. */
+    fun carouselStiffness(): Float = stiffness(550f)
 }
