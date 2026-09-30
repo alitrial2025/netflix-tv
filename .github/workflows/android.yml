@@ -21,8 +21,11 @@ jobs:
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v5
       # Ubuntu 24.04 already provides Android command-line tools and licenses.
-      - name: Install Android build packages
-        run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0' 'build-tools;35.0.0'
+      - name: Verify preinstalled Android build packages
+        run: |
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/34.0.0/aapt2"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - name: Validate update release rules
         if: ${{ github.repository == 'alitrial2025/netflix-tv' }}
         run: node --test tools/update-gate/release-lib.test.mjs
