@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.example.ui
 
 import android.app.Application
@@ -3035,7 +3037,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                continueWatchingRepository.saveProgress(profileId, movie, safePosition, durationMs, season, episode, episodeName)
+                continueWatchingRepository.saveProgress(profileId, movie, safePosition, durationMs, season, episode, episodeName,
+                    force = forceFirestoreSync)
             } catch (e: Exception) {
                 // Repository already swallows, but defensively double-catch
                 // so a DB failure never crashes the player.
@@ -3225,6 +3228,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     profileNestedDocRef1.get().await()
                 } catch (_: Exception) { null }
                 val remotePos = listOfNotNull(remoteFlat, remoteNested)
+                    .filter { doc -> !movie.isSeriesContent() || com.example.data.PlaybackProgressPolicy.sameEpisode(
+                        season, episode, doc.getLong("season"), doc.getLong("episode"), doc.getString("episodeId")
+                    ) }
                     .mapNotNull { doc ->
                         // accept the multiple field names the schema
                         // has historically used
@@ -3233,12 +3239,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                             ?: doc.getLong("positionSeconds")?.let { it * 1000L }
                     }
                     .maxOrNull() ?: 0L
-                val resolvedPositionMs = (ConflictResolver.resolve(
-                    collection = Collections.CONTINUE_WATCHING,
-                    field = "positionMs",
-                    localValue = positionMs,
-                    remoteValue = remotePos
-                ) as? Long) ?: positionMs
+                val resolvedPositionMs = com.example.data.PlaybackProgressPolicy.resolvePosition(positionMs, durationMs, remotePos)
                 val resolvedDurationMs = (ConflictResolver.resolve(
                     collection = Collections.CONTINUE_WATCHING,
                     field = "durationMs",

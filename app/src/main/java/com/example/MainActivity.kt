@@ -76,6 +76,8 @@ class MainActivity : ComponentActivity() {
         com.example.ui.util.HomeStartupGate.onInteraction()
     }
 
+    // Android's public Activity override must delegate to the AndroidX superclass.
+    @android.annotation.SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         _userInteractionTimestamp.value = System.currentTimeMillis()
         com.example.ui.util.HomeStartupGate.onInteraction()
@@ -269,7 +271,8 @@ class MainActivity : ComponentActivity() {
                                     fadeOut(animationSpec = tween(TvMotion.duration(180), easing = FastOutSlowInEasing))
                                 }
                             ) {
-                                val hasProfiles = viewModel.profiles.value.isNotEmpty()
+                                val currentProfiles by viewModel.profiles.collectAsState()
+                                val hasProfiles = currentProfiles.isNotEmpty()
                                 ProfileSetupWalkthroughScreen(
                                     viewModel = viewModel,
                                     onComplete = { _ ->

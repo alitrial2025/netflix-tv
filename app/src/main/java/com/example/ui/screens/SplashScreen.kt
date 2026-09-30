@@ -58,14 +58,21 @@ fun SplashScreen(
     // Pre-load tudum audio player off main thread
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     LaunchedEffect(Unit) {
-        val player = withContext(Dispatchers.IO) {
-            try {
-                MediaPlayer.create(context, R.raw.netflix_tudum)
-            } catch (_: Exception) {
-                null
+        var prepared: MediaPlayer? = null
+        try {
+            val player = withContext(Dispatchers.IO) {
+                try {
+                    MediaPlayer.create(context, R.raw.netflix_tudum).also { prepared = it }
+                } catch (_: Exception) {
+                    null
+                }
             }
+            mediaPlayer = player
+            prepared = null
+        } finally {
+            // Cancellation while create() is running must also release its result.
+            runCatching { prepared?.release() }
         }
-        mediaPlayer = player
     }
     DisposableEffect(Unit) {
         onDispose {

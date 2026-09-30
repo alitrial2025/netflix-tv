@@ -28,6 +28,9 @@ import kotlinx.coroutines.sync.withLock
  * Manages the dedicated "NETFLIX PRO" Android TV / Google TV Home Screen Channel
  * and the system-wide "Play Next" / Watch Next row via the official Android TV Provider API.
  */
+// Public PreviewProgram/WatchNextProgram builders inherit methods from AndroidX's
+// library-restricted base classes. These are the documented app-facing builders.
+@android.annotation.SuppressLint("RestrictedApi")
 object TvHomeChannelManager {
     private const val TAG = "TvHomeChannelManager"
     private const val CHANNEL_NAME = "NETFLIX PRO"

@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.example.ui.screens.player
 
 import android.view.KeyEvent
@@ -69,7 +71,7 @@ private class PlayerJobHolder {
     var job: Job? = null
 }
 
-@OptIn(androidx.media3.common.util.UnstableApi::class)
+
 private fun Throwable.playbackHttpResponseCode(): Int? {
     var current: Throwable? = this
     val visited = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
@@ -80,7 +82,7 @@ private fun Throwable.playbackHttpResponseCode(): Int? {
     return null
 }
 
-@OptIn(androidx.media3.common.util.UnstableApi::class)
+
 @Composable
 fun PlayerScreen(
     movie: Movie,
@@ -202,6 +204,7 @@ fun PlayerScreen(
     val progressRequester = remember { FocusRequester() }
 
     var isExitProgressSaved by remember { mutableStateOf(false) }
+    var startedEpisodeSaved by remember(initialTargetMediaId) { mutableStateOf(false) }
     fun saveCurrentProgress(forceSync: Boolean) {
         if (isTrailerPlayback || !viewModel.ownsSharedPlayback(playbackOwner) ||
             exoPlayer.currentMediaItem?.mediaId != initialTargetMediaId) return
@@ -321,7 +324,14 @@ fun PlayerScreen(
                 }
             }
             override fun onRenderedFirstFrame() {
-                if (ownsCurrentMedia()) hasVideoFrame = true
+                if (ownsCurrentMedia()) {
+                    hasVideoFrame = true
+                    // Persist the newly started episode immediately, even at position zero.
+                    if (!startedEpisodeSaved) {
+                        saveCurrentProgress(forceSync = true)
+                        startedEpisodeSaved = true
+                    }
+                }
             }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 if (ownsCurrentMedia()) isPlaying = playWhenReady
@@ -746,27 +756,7 @@ fun PlayerScreen(
     LaunchedEffect(exoPlayer) {
         while (true) {
             delay(15_000L)
-            val safeState = try {
-                Triple(exoPlayer.duration > 0, exoPlayer.isPlaying, exoPlayer.currentPosition to exoPlayer.duration)
-            } catch (_: IllegalStateException) {
-                null
-            } catch (_: Exception) {
-                null
-            }
-            if (safeState != null) {
-                val (hasDuration, playing, posDur) = safeState
-                if (hasDuration && playing && !isTrailerPlayback && viewModel.ownsSharedPlayback(playbackOwner)) {
-                    viewModel.savePlaybackProgress(
-                        movie = movie,
-                        positionMs = posDur.first,
-                        durationMs = posDur.second,
-                        season = currentSeason,
-                        episode = currentEpisode,
-                        episodeName = currentEpisodeName,
-                        forceFirestoreSync = false
-                    )
-                }
-            }
+            if (exoPlayer.isPlaying) saveLatestProgress(false)
         }
     }
 

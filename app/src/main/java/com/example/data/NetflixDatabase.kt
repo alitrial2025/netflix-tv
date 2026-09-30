@@ -13,7 +13,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.model.Movie
+import com.example.model.catalogMediaKind
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Entity(tableName = "continue_watching", primaryKeys = ["profileId", "movieId"])
 data class ContinueWatchingEntity(
@@ -210,6 +213,7 @@ abstract class NetflixDatabase : RoomDatabase() {
 }
 
 class ContinueWatchingRepository(private val dao: ContinueWatchingDao) {
+    private val saveMutex = Mutex()
     fun getContinueWatchingList(profileId: String): Flow<List<ContinueWatchingEntity>> {
         return dao.getContinueWatchingList(profileId)
     }
@@ -228,8 +232,8 @@ class ContinueWatchingRepository(private val dao: ContinueWatchingDao) {
      *      row already in the DB, not an in-memory cache, so it's correct
      *      after process restart.
      *   2. **Completed-at-end**: when the user crosses 95% / the last 30s,
-     *      we don't write a "still in progress" row — we mark the existing
-     *      row as completed and let the UI hide it. The row stays so
+     *      persist the final episode snapshot as completed and let the UI
+     *      hide it. The row stays so
      *      "Recently Watched" can surface it. (The previous implementation
      *      *deleted* the row, losing the title from history.)
      *   3. **Crash safety**: every code path is wrapped so a DB error
@@ -244,47 +248,26 @@ class ContinueWatchingRepository(private val dao: ContinueWatchingDao) {
         episode: Int = 1,
         episodeName: String = "",
         force: Boolean = false
-    ) {
+    ) = saveMutex.withLock {
         if (durationMs > 0 && profileId.isNotEmpty()) {
             try {
                 val percentage = (playbackPositionMs.toFloat() / durationMs.toFloat()) * 100
                 val isNearEnd = (durationMs - playbackPositionMs) <= 30000L // 30 seconds remaining
                 val isCompleted = isNearEnd || percentage >= 95f
-                if (isCompleted) {
-                    // Mark the row as completed (or insert it as completed if
-                    // we never persisted before). This keeps the title in
-                    // "Recently Watched" while removing it from
-                    // "Continue Watching".
-                    val existing = dao.getOne(profileId, movie.id)
-                    if (existing != null) {
-                        dao.markCompleted(profileId, movie.id)
-                    } else {
-                        dao.insertOrUpdate(
-                            ContinueWatchingEntity.fromMovie(
-                                profileId = profileId,
-                                movie = movie,
-                                playbackPositionMs = playbackPositionMs,
-                                durationMs = durationMs,
-                                season = season,
-                                episode = episode,
-                                episodeName = episodeName
-                            ).copy(completed = true)
-                        )
-                    }
-                    return
-                }
-
-                if (playbackPositionMs > 2000L) {
+                val existing = dao.getOne(profileId, movie.id)
+                val sameTitle = existing != null && existing.title.equals(movie.title, true) &&
+                    existing.toMovie().catalogMediaKind() == movie.catalogMediaKind()
+                val episodeChanged = sameTitle && (existing!!.season != season || existing.episode != episode)
+                if (force || isCompleted || episodeChanged || playbackPositionMs > 2000L) {
                     // Debounce: skip writes that are within 2s of the last
                     // persisted position. The previous implementation wrote
                     // on every timer tick, which thrashed the local DB and
                     // could race with a stale Firestore sync.
-                    if (!force) {
-                        val existing = dao.getOne(profileId, movie.id)
-                        if (existing != null &&
-                            kotlin.math.abs(existing.playbackPositionMs - playbackPositionMs) < 2000L) {
-                            return
-                        }
+                    if (!force && !isCompleted && sameTitle && PlaybackProgressPolicy.shouldDebounce(
+                            playbackPositionMs, season, episode,
+                            existing!!.playbackPositionMs, existing.season, existing.episode, existing.completed
+                        )) {
+                        return@withLock
                     }
                     val entity = ContinueWatchingEntity.fromMovie(
                         profileId = profileId,
