@@ -1,0 +1,207 @@
+{
+  "master": "NetflixPro-Cinematic-TV-Mobile-4K.mp4",
+  "bytes": 109569717,
+  "sha256": "4efe95d2bf1af81bd32b82e33d8db48156ab91b71253c487969137dead54d518",
+  "duration_seconds": 180.0,
+  "width": 3840,
+  "height": 2160,
+  "fps": "30",
+  "frames": 5400,
+  "video_codec": "h264",
+  "pixel_format": "yuv420p",
+  "color_space": "bt709",
+  "audio_codec": "aac",
+  "audio_rate": "48000",
+  "audio_channels": 2,
+  "audio_loudness": {
+    "input_i": "-16.03",
+    "input_tp": "-1.61",
+    "input_lra": "10.20",
+    "input_thresh": "-26.23",
+    "output_i": "-13.91",
+    "output_tp": "-1.50",
+    "output_lra": "4.50",
+    "output_thresh": "-24.05",
+    "normalization_type": "dynamic",
+    "target_offset": "-2.09"
+  },
+  "chapters": [
+    {
+      "id": 0,
+      "time_base": "1/1000",
+      "start": 0,
+      "start_time": "0.000000",
+      "end": 12000,
+      "end_time": "12.000000",
+      "tags": {
+        "title": "Tv Reveal"
+      }
+    },
+    {
+      "id": 1,
+      "time_base": "1/1000",
+      "start": 12000,
+      "start_time": "12.000000",
+      "end": 25000,
+      "end_time": "25.000000",
+      "tags": {
+        "title": "Tv Screen Dive"
+      }
+    },
+    {
+      "id": 2,
+      "time_base": "1/1000",
+      "start": 25000,
+      "start_time": "25.000000",
+      "end": 43000,
+      "end_time": "43.000000",
+      "tags": {
+        "title": "Home Discovery"
+      }
+    },
+    {
+      "id": 3,
+      "time_base": "1/1000",
+      "start": 43000,
+      "start_time": "43.000000",
+      "end": 58000,
+      "end_time": "58.000000",
+      "tags": {
+        "title": "Content Tunnel"
+      }
+    },
+    {
+      "id": 4,
+      "time_base": "1/1000",
+      "start": 58000,
+      "start_time": "58.000000",
+      "end": 64000,
+      "end_time": "64.000000",
+      "tags": {
+        "title": "Movie Details"
+      }
+    },
+    {
+      "id": 5,
+      "time_base": "1/1000",
+      "start": 64000,
+      "start_time": "64.000000",
+      "end": 73000,
+      "end_time": "73.000000",
+      "tags": {
+        "title": "Player"
+      }
+    },
+    {
+      "id": 6,
+      "time_base": "1/1000",
+      "start": 73000,
+      "start_time": "73.000000",
+      "end": 84000,
+      "end_time": "84.000000",
+      "tags": {
+        "title": "Tv Pullout"
+      }
+    },
+    {
+      "id": 7,
+      "time_base": "1/1000",
+      "start": 84000,
+      "start_time": "84.000000",
+      "end": 98000,
+      "end_time": "98.000000",
+      "tags": {
+        "title": "Phone Reveal"
+      }
+    },
+    {
+      "id": 8,
+      "time_base": "1/1000",
+      "start": 98000,
+      "start_time": "98.000000",
+      "end": 116000,
+      "end_time": "116.000000",
+      "tags": {
+        "title": "Mobile Ui"
+      }
+    },
+    {
+      "id": 9,
+      "time_base": "1/1000",
+      "start": 116000,
+      "start_time": "116.000000",
+      "end": 130000,
+      "end_time": "130.000000",
+      "tags": {
+        "title": "Mobile Player"
+      }
+    },
+    {
+      "id": 10,
+      "time_base": "1/1000",
+      "start": 130000,
+      "start_time": "130.000000",
+      "end": 144000,
+      "end_time": "144.000000",
+      "tags": {
+        "title": "Features"
+      }
+    },
+    {
+      "id": 11,
+      "time_base": "1/1000",
+      "start": 144000,
+      "start_time": "144.000000",
+      "end": 159000,
+      "end_time": "159.000000",
+      "tags": {
+        "title": "Ecosystem"
+      }
+    },
+    {
+      "id": 12,
+      "time_base": "1/1000",
+      "start": 159000,
+      "start_time": "159.000000",
+      "end": 170000,
+      "end_time": "170.000000",
+      "tags": {
+        "title": "Hero Montage"
+      }
+    },
+    {
+      "id": 13,
+      "time_base": "1/1000",
+      "start": 170000,
+      "start_time": "170.000000",
+      "end": 180000,
+      "end_time": "180.000000",
+      "tags": {
+        "title": "Logo Finale"
+      }
+    }
+  ],
+  "full_decode_passed": true,
+  "final_frame_mean_rgb": 0.0,
+  "minimum_journey_frame_mean_rgb": 6.625046296296296,
+  "native_frame_exports": {
+    "native-tv": {
+      "categories": 210,
+      "home": 120,
+      "rows": 240,
+      "episodes": 180,
+      "vertical": 210,
+      "player": 120,
+      "details": 180
+    },
+    "native-mobile": {
+      "home": 240,
+      "save": 90,
+      "player": 120,
+      "profile-picker": 150,
+      "details": 180
+    }
+  },
+  "visual_inspection_samples": 24,
+  "scope": "Encoded-film checks; native Kotlin UI capture with staged fixture content. Not provider playback or device performance certification."
+}

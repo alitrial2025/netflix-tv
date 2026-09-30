@@ -1,0 +1,128 @@
+[
+  {
+    "sequence": 1,
+    "start": 0,
+    "end": 12,
+    "seconds": 12,
+    "name": "tv_reveal",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Red edge light reveals TV; streaks construct current wordmark."
+  },
+  {
+    "sequence": 2,
+    "start": 12,
+    "end": 25,
+    "seconds": 13,
+    "name": "tv_screen_dive",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Continuous push carries bezel outside frame into Home."
+  },
+  {
+    "sequence": 3,
+    "start": 25,
+    "end": 43,
+    "seconds": 18,
+    "name": "home_discovery",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Current slow critically damped browsing moves categories and rows."
+  },
+  {
+    "sequence": 4,
+    "start": 43,
+    "end": 58,
+    "seconds": 15,
+    "name": "content_tunnel",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Selected poster expands into depth corridor, leading to Details."
+  },
+  {
+    "sequence": 5,
+    "start": 58,
+    "end": 64,
+    "seconds": 6,
+    "name": "movie_details",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Selected Play pulse motivates screen portal."
+  },
+  {
+    "sequence": 6,
+    "start": 64,
+    "end": 73,
+    "seconds": 9,
+    "name": "player",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Original eclipse footage inside current TV player UI."
+  },
+  {
+    "sequence": 7,
+    "start": 73,
+    "end": 84,
+    "seconds": 11,
+    "name": "tv_pullout",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Pull back to physical screen; luminous path leads to phone."
+  },
+  {
+    "sequence": 8,
+    "start": 84,
+    "end": 98,
+    "seconds": 14,
+    "name": "phone_reveal",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Phone orbit, rim-light reveal, corresponding screen push."
+  },
+  {
+    "sequence": 9,
+    "start": 98,
+    "end": 116,
+    "seconds": 18,
+    "name": "mobile_ui",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Native Home, Details and My List fan out on depth planes."
+  },
+  {
+    "sequence": 10,
+    "start": 116,
+    "end": 130,
+    "seconds": 14,
+    "name": "mobile_player",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Phone rotates into landscape; environments shift with light."
+  },
+  {
+    "sequence": 11,
+    "start": 130,
+    "end": 144,
+    "seconds": 14,
+    "name": "features",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Profiles, Clips, Downloads and My List retain native UI."
+  },
+  {
+    "sequence": 12,
+    "start": 144,
+    "end": 159,
+    "seconds": 15,
+    "name": "ecosystem",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Shared stage and moving artwork suggest a unified design ecosystem."
+  },
+  {
+    "sequence": 13,
+    "start": 159,
+    "end": 170,
+    "seconds": 11,
+    "name": "hero_montage",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Beat-synced directional object passes and matched scale."
+  },
+  {
+    "sequence": 14,
+    "start": 170,
+    "end": 180,
+    "seconds": 10,
+    "name": "logo_finale",
+    "camera": "Perspective camera, eased dolly/orbit/truck; screen-space UI controlled independently.",
+    "motivation": "Planes spiral inward; a light beam resolves into the end lockup."
+  }
+]
