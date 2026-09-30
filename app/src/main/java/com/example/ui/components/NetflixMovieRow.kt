@@ -137,6 +137,7 @@ fun NetflixMovieRow(
     height: Dp = 375.dp,
     alpha: () -> Float = { 1f },
     isVisible: Boolean = true,
+    isNavigationActive: () -> Boolean = { true },
     continueWatchingProgressMap: Map<String, Float>? = null,
     continueWatchingRemainingMap: Map<String, Long>? = null,
     isKids: Boolean = false,
@@ -202,6 +203,9 @@ fun NetflixMovieRow(
     val horizontalKeyPacer = remember { TvKeyPacer() }
     var savedMovieCount by androidx.compose.runtime.saveable.rememberSaveable(title) { mutableIntStateOf(movies.size) }
     var isRowFocused by remember { mutableStateOf(false) }
+    // Logical navigation changes before Android transfers the focus node.
+    // Stop artwork/preview/metadata work immediately on a departing row.
+    val isActiveRow = isRowFocused && isNavigationActive()
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val isLowMemoryDevice = remember(context) { TvImagePolicy.isLowMemoryDevice(context) }
@@ -211,8 +215,8 @@ fun NetflixMovieRow(
     // Visible posters already load themselves. Only warm the two possible next
     // heroes, sequentially, after focus settles. execute() belongs to this effect:
     // navigating away cancels in-flight work instead of leaving enqueued decodes.
-    LaunchedEffect(focusedIndex, movies, isRowFocused, isPortrait, isInfinite, isLowMemoryDevice) {
-        if (!isRowFocused || isLowMemoryDevice) return@LaunchedEffect
+    LaunchedEffect(focusedIndex, movies, isActiveRow, isPortrait, isInfinite, isLowMemoryDevice) {
+        if (!isActiveRow || isLowMemoryDevice) return@LaunchedEffect
         delay(1_200)
         HomeStartupGate.awaitBrowsingIdle()
         for (offset in intArrayOf(1, -1)) {
@@ -229,8 +233,8 @@ fun NetflixMovieRow(
 
     // Debounce notifying parent of focused movie change during rapid left/right sliding
     val currentOnMovieFocused by rememberUpdatedState(onMovieFocused)
-    LaunchedEffect(focusedIndex, isRowFocused, movies) {
-        if (isRowFocused && movies.isNotEmpty()) {
+    LaunchedEffect(focusedIndex, isActiveRow, movies) {
+        if (isActiveRow && movies.isNotEmpty()) {
             kotlinx.coroutines.delay(180) // Settle before propagating full movie focus to billboard & palette
             val movieIndex = ((focusedIndex % movies.size) + movies.size) % movies.size
             movies.getOrNull(movieIndex)?.let { currentOnMovieFocused(it) }
@@ -254,7 +258,7 @@ fun NetflixMovieRow(
     val selectedPreviewMovie = movies[((focusedIndex % movies.size) + movies.size) % movies.size]
     val preview by rememberHomePreview(
         owner = previewOwner, movie = selectedPreviewMovie,
-        focused = isRowFocused && isHeroSettled, viewModel = viewModel,
+        focused = isActiveRow && isHeroSettled, viewModel = viewModel,
         audible = true
     )
 
@@ -314,10 +318,10 @@ fun NetflixMovieRow(
         movies.getOrNull(movieIndex) ?: movies.first()
     }
     var metadataMovie by remember(title) { mutableStateOf(currentFocusedMovie) }
-    LaunchedEffect(currentFocusedMovie, isRowFocused, isHeroSettled) {
+    LaunchedEffect(currentFocusedMovie, isActiveRow, isHeroSettled) {
         // Focus/Play use the destination immediately. Measure new synopsis text
         // after the glide, so a held key cannot stack outgoing text transitions.
-        if (isRowFocused) {
+        if (isActiveRow) {
             if (!isHeroSettled) return@LaunchedEffect
             delay(120)
         }
@@ -363,6 +367,7 @@ fun NetflixMovieRow(
                 .padding(top = 4.dp, bottom = 4.dp)
                 .onPreviewKeyEvent { keyEvent ->
                     if (isRowFocused && keyEvent.type == KeyEventType.KeyDown) {
+                        if (!isNavigationActive()) return@onPreviewKeyEvent true
                         when (keyEvent.nativeKeyEvent.keyCode) {
                             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                                 if (movies.isEmpty()) return@onPreviewKeyEvent true
@@ -442,7 +447,7 @@ fun NetflixMovieRow(
             // the destination several cards ahead of the spring's current position.
             val posterSlots = kotlin.math.ceil(
                 ((maxWidth - ringEnd).coerceAtLeast(0.dp) / itemSpacing).toDouble()
-            ).toInt() + if (isRowFocused || !isHeroSettled) 1 else 0
+            ).toInt() + if (isActiveRow || !isHeroSettled) 1 else 0
             val posterWindow = movieRowWindow(
                 animatedFloor, posterSlots, movies.size, isInfinite,
                 includePrevious = !isHeroSettled
@@ -527,7 +532,7 @@ fun NetflixMovieRow(
                     .width(expandedWidth)
                     .height(cardHeight)
                     .graphicsLayer {
-                        this@graphicsLayer.alpha = if (isRowFocused) 1f else 0.85f
+                        this@graphicsLayer.alpha = if (isActiveRow) 1f else 0.85f
                     }
                     .clip(CardCornerShape)
                     .zIndex(5f)
@@ -560,13 +565,13 @@ fun NetflixMovieRow(
                                 cardWidth = expandedWidth,
                                 height = cardHeight,
                                 isExpanded = true,
-                                isFocused = isRowFocused,
-                                shouldFetchLogo = isRowFocused && isHeroSettled && heroIndex == focusedIndex,
+                                isFocused = isActiveRow,
+                                shouldFetchLogo = isActiveRow && isHeroSettled && heroIndex == focusedIndex,
                                 progress = continueWatchingProgressMap?.get(movie.id),
                                 rank = if (isTop10Row) movieIndex + 1 else null,
                                 isLocked = lockedMap[movie.id] == true,
                                 previewController = viewModel?.homePreviewController,
-                                preview = if (viewModel != null && isRowFocused && isHeroSettled && heroIndex == focusedIndex) preview else null,
+                                preview = if (viewModel != null && isActiveRow && isHeroSettled && heroIndex == focusedIndex) preview else null,
                                 rotationSlot = movieIndex,
                                 viewModel = viewModel,
                                 onClick = { onMovieClick(movie) }
@@ -585,7 +590,7 @@ fun NetflixMovieRow(
                     .width(expandedWidth)
                     .height(cardHeight)
                     .graphicsLayer {
-                        this@graphicsLayer.alpha = if (isRowFocused) 1f else 0f
+                        this@graphicsLayer.alpha = if (isActiveRow) 1f else 0f
                         this@graphicsLayer.translationY = verticalRingOffsetProvider()
                     }
                     .border(1.5.dp, Color.White, CardCornerShape)
@@ -594,7 +599,7 @@ fun NetflixMovieRow(
         }
 
         // Active Movie Metadata & Synopsis below row — slides in matching card direction when row is focused
-        if (isRowFocused) {
+        if (isActiveRow) {
             AnimatedContent(
                 targetState = metadataMovie,
                 modifier = Modifier

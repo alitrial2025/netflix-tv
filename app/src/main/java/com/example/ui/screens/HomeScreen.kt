@@ -992,7 +992,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
         repeat(2) {
             withFrameNanos { }
             if (currentFocusLevelState.intValue != requestedLevel) return@LaunchedEffect
-            if (runCatching { requester.requestFocus() }.isSuccess) return@LaunchedEffect
+            if (runCatching { requester.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
         }
     }
     LaunchedEffect(activeDisplayedCategoryRows.size, activeTab) {
@@ -1105,6 +1105,27 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
+            .handleHomeVerticalNavigation(
+                level = { currentFocusLevelState.intValue },
+                rowCount = activeDisplayedCategoryRows.size,
+                hasCategories = !isKidProfile && activeTab == "Home",
+                hasBillboard = !isKidProfile || activeTab == "Home",
+                onMove = { next ->
+                    currentFocusLevelState.intValue = next
+                    when {
+                        next < -1 -> requestNavBarFocus()
+                        next == -1 -> runCatching { billboardFocusRequester.requestFocus() }
+                        !isKidProfile && activeTab == "Home" && next == 0 -> {
+                            firstRowPrepared.value = true
+                            runCatching { categoriesFocusRequester.requestFocus() }
+                        }
+                        else -> {
+                            val firstRowLevel = if (!isKidProfile && activeTab == "Home") 1 else 0
+                            runCatching { activeRowFocusRequesters.getOrNull(next - firstRowLevel)?.requestFocus() }
+                        }
+                    }
+                }
+            )
             .pointerInput(isKidProfile, activeTab, maxLevelProvider) {
                 detectVerticalDragGestures(
                     onDragStart = {
@@ -1686,11 +1707,15 @@ private fun HomeRowWrapper(
                 }
                 true
             },
+            // A departing row may still own the Android focus node for one
+            // frame. Its debounced metadata/touch callback must not undo a
+            // newer vertical request while the destination is attaching.
+            isNavigationActive = { currentFocusLevelState.value == rowFocusLevel },
             onMovieFocused = { _ ->
-                onUpdateFocusLevel(if (isKidProfile || activeTab != "Home") index else index + 1)
+                if (currentFocusLevelState.value == rowFocusLevel) onUpdateFocusLevel(rowFocusLevel)
             },
             onRowFocused = {
-                onUpdateFocusLevel(if (isKidProfile || activeTab != "Home") index else index + 1)
+                if (currentFocusLevelState.value == rowFocusLevel) onUpdateFocusLevel(rowFocusLevel)
             },
             onMovieClick = { movie ->
                 viewModel.cacheMovie(movie)

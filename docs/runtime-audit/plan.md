@@ -6,9 +6,10 @@
 - [ ] Capture cold and warm startup, splash, auth/keyboard, walkthrough/profile setup, profile picker/edit/avatar/PIN, Home tabs, search/categories, details, player controls/audio/subtitles/settings and return navigation.
 - [ ] Record billboard and movie-card preview eligibility, resolution, preparation, first visible frame and cancellation while moving focus.
 - [ ] Attempt five distinct movies and five distinct TV shows; record resolution and first-frame durations, errors, playback stability, return/resume behavior and one next-episode handoff.
-- [ ] Exercise short taps, held/repeated D-pad keys, row boundaries, horizontal movement, vertical section movement, focus return and input during playback/overlays.
+- [x] Fix stale-row vertical focus handoff and departing-row work; verify nine new section/Compose/carousel regressions plus existing repeat/viewport/anchor tests (see `dpad-navigation.md`).
+- [ ] Exercise short taps, held/repeated D-pad keys, row boundaries, horizontal movement, vertical section movement, focus return and input during playback/overlays on the TV emulator/device.
 - [ ] Capture frame statistics and identify measured hotspots; implement focused fixes and thinner search/category/movie-row focus rings.
-- [ ] Align mobile Home category height/corners/tint/spacing, header-to-hero spacing, poster-derived background and hero/footer actions with the reference.
+- [x] Align mobile Home category height/corners/tint/spacing, header-to-hero spacing, poster-derived background and hero/footer actions with the reference; restore its custom download icon and capture native Android design previews.
 - [ ] Repeat affected tests on the same emulator configuration; compare timings and screenshots, and capture a separate walkthrough recording if supported.
 - [ ] Run relevant builds/tests/lint, update PRs and document production/device/network limitations.
 
