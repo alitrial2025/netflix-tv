@@ -10,7 +10,8 @@ data class NetMirrorStream(
     val expiresAt: Long,
     val title: String,
     val isRateLimited: Boolean = false,
-    val rawVideoUrl: String? = null
+    val rawVideoUrl: String? = null,
+    val sessionVersion: Long? = null
 )
 
 data class Caption(
@@ -43,4 +44,3 @@ fun TrailerStream.toNetMirrorStream(title: String = "Trailer", sourceId: String 
         expiresAt = System.currentTimeMillis() + 15 * 60 * 1000L,
         title = title
     )
-

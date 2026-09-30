@@ -2647,7 +2647,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 if (stream != null) {
-                    val version = directCDNResolver.sessionVersion
+                    val version = directCDNResolver.sessionVersionFor(stream)
                     cacheResolvedStream(cacheKey, stream, version)
                 }
                 stream
@@ -2664,7 +2664,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
     suspend fun fetchSubtitlesForStream(stream: com.example.data.NetMirrorStream, movie: Movie, season: Int, episode: Int): List<com.example.data.Caption> {
         return withContext(Dispatchers.IO) {
-            val sessionVersion = directCDNResolver.sessionVersion
+            val sessionVersion = directCDNResolver.sessionVersionFor(stream)
             try {
                 val captions = directCDNResolver.fetchSubtitlesForEpisode(movie, season, episode)
                 if (captions.isNotEmpty()) {

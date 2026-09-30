@@ -17,6 +17,7 @@ Play must establish a valid session without a Home dwell. Background warming is 
 | Native handshake exception | Initial fetch errors bypassed browser recovery | Preserve cancellation/rate-limit/session-change errors; ordinary native failures reach foreground fallback |
 | Low-RAM foreground | Memory classification could disable the necessary recovery path | Use installed WebView availability; background work still cannot open a WebView without a foreground request |
 | Viewer leaves | A promoted background WebView could outlive the viewer | Cancel promoted browser work when the last foreground request ends; run cleanup |
+| Delayed result after renewal | A late media/subtitle callback could be stamped with the replacement cookie generation | Bind each resolved stream to its original generation and preserve that binding through subtitle copies |
 | Natural ten-hour expiry | Newer dependent tokens could remain after their cookie expired | Clear cookie/token/route/manifest caches together and advance the generation; prevent cache hits from bypassing an expired session |
 
 ## Scheduling and priority
@@ -33,7 +34,7 @@ Play must establish a valid session without a Home dwell. Background warming is 
 
 The ten native stream attempts recorded in streams.json preceded these pipeline corrections. All failed to render a frame, including Mr. Robot; those timings are a baseline, not results for the new recovery path. Native logs showed handshake failures and incomplete verification cookies. Passing unit tests cannot prove provider availability.
 
-New deterministic checks cover a foreground request joining an already locked native handshake without a second generation; no browser work for background-only demand; cancellation cleanup; multiple viewers; timeout release; natural ten-hour expiry and its safety margin; and leaving Home during the quiet countdown. Existing session-rejection, token timestamp, cookie-completeness, remote-input gate and episode-resume tests remain required.
+New deterministic checks cover a foreground request joining an already locked native handshake without a second generation; no browser work for background-only demand; cancellation cleanup; multiple viewers; timeout release; natural ten-hour expiry and its safety margin; leaving Home during the quiet countdown; and a late media/subtitle result arriving after cookie replacement. Existing session-rejection, token timestamp, cookie-completeness, remote-input gate and episode-resume tests remain required.
 
 ## Runtime acceptance checks still required
 

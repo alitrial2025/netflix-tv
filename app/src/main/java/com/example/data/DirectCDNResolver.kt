@@ -164,7 +164,7 @@ class DirectCDNResolver(private val context: Context) {
         return lastSuccessfulVerifyAtMs > 0L && elapsed >= 0L && elapsed < 30 * 60_000L && hasValidSession()
     }
 
-    fun sessionVersionFor(stream: NetMirrorStream): Long = sessionGeneration.get()
+    fun sessionVersionFor(stream: NetMirrorStream): Long = stream.sessionVersion ?: -1L
 
     private class SessionRejectedException(val cookie: String? = null) :
         java.io.IOException("Playback session expired. Please retry.")
@@ -2243,7 +2243,7 @@ class DirectCDNResolver(private val context: Context) {
         repeat(2) { attempt ->
             val generation = sessionGeneration.get()
             try {
-                val result = resolveStreamOnce(movie, season, episode, purpose)
+                val result = resolveStreamOnce(movie, season, episode, purpose).copy(sessionVersion = generation)
                 currentCoroutineContext().ensureActive()
                 synchronized(sessionStateLock) {
                     if (generation != sessionGeneration.get()) throw SessionChangedException()

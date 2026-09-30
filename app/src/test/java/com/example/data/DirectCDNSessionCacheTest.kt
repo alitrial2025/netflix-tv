@@ -121,4 +121,22 @@ class DirectCDNSessionCacheTest {
         assertFalse(DirectCDNResolver(context).hasValidSession())
         assertEquals(0, JSONArray(prefs.getString("directcdn_sessions", "[]")).length())
     }
+
+    @Test fun delayedMediaAndSubtitleResultsCannotAdoptAReplacementSession() {
+        prefs.edit().putString("directcdn_sessions", JSONArray().put(session()).toString()).commit()
+        val resolver = DirectCDNResolver(context)
+        val inFlight = NetMirrorStream(
+            url = "https://example.invalid/video.m3u8", headers = emptyMap(), captions = emptyList(),
+            sourceId = "fixture", expiresAt = Long.MAX_VALUE, title = "Fixture",
+            sessionVersion = resolver.sessionVersion
+        )
+        // The cookie is replaced after media resolution, before the caller
+        // stores its result or an asynchronous subtitle response returns.
+        resolver.invalidateSessionByCookie(null)
+        val withCaptions = inFlight.copy(captions = listOf(Caption("https://example.invalid/sub.vtt", "English", "vtt")))
+        assertEquals(1L, resolver.sessionVersion)
+        assertEquals(0L, resolver.sessionVersionFor(inFlight))
+        assertEquals(0L, resolver.sessionVersionFor(withCaptions))
+        assertNotEquals(resolver.sessionVersion, resolver.sessionVersionFor(withCaptions))
+    }
 }
