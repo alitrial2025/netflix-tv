@@ -278,17 +278,12 @@ fun NetflixMovieRow(
             // Start the new target before cancelling the old animation so
             // Animatable can preserve its velocity during D-pad repeats.
             launch {
-                val diff = kotlin.math.abs(animIndex.value - targetOffset)
-                if (diff > 0.001f) {
-                    animIndex.animateTo(
-                        targetValue = targetOffset.toFloat(),
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = TvMotion.carouselStiffness(),
-                            visibilityThreshold = 0.005f
-                        )
-                    )
-                }
+                // Retarget even when the new destination equals the current
+                // position: a just-started glide may still be heading elsewhere.
+                animIndex.animateTo(
+                    targetValue = targetOffset.toFloat(),
+                    animationSpec = TvMotion.carouselSpring(0.005f)
+                )
             }
         }
     }

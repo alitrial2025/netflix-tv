@@ -579,7 +579,7 @@ fun HomeScreen(
     }
     val homeFocusPosition = focusTransition.animateFloat(
         transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(430f), visibilityThreshold = 0.005f)
+            TvMotion.carouselSpring(0.005f)
         },
         label = "homeFocusPosition"
     ) { it.toFloat() }
@@ -1069,7 +1069,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
     // each index boundary. A pixel spring moves immediately and keeps velocity.
     val scrollOffsetState = focusTransition.animateFloat(
         transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.carouselStiffness(), visibilityThreshold = 0.5f)
+            TvMotion.carouselSpring(0.5f)
         },
         label = "homeScrollOffsetPx"
     ) { calculateTargetScrollY(it) }

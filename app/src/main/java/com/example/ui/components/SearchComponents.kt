@@ -64,7 +64,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -397,7 +396,7 @@ fun SearchSection(
                             val code = event.nativeKeyEvent.keyCode
                             when (code) {
                                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
-                                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> !resultKeyPacer.accept(code)
+                                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> !resultKeyPacer.accept(code, repeatCount = event.nativeKeyEvent.repeatCount)
                                 else -> false
                             }
                         }
@@ -419,14 +418,14 @@ fun SearchSection(
 
                 val animatedRingX = animateDpAsState(
                     targetValue = targetRingX,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(600f)),
+                    animationSpec = TvMotion.focusRingSpring(0.1.dp),
                     label = "searchRingX"
                 )
 
                 val targetScrollY = (focusedRowIndex * rowStep.value).dp
                 val animatedScrollY = animateDpAsState(
                     targetValue = targetScrollY,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(430f)),
+                    animationSpec = TvMotion.carouselSpring(0.1.dp),
                     label = "searchGridScroll"
                 )
 
@@ -465,15 +464,10 @@ fun SearchSection(
                     // Smooth Sliding White Selection Ring — fits exactly over card without expanding
                     Box(
                         modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    animatedRingX.value.roundToPx(),
-                                    0
-                                )
-                            }
                             .width(cardWidth)
                             .height(cardHeight)
                             .graphicsLayer {
+                                translationX = animatedRingX.value.toPx()
                                 alpha = if (isResultsFocused && focusedCardIndex >= 0) 1f else 0f
                                 compositingStrategy = CompositingStrategy.ModulateAlpha
                             }

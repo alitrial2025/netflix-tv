@@ -8,10 +8,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import com.example.model.Movie
 import com.example.ui.util.HomeStartupGate
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -77,4 +79,16 @@ class TvCarouselNavigationTest {
         press(KeyEvent.KEYCODE_DPAD_CENTER)
         assertEquals(listOf("1"), selected)
     }
+    @Test fun immediateReversalSettlesBackOnTheSelectedHero() {
+        mount()
+        press(KeyEvent.KEYCODE_DPAD_RIGHT)
+        press(KeyEvent.KEYCODE_DPAD_LEFT)
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.waitForIdle()
+        assertTrue("A cancelled rightward glide must not leave the next hero on screen",
+            rule.onAllNodesWithText("Title 1", useUnmergedTree = true).fetchSemanticsNodes().isEmpty())
+        press(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals(listOf("0"), selected)
+    }
+
 }
