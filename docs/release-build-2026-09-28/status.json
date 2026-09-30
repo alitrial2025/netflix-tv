@@ -1,0 +1,10 @@
+{
+  "phase": "temporary_files_removed",
+  "cpu_cap_percent": 35,
+  "workers": 1,
+  "heap_mb": 1536,
+  "build_cache": false,
+  "configuration_cache": false,
+  "elapsed_seconds": 28,
+  "cpu_cap_enforced": true
+}

@@ -1,0 +1,64 @@
+;FFMETADATA1
+title=Netflix Pro — Your Next Watch Starts Here
+artist=Netflix Pro
+comment=Code-rendered app interface demonstration with illustrative artwork and an original synthesized soundtrack.
+[CHAPTER]
+TIMEBASE=1/1000
+START=0
+END=6000
+title=Every Story. One Remote.
+[CHAPTER]
+TIMEBASE=1/1000
+START=6000
+END=19000
+title=Make It Personal
+[CHAPTER]
+TIMEBASE=1/1000
+START=19000
+END=37000
+title=Find Your Next Story
+[CHAPTER]
+TIMEBASE=1/1000
+START=37000
+END=53000
+title=Follow Your Mood
+[CHAPTER]
+TIMEBASE=1/1000
+START=53000
+END=75000
+title=Keep Exploring
+[CHAPTER]
+TIMEBASE=1/1000
+START=75000
+END=98000
+title=Go Inside The Story
+[CHAPTER]
+TIMEBASE=1/1000
+START=98000
+END=119000
+title=One More Episode
+[CHAPTER]
+TIMEBASE=1/1000
+START=119000
+END=136000
+title=Have Something In Mind?
+[CHAPTER]
+TIMEBASE=1/1000
+START=136000
+END=151000
+title=Pick Up Where You Left Off
+[CHAPTER]
+TIMEBASE=1/1000
+START=151000
+END=168000
+title=Watch Your Way
+[CHAPTER]
+TIMEBASE=1/1000
+START=168000
+END=177000
+title=Your Profile. Your Choice.
+[CHAPTER]
+TIMEBASE=1/1000
+START=177000
+END=180000
+title=Your Next Watch Starts Here

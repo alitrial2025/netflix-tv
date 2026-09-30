@@ -1,0 +1,86 @@
+[
+  {
+    "start": 0,
+    "end": 6,
+    "screen": "intro",
+    "heading": "EVERY STORY. ONE REMOTE.",
+    "caption": "Meet Netflix Pro."
+  },
+  {
+    "start": 6,
+    "end": 19,
+    "screen": "profiles",
+    "heading": "MAKE IT PERSONAL",
+    "caption": "A space for everyone."
+  },
+  {
+    "start": 19,
+    "end": 37,
+    "screen": "home",
+    "heading": "FIND YOUR NEXT STORY",
+    "caption": "Featured stories. A world to explore."
+  },
+  {
+    "start": 37,
+    "end": 53,
+    "screen": "genres",
+    "heading": "FOLLOW YOUR MOOD",
+    "caption": "Eleven ways into your next watch."
+  },
+  {
+    "start": 53,
+    "end": 75,
+    "screen": "rows",
+    "heading": "KEEP EXPLORING",
+    "caption": "Across titles. Between rows. Always in focus."
+  },
+  {
+    "start": 75,
+    "end": 98,
+    "screen": "details",
+    "heading": "GO INSIDE THE STORY",
+    "caption": "Discover. Save. Make your choice."
+  },
+  {
+    "start": 98,
+    "end": 119,
+    "screen": "episodes",
+    "heading": "ONE MORE EPISODE",
+    "caption": "Your seasons. Your next chapter."
+  },
+  {
+    "start": 119,
+    "end": 136,
+    "screen": "search",
+    "heading": "HAVE SOMETHING IN MIND?",
+    "caption": "Find it with your remote."
+  },
+  {
+    "start": 136,
+    "end": 151,
+    "screen": "my",
+    "heading": "PICK UP WHERE YOU LEFT OFF",
+    "caption": "Continue Watching. My List. Your favourites."
+  },
+  {
+    "start": 151,
+    "end": 168,
+    "screen": "player",
+    "heading": "WATCH YOUR WAY",
+    "caption": "Seek, choose a language, settle in."
+  },
+  {
+    "start": 168,
+    "end": 177,
+    "screen": "edit",
+    "heading": "YOUR PROFILE. YOUR CHOICE.",
+    "caption": "Make the experience your own."
+  },
+  {
+    "start": 177,
+    "end": 180,
+    "screen": "outro",
+    "heading": "YOUR NEXT WATCH STARTS HERE",
+    "caption": "Netflix Pro for Android TV."
+  }
+]

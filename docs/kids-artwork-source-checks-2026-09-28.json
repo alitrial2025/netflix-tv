@@ -1,0 +1,39 @@
+{
+  "identities": [
+    {
+      "title": "Bluey",
+      "tmdb": "tv:82728",
+      "imdb_id": "tt7678620",
+      "verified": true
+    },
+    {
+      "title": "Bluey Minisodes",
+      "tmdb": "tv:256953",
+      "imdb_id": "tt32328599",
+      "verified": true
+    },
+    {
+      "title": "Trolls World Tour",
+      "tmdb": "movie:446893",
+      "imdb_id": "tt6587640",
+      "verified": true
+    },
+    {
+      "title": "Trolls Band Together",
+      "tmdb": "movie:901362",
+      "imdb_id": "tt14362112",
+      "verified": true
+    }
+  ],
+  "syntax": {
+    "files_parsed": 10,
+    "syntax_findings": []
+  },
+  "asset_count": 4,
+  "home_lookups_idle_gated": true,
+  "remote_artwork_requests_for_bundled_files": 0,
+  "image_alpha_verified": true,
+  "junit_tests_executed": false,
+  "build_performed": false,
+  "runtime_verified": false
+}

@@ -1,0 +1,78 @@
+{
+  "phase": "verification_complete",
+  "cpu_cap_percent": 35,
+  "workers": 1,
+  "heap_mb": 1536,
+  "build_cache": false,
+  "configuration_cache": false,
+  "elapsed_seconds": 6,
+  "cpu_cap_enforced": true,
+  "apk": "D:\\Netflixtv\\release\\NetflixProTV-28.9.2026-release.apk",
+  "apk_bytes": 24244116,
+  "sha256": "586263401208098c779e83cc9b74a0d395c2aa97a1135ce0298bd01dc4847a20",
+  "signature_verified": true,
+  "zip_integrity_verified": true,
+  "package_info": [
+    "package: name='com.netflixprotv.apk' versionCode='28092026' versionName='28.9.2026' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'",
+    "sdkVersion:'24'",
+    "targetSdkVersion:'35'",
+    "launchable-activity: name='com.example.MainActivity'  label='' icon=''"
+  ],
+  "character_assets": [
+    {
+      "file": "tv_82728.png",
+      "matches_source": true
+    },
+    {
+      "file": "tv_256953.png",
+      "matches_source": true
+    },
+    {
+      "file": "movie_446893.png",
+      "matches_source": true
+    },
+    {
+      "file": "movie_901362.png",
+      "matches_source": true
+    }
+  ],
+  "home_methods": [
+    {
+      "name": "HomeBrowseTab",
+      "dex": "classes3.dex",
+      "registers": 46,
+      "code_bytes": 4414
+    },
+    {
+      "name": "HomeKidsBackdrop",
+      "dex": "classes3.dex",
+      "registers": 15,
+      "code_bytes": 1556
+    },
+    {
+      "name": "HomeKidsProfileTransition",
+      "dex": "classes3.dex",
+      "registers": 48,
+      "code_bytes": 4504
+    },
+    {
+      "name": "HomeNavigationBar",
+      "dex": "classes3.dex",
+      "registers": 31,
+      "code_bytes": 1398
+    },
+    {
+      "name": "HomeScene",
+      "dex": "classes3.dex",
+      "registers": 25,
+      "code_bytes": 1912
+    },
+    {
+      "name": "HomeScreen",
+      "dex": "classes3.dex",
+      "registers": 91,
+      "code_bytes": 8462
+    }
+  ],
+  "tv_runtime_verified": false
+}

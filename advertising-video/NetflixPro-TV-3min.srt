@@ -1,0 +1,59 @@
+1
+00:00:00,000 --> 00:00:09,000
+Meet Netflix Pro
+The big-screen experience. Built around your remote.
+
+2
+00:00:09,000 --> 00:00:25,000
+Your Own Space
+Choose a profile. Keep your viewing experience personal.
+
+3
+00:00:25,000 --> 00:00:44,000
+A Home Worth Exploring
+Featured stories, clear choices, and a world of entertainment.
+
+4
+00:00:44,000 --> 00:01:05,000
+Find Your Mood
+Explore 11 genres. Open a category and discover its rows.
+
+5
+00:01:05,000 --> 00:01:23,000
+Made For Your Remote
+Move across titles and between rows. The focus stays clear.
+
+6
+00:01:23,000 --> 00:01:44,000
+Get To Know The Story
+Read the details. Add to My List. Choose what to watch next.
+
+7
+00:01:44,000 --> 00:01:57,000
+Your Next Episode
+Choose a season, browse episodes, and press play.
+
+8
+00:01:57,000 --> 00:02:14,000
+Find It With Your Remote
+Use the on-screen keyboard. Move straight into your results.
+
+9
+00:02:14,000 --> 00:02:28,000
+Back To Your Favourites
+Continue Watching, My List, and picks based on your activity.
+
+10
+00:02:28,000 --> 00:02:45,000
+Watch Your Way
+Seek with previews. Choose subtitles and audio in one place.
+
+11
+00:02:45,000 --> 00:02:54,000
+Make It Yours
+Name, icon, language, kids experience, and profile lock.
+
+12
+00:02:54,000 --> 00:03:00,000
+Your Next Watch Starts Here
+Discover Netflix Pro on your Android TV.

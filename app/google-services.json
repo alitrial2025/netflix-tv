@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "947498038800",
+    "project_id": "netflixpro-cca67",
+    "storage_bucket": "netflixpro-cca67.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:947498038800:android:a7576bf0db768a8bd2fc95",
+        "android_client_info": {
+          "package_name": "com.netflixprotv.apk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxPYXpob2zOLSBM_TRy8rjk2CR_Ye5mK4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:947498038800:android:a7576bf0db768a8bd2fc95",
+        "android_client_info": {
+          "package_name": "com.netflixpro.apk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxPYXpob2zOLSBM_TRy8rjk2CR_Ye5mK4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

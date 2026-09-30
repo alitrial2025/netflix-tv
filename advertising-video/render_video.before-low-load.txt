@@ -1,0 +1,726 @@
+"""Reproducible 180-second, 1080p60 interface advertising film.
+
+Uses app-source layouts and staged remote-control interactions, not an APK build
+or a claim about measured playback/startup performance. Artwork is illustrative.
+"""
+from pathlib import Path
+from functools import lru_cache
+import argparse, bisect, json, math, os, re, shutil, subprocess, time, wave
+import xml.etree.ElementTree as ET
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
+
+ROOT = Path(__file__).resolve().parent
+ASSETS = ROOT / 'assets'
+W, H, FPS, LENGTH = 1920, 1080, 60, 180
+S = 1.5  # Native coordinates: 1280 x 720, rendered with sharp 1080p text.
+RED = '#E50914'
+WHITE = '#F6F6F8'
+MUTED = '#B3BAC5'
+FONT = Path('C:/Windows/Fonts/arial.ttf')
+BOLD = Path('C:/Windows/Fonts/arialbd.ttf')
+LIGHT = Path('C:/Windows/Fonts/segoeuil.ttf')
+FFMPEG = Path(os.environ.get('AD_FFMPEG', 'C:/Users/mzazimhenga/Documents/Codex/2026-09-15/on/work/video-tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe'))
+CAT = json.loads((ROOT/'catalogue.json').read_text(encoding='utf-8'))
+BY_ID = {item['id']:item for item in CAT}
+FILMS = [i for i in CAT if i['type']=='movie']
+SERIES = [i for i in CAT if i['type']=='tv']
+GENRES = [
+    ('Dramas','Compelling stories','film','#CC8CAA'),
+    ('Comedies','Feel-good favourites','comedy','#E1B576'),
+    ('Action','High-stakes stories','bolt','#E78C77'),
+    ('Romance','Love & connection','heart','#E89BB8'),
+    ('Anime','Bold new worlds','star','#ADA5EA'),
+    ('Kids & Family','Watch together','family','#88C9C2'),
+    ('Sci-Fi','Beyond our world','rocket','#8CC6E5'),
+    ('Thrillers','On the edge','eye','#B1C59D'),
+    ('Documentaries','Real stories','globe','#D2BD94'),
+    ('Horror','After dark','moon','#C493AC'),
+    ('Fantasy','A little wonder','magic','#C1A6DF'),
+]
+SCENES = [
+    (0,9,'intro','MEET NETFLIX PRO','The big-screen experience. Built around your remote.'),
+    (9,25,'profiles','YOUR OWN SPACE','Choose a profile. Keep your viewing experience personal.'),
+    (25,44,'home','A HOME WORTH EXPLORING','Featured stories, clear choices, and a world of entertainment.'),
+    (44,65,'genres','FIND YOUR MOOD','Explore 11 genres. Open a category and discover its rows.'),
+    (65,83,'rows','MADE FOR YOUR REMOTE','Move across titles and between rows. The focus stays clear.'),
+    (83,104,'details','GET TO KNOW THE STORY','Read the details. Add to My List. Choose what to watch next.'),
+    (104,117,'episodes','YOUR NEXT EPISODE','Choose a season, browse episodes, and press play.'),
+    (117,134,'search','FIND IT WITH YOUR REMOTE','Use the on-screen keyboard. Move straight into your results.'),
+    (134,148,'my','BACK TO YOUR FAVOURITES','Continue Watching, My List, and picks based on your activity.'),
+    (148,165,'player','WATCH YOUR WAY','Seek with previews. Choose subtitles and audio in one place.'),
+    (165,174,'edit','MAKE IT YOURS','Name, icon, language, kids experience, and profile lock.'),
+    (174,180,'outro','YOUR NEXT WATCH STARTS HERE','Discover Netflix Pro on your Android TV.'),
+]
+STARTS = [s[0] for s in SCENES]
+
+def clamp(x,a=0,b=1): return max(a,min(b,x))
+def ease(x): x=clamp(x);return x*x*(3-2*x)
+def event(t,at,duration=0.8):return ease((t-at)/duration)
+def tween_keys(t,keys):
+    if t<=keys[0][0]:return keys[0][1]
+    for (a,x),(b,y) in zip(keys,keys[1:]):
+        if t<=b:return x+(y-x)*ease((t-a)/(b-a))
+    return keys[-1][1]
+def px(x):return round(x*S)
+def rgb(col):
+    if isinstance(col,tuple):return col
+    return tuple(int(col[i:i+2],16) for i in (1,3,5))
+
+@lru_cache(maxsize=100)
+def font(size,bold=False,light=False):return ImageFont.truetype(str(LIGHT if light else BOLD if bold else FONT),px(size))
+def text(im,x,y,value,size=14,color=WHITE,bold=False,anchor='lt',light=False):
+    ImageDraw.Draw(im).text((px(x),px(y)),str(value),font=font(size,bold,light),fill=rgb(color),anchor=anchor)
+def width(value,size=14,bold=False):return font(size,bold).getlength(str(value))/S
+def wrapped(im,x,y,value,max_width,size=14,color=WHITE,line_height=None,max_lines=3,bold=False):
+    line_height=line_height or size*1.45
+    words=value.split(); lines=[];line=''
+    for word in words:
+        candidate=(line+' '+word).strip()
+        if width(candidate,size,bold)>max_width and line:lines.append(line);line=word
+        else:line=candidate
+    if line:lines.append(line)
+    for idx,line in enumerate(lines[:max_lines]):text(im,x,y+idx*line_height,line,size,color,bold)
+    return min(len(lines),max_lines)*line_height
+def rr(im,box,r=8,fill='#222222',outline=None,stroke=1):
+    ImageDraw.Draw(im).rounded_rectangle(tuple(px(v) for v in box),radius=px(r),fill=rgb(fill) if fill else None,outline=rgb(outline) if outline else None,width=max(1,px(stroke)))
+def line(im,points,color=WHITE,stroke=2):ImageDraw.Draw(im).line([(px(x),px(y)) for x,y in points],fill=rgb(color),width=max(1,px(stroke)),joint='curve')
+def circle(im,x,y,r,fill=WHITE,outline=None,stroke=1):ImageDraw.Draw(im).ellipse((px(x-r),px(y-r),px(x+r),px(y+r)),fill=rgb(fill) if fill else None,outline=rgb(outline) if outline else None,width=max(1,px(stroke)))
+def icon(im,name,x,y,size=20,color=WHITE):
+    d=ImageDraw.Draw(im);c=rgb(color)
+    def pts(p):return [(px(x+a*size/24),px(y+b*size/24)) for a,b in p]
+    def l(p,st=2):d.line(pts(p),fill=c,width=max(1,px(st*size/24)),joint='curve')
+    def p(v):d.polygon(pts(v),fill=c)
+    if name=='play':p([(7,4),(20,12),(7,20)])
+    elif name=='pause':
+        rr(im,(x+size*.26,y+size*.22,x+size*.40,y+size*.78),1,color)
+        rr(im,(x+size*.59,y+size*.22,x+size*.73,y+size*.78),1,color)
+    elif name=='check':l([(3,12),(9,18),(21,5)],2.6)
+    elif name=='plus':l([(12,3),(12,21)]);l([(3,12),(21,12)])
+    elif name=='back':l([(13,4),(5,12),(13,20)]);l([(5,12),(22,12)])
+    elif name=='right':l([(8,4),(16,12),(8,20)])
+    elif name=='down':l([(5,8),(12,15),(19,8)])
+    elif name=='search':
+        circle(im,x+size*.41,y+size*.41,size*.26,None,color,1.7);l([(15,15),(22,22)],2.2)
+    elif name=='info':circle(im,x+size/2,y+size/2,size*.40,None,color,1.7);l([(12,10),(12,18)],2);circle(im,x+size*.5,y+size*.28,size*.04,color)
+    elif name=='pencil':l([(4,20),(19,5)],5);l([(3,21),(7,20)],1)
+    elif name=='lock':
+        rr(im,(x+size*.22,y+size*.44,x+size*.78,y+size*.92),2,color)
+        d.arc((px(x+size*.31),px(y+size*.04),px(x+size*.69),px(y+size*.66)),180,360,fill=c,width=max(1,px(size*.11)))
+    elif name=='star':
+        points=[]
+        for i in range(10):
+            a=-math.pi/2+i*math.pi/5;r=size*(.45 if i%2==0 else .19)
+            points.append((px(x+size/2+r*math.cos(a)),px(y+size/2+r*math.sin(a))))
+        d.polygon(points,fill=c)
+    elif name=='bolt':p([(13,1),(4,14),(11,14),(10,23),(21,9),(14,9)])
+    elif name=='heart':
+        circle(im,x+size*.32,y+size*.35,size*.21,color);circle(im,x+size*.68,y+size*.35,size*.21,color);p([(3,10),(12,22),(21,10)])
+    elif name=='film':
+        rr(im,(x+size*.12,y+size*.12,x+size*.88,y+size*.9),1,None,color,2)
+        for dy in (5,11,17):
+            rr(im,(x+size*.15,y+size*dy/24,x+size*.27,y+size*(dy+2)/24),0,color)
+            rr(im,(x+size*.73,y+size*dy/24,x+size*.85,y+size*(dy+2)/24),0,color)
+    elif name in ('globe','eye'):
+        circle(im,x+size*.5,y+size*.5,size*.40,None,color,1.5)
+        if name=='globe':l([(12,3),(12,21)],1);l([(3,12),(21,12)],1);d.ellipse((px(x+size*.32),px(y+size*.1),px(x+size*.68),px(y+size*.9)),outline=c,width=max(1,px(1)))
+        else:circle(im,x+size*.5,y+size*.5,size*.16,color)
+    elif name=='cc':rr(im,(x,y+size*.17,x+size,y+size*.83),1,None,color,1.5);text(im,x+size*.12,y+size*.29,'CC',size*.47,color,True)
+    elif name=='gear':
+        for i in range(8):
+            a=i*math.pi/4;l([(12+8*math.cos(a),12+8*math.sin(a)),(12+11*math.cos(a),12+11*math.sin(a))],4)
+        circle(im,x+size/2,y+size/2,size*.31,None,color,2);circle(im,x+size/2,y+size/2,size*.10,None,color,1)
+    elif name=='thumb':p([(3,10),(7,10),(12,2),(16,3),(14,10),(22,10),(19,22),(7,22),(7,10)]);rr(im,(x+size*.08,y+size*.45,x+size*.22,y+size*.92),1,color)
+    elif name=='close':l([(5,5),(19,19)]);l([(19,5),(5,19)])
+    elif name=='replay':
+        d.arc((px(x+size*.2),px(y+size*.2),px(x+size*.9),px(y+size*.9)),210,530,fill=c,width=max(1,px(2)));p([(3,6),(12,1),(12,10)])
+    elif name=='backspace':p([(7,3),(22,3),(22,21),(7,21),(1,12)]);icon(im,'close',x+size*.42,y+size*.21,size*.53,'#111111')
+    elif name=='family':
+        circle(im,x+size*.33,y+size*.24,size*.14,color);circle(im,x+size*.70,y+size*.31,size*.11,color)
+        rr(im,(x+size*.16,y+size*.43,x+size*.46,y+size*.93),2,color);rr(im,(x+size*.59,y+size*.48,x+size*.82,y+size*.93),2,color)
+    elif name=='moon':circle(im,x+size*.48,y+size*.52,size*.4,color);circle(im,x+size*.67,y+size*.30,size*.31,'#20242C')
+    elif name=='rocket':p([(3,15),(12,5),(22,2),(19,12),(9,21)]);circle(im,x+size*.63,y+size*.35,size*.10,'#20242C');l([(3,21),(7,17)],3)
+    elif name=='comedy':rr(im,(x+size*.1,y+size*.15,x+size*.8,y+size*.88),5,None,color,1.5);circle(im,x+size*.30,y+size*.39,size*.05,color);circle(im,x+size*.61,y+size*.39,size*.05,color);d.arc((px(x+size*.26),px(y+size*.40),px(x+size*.66),px(y+size*.74)),0,180,fill=c,width=max(1,px(2)))
+    else:icon(im,'star',x,y,size,color)
+
+@lru_cache(maxsize=128)
+def asset(name):return Image.open(ASSETS/name).convert('RGB')
+@lru_cache(maxsize=100)
+def cover(name,w,h,position=(.5,.5)):
+    return ImageOps.fit(asset(name),(int(w),int(h)),method=Image.Resampling.LANCZOS,centering=position)
+def picture(im,name,box,r=0,position=(.5,.5)):
+    x,y,x2,y2=[px(v) for v in box];w=x2-x;h=y2-y
+    if w<=0 or h<=0:return
+    bit=cover(name,w,h,position)
+    if r:
+        mask=Image.new('L',(w,h));ImageDraw.Draw(mask).rounded_rectangle((0,0,w,h),radius=px(r),fill=255)
+        im.paste(bit,(x,y),mask)
+    else:im.paste(bit,(x,y))
+
+@lru_cache(maxsize=48)
+def shade(w,h,axis,stops):
+    arr=np.arange(w if axis=='x' else h,dtype=np.float32)
+    vals=np.interp(arr,np.array([a for a,b in stops])*(w if axis=='x' else h),[b for a,b in stops])
+    alpha=np.broadcast_to(vals[None,:] if axis=='x' else vals[:,None],(h,w)).astype(np.uint8)
+    layer=np.zeros((h,w,4),dtype=np.uint8);layer[:,:,3]=alpha
+    return Image.fromarray(layer,'RGBA')
+def scrim(im,box,axis='x',stops=((0,235),(.35,210),(.75,0),(1,0)),r=0):
+    x,y,x2,y2=[px(v) for v in box];w=x2-x;h=y2-y
+    layer=shade(w,h,axis,tuple(stops))
+    if r:
+        mask=Image.new('L',(w,h));ImageDraw.Draw(mask).rounded_rectangle((0,0,w,h),radius=px(r),fill=255)
+        a=np.minimum(np.asarray(mask),np.asarray(layer.getchannel('A'))).astype('uint8')
+        layer=layer.copy();layer.putalpha(Image.fromarray(a))
+    im.paste(layer,(x,y),layer)
+def base(color='#090B10'):return Image.new('RGB',(W,H),rgb(color))
+
+def svg_shapes(path):
+    root=ET.parse(path).getroot();vb=list(map(float,root.attrib['viewBox'].split()));shapes=[]
+    for e in root.iter('{http://www.w3.org/2000/svg}path'):
+        tokens=re.findall(r'[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?',e.attrib['d'])
+        i=0;cmd='';cur=(0.,0.);start=cur;points=[];sub=[]
+        while i<len(tokens):
+            if tokens[i].isalpha():cmd=tokens[i];i+=1
+            rel=cmd.islower();c=cmd.upper()
+            if c=='Z':
+                if points:sub.append(points);points=[]
+                cur=start;cmd='';continue
+            n={'M':2,'L':2,'H':1,'V':1,'C':6}.get(c)
+            if n is None:raise ValueError('Unsupported SVG path command '+cmd)
+            v=list(map(float,tokens[i:i+n]));i+=n
+            if c in ('M','L'):
+                dest=(v[0]+(cur[0] if rel else 0),v[1]+(cur[1] if rel else 0))
+                if c=='M':
+                    if points:sub.append(points)
+                    points=[];start=dest;cmd='l' if rel else 'L'
+                points.append(dest);cur=dest
+            elif c=='H':cur=(v[0]+(cur[0] if rel else 0),cur[1]);points.append(cur)
+            elif c=='V':cur=(cur[0],v[0]+(cur[1] if rel else 0));points.append(cur)
+            elif c=='C':
+                p0=cur;p1=(v[0]+(cur[0] if rel else 0),v[1]+(cur[1] if rel else 0));p2=(v[2]+(cur[0] if rel else 0),v[3]+(cur[1] if rel else 0));p3=(v[4]+(cur[0] if rel else 0),v[5]+(cur[1] if rel else 0))
+                for u in np.linspace(0,1,20)[1:]:points.append(tuple((1-u)**3*p0[k]+3*(1-u)**2*u*p1[k]+3*(1-u)*u*u*p2[k]+u**3*p3[k] for k in range(2)))
+                cur=p3
+        if points:sub.append(points)
+        col=e.attrib.get('fill',RED);col='#B1060F' if col.startswith('url') else col
+        shapes.append((sub,col))
+    return vb,shapes
+LOGO=svg_shapes(ASSETS/'netflix-logo.svg');N_LOGO=svg_shapes(ASSETS/'netflix-n.svg')
+def logo(im,x,y,w,h,full=False):
+    vb,shapes=LOGO if full else N_LOGO
+    d=ImageDraw.Draw(im)
+    for subs,col in shapes:
+        for points in subs:d.polygon([(px(x+a*w/vb[2]),px(y+b*h/vb[3])) for a,b in points],fill=rgb(col))
+def ring(im,box,r=10):rr(im,box,r,None,WHITE,2.5)
+def button(im,x,y,label,w=100,primary=False,selected=False,symbol=None,h=38):
+    rr(im,(x,y,x+w,y+h),7,'#F7F7F7' if primary else '#2D3038')
+    col='#111318' if primary else WHITE
+    total=width(label,13,True)+(26 if symbol else 0);start=x+(w-total)/2
+    if symbol:icon(im,symbol,start,y+(h-18)/2,18,col);start+=26
+    text(im,start,y+h/2,label,13,col,True,anchor='lm')
+    if selected:ring(im,(x-3,y-3,x+w+3,y+h+3),10)
+def avatar(im,name,box,r=6):picture(im,'avatar-'+name+'.jpg',box,r)
+def nav(im,selected='Home',focus=None):
+    avatar(im,'alex',(16,10,44,38),6);text(im,52,24,'Alex',13,WHITE,True,'lm');icon(im,'down',91,15,18,MUTED)
+    slots=[('Search',476,40),('Home',520,74),('Series',599,76),('Films',680,67),('My Netflix',752,113)]
+    for label,x,w in slots:
+        active=focus==label
+        if active:rr(im,(x,8,x+w,40),16,'#FFFFFF')
+        if label=='Search':icon(im,'search',x+10,14,20,'#000000' if active else MUTED)
+        else:text(im,x+w/2,24,label,12.5,'#000000' if active else '#D2D4D8',True,'mm')
+        if selected==label and not active:rr(im,(x+w/2-9,40,x+w/2+9,43),2,RED)
+    logo(im,1245,9,17,29)
+
+@lru_cache(maxsize=12)
+def profile_ui(selected=0):
+    im=base('#000000');picture(im,'interstellar-backdrop.jpg',(0,0,1280,720))
+    scrim(im,(0,0,1280,720),'x',((0,255),(.30,255),(.43,225),(.62,70),(.92,0),(1,0)))
+    scrim(im,(0,0,1280,720),'y',((0,45),(.4,0),(1,150)))
+    logo(im,52,42,136,36,True);text(im,52,91,"Who's watching?",28,WHITE,True)
+    for idx,(name,key) in enumerate([('Alex','alex'),('Sam','sam'),('Kids','kids')]):
+        yy=152+idx*74;chosen=selected==idx;sz=68 if chosen else 58;xx=100+(68-sz)/2
+        if chosen:icon(im,'pencil',57,yy+24,22,MUTED);ring(im,(96,yy-4,172,yy+72),8)
+        avatar(im,key,(xx,yy+(68-sz)/2,xx+sz,yy+(68+sz)/2),6)
+        text(im,185,yy+34,name,20,WHITE if chosen else '#9D9D9D',chosen,'lm')
+        if name=='Sam':icon(im,'lock',235,yy+26,17,'#989898')
+    rr(im,(105,379,163,437),6,'#242424','#515151',1.5);icon(im,'plus',119,393,30,'#ABABAB');text(im,185,408,'Add Profile',20,'#999999',False,'lm')
+    text(im,1224,548,'INTERSTELLAR',49,WHITE,False,'rt',True);logo(im,1144,620,12,20);text(im,1164,630,'FILM',11,MUTED,False,'lm')
+    text(im,1224,667,'2014     Science Fiction     13+',13,MUTED,False,'rt')
+    return im
+
+
+@lru_cache(maxsize=4)
+def profile_motion_ui(pos):
+    ui=profile_ui(-1).copy()
+    for i,(name,key) in enumerate([('Alex','alex'),('Sam','sam'),('Kids','kids')]):
+        strength=max(0,1-abs(pos-i));sz=58+10*strength;yy=152+i*74
+        avatar(ui,key,(134-sz/2,yy+34-sz/2,134+sz/2,yy+34+sz/2),6)
+        text(ui,185,yy+34,name,20,WHITE if strength>.5 else '#9D9D9D',strength>.5,'lm')
+    ring(ui,(96,148+pos*74,172,224+pos*74),8);icon(ui,'pencil',57,176+pos*74,22,MUTED)
+    return ui
+
+@lru_cache(maxsize=16)
+def billboard_ui(title_id='blade-runner-2049',focus='Play',nav_focus=None):
+    item=BY_ID[title_id];im=base('#15212D');nav(im,focus=nav_focus)
+    box=(16,50,1264,472);picture(im,item['backdrop_file'],box,18)
+    scrim(im,box,'x',((0,246),(.34,220),(.58,100),(.82,0),(1,0)),18)
+    scrim(im,box,'y',((0,0),(.55,0),(1,208)),18)
+    yy=218 if title_id=='blade-runner-2049' else 256
+    rr(im,(48,yy,51,yy+13),1,RED);text(im,60,yy+6,'F E A T U R E D',11,WHITE,True,'lm')
+    if title_id=='blade-runner-2049':text(im,48,244,'BLADE RUNNER',37,WHITE,False,light=True);text(im,48,287,'2 0 4 9',30,WHITE,False,light=True)
+    else:text(im,48,281,item['title'],36,WHITE,True)
+    text(im,48,333,str(item['year'])+'     Science Fiction     2h 44m     16+',13,'#D0D2D8')
+    wrapped(im,48,360,item['overview'],450,14,'#D0D2D8',20,2)
+    button(im,48,406,'Play',82,True,focus=='Play','play');button(im,142,406,'More Info',118,False,focus=='More Info','info')
+    rr(im,(1130,411,1236,444),16,'#15171CE5'[:7]);rr(im,(1142,425,1166,430),3,WHITE)
+    for k in range(4):circle(im,1179+k*11,427.5,2.3,'#8D919C')
+    scrim(im,(0,472,1280,720),'y',((0,0),(1,225)))
+    return im
+
+@lru_cache(maxsize=4)
+def genre_strip():
+    im=Image.new('RGB',(px(11*224),px(64)),rgb('#10151D'))
+    for idx,(name,sub,sym,col) in enumerate(GENRES):
+        x=224*idx;accent=np.array(rgb(col));blend=tuple(np.round(np.array([26,30,38])*.87+accent*.13).astype(int))
+        rr(im,(x,0,x+212,64),12,blend,'#424852',1)
+        badge=tuple(np.round(np.array([17,21,28])*.84+accent*.16).astype(int))
+        rr(im,(x+12,15,x+46,49),10,badge);icon(im,sym,x+19.5,22,19,col)
+        text(im,x+57,18,name,14,WHITE,True);text(im,x+57,38,sub,11,'#ADB5C3')
+    return im
+def genres(im,y=512,index=0.0,selected=False):
+    text(im,16,y-25,'Explore categories',12,'#BEC2CA');text(im,1250,y-25,'11 genres',11,'#8D949F',False,'rt')
+    strip=genre_strip();start=px(index*224);visible=strip.crop((start,0,start+px(1248),px(64)))
+    im.paste(visible,(px(16),px(y)))
+    if selected:ring(im,(16,y,228,y+64),12)
+
+def row(im,y,title,items,index=0.0,selected=True,progress=False):
+    if not items:return
+    text(im,16,y-39,title,22,WHITE,True);text(im,1250,y-34,f'{int(round(index))%len(items)+1} / {len(items)}',12,'#BAC1CC',False,'rt')
+    i=int(math.floor(index));fract=index-i
+    a=items[i%len(items)];b=items[(i+1)%len(items)]
+    for off in range(-1,6):
+        j=i+1+off;x=469+(off-fract)*206
+        if x>1280 or x+190<0:continue
+        item=items[j%len(items)];picture(im,item['poster_file'],(x,y,x+190,y+270),12)
+    hero=Image.blend(cover(a['backdrop_file'],px(437),px(270)),cover(b['backdrop_file'],px(437),px(270)),fract) if fract else cover(a['backdrop_file'],px(437),px(270))
+    mask=Image.new('L',hero.size);ImageDraw.Draw(mask).rounded_rectangle((0,0,*hero.size),radius=px(12),fill=255)
+    im.paste(hero,(px(16),px(y)),mask);scrim(im,(16,y,453,y+270),'y',((0,15),(.4,0),(1,235)),12)
+    logo(im,29,y+14,13,23);item=a if fract<.5 else b
+    text(im,32,y+204,item['title'],24,WHITE,True);text(im,32,y+239,str(item['year'])+'   '+('Series' if item['type']=='tv' else 'Movie'),12,MUTED)
+    if progress:rr(im,(30,y+258,439,y+261),2,'#66666A');rr(im,(30,y+258,184,y+261),2,RED)
+    if selected:ring(im,(16,y,453,y+270),12)
+
+@lru_cache(maxsize=6)
+def home_ui(focus='Play',cat_index=0.,scroll=0.,title='blade-runner-2049',dropdown=False):
+    im=billboard_ui(title,focus).copy();genres(im,512,cat_index,focus=='category')
+    row(im,633,'Top 10 Movies & TV Shows in Your Country Today',FILMS,0,False)
+    if scroll:
+        content=im.crop((0,px(48),W,H));im.paste('#080B10',(0,px(48),W,H));im.paste(content,(0,px(48-scroll)));rr(im,(0,0,1280,48),0,'#0D1219');nav(im)
+    if dropdown:
+        rr(im,(16,8,276,274),20,'#222222','#2B2B2B');rr(im,(26,18,266,69),12,WHITE)
+        for i,(name,key) in enumerate([('Alex','alex'),('Sam','sam'),('Kids','kids')]):
+            y=25+i*54;avatar(im,key,(34,y,66,y+32),5);text(im,78,y+16,name,15,'#111111' if i==0 else WHITE,i==0,'lm')
+            if i==0:icon(im,'check',231,y+7,17,'#111111')
+        line(im,[(33,185),(259,185)],'#3F3F3F',1);text(im,38,205,'Help',14,WHITE);text(im,38,244,'Exit Netflix',14,WHITE)
+    return im
+
+@lru_cache(maxsize=4)
+def browse_ui(index=0.,vertical=0.,tab='Home',category=None):
+    im=base('#101A25');items=FILMS if tab!='Series' else SERIES
+    sel=items[round(index)%len(items)];picture(im,sel['backdrop_file'],(590,48,1280,345));scrim(im,(490,48,1280,348),'x',((0,255),(.32,195),(.8,55),(1,40)));scrim(im,(0,48,1280,380),'y',((0,70),(.5,80),(1,255)))
+    if category:
+        icon(im,'back',18,14,23,WHITE);text(im,55,27,category,20,WHITE,True,'lm');logo(im,1245,9,17,29)
+    else:nav(im,tab)
+    text(im,20,100,sel['title'],39,WHITE,True);text(im,20,152,str(sel['year'])+'     '+('Movie' if sel['type']=='movie' else 'Series')+'     16+',14,MUTED)
+    wrapped(im,20,181,sel['overview'],495,14,MUTED,20,2)
+    # Selected title remains within the same fixed ring while the strips slide.
+    title1='Trending '+category if category else 'Top 10 Movies & TV Shows in Your Country Today'
+    yy=328-vertical
+    row(im,yy,title1,items,index,vertical<140)
+    row(im,yy+333,'Award-Winning Cinema & Must-Watch Masterpieces',FILMS[1:]+FILMS[:1],max(0,index-1),vertical>=140)
+    if vertical:
+        rr(im,(0,0,1280,48),0,'#0D1219')
+        if category:icon(im,'back',18,14,23,WHITE);text(im,55,27,category,20,WHITE,True,'lm');logo(im,1245,9,17,29)
+        else:nav(im,tab)
+    return im
+
+@lru_cache(maxsize=12)
+def details_ui(saved=False,focus='Play'):
+    item=BY_ID['the-dark-knight'];im=base();picture(im,item['backdrop_file'],(0,0,1280,720))
+    scrim(im,(0,0,1280,720),'x',((0,235),(.4,170),(1,70)));scrim(im,(0,0,1280,720),'y',((0,35),(.35,35),(1,255)))
+    logo(im,1216,24,24,40);logo(im,40,353,12,22);text(im,62,364,'F I L M',12,MUTED,True,'lm')
+    text(im,40,393,'The Dark Knight',44,WHITE,True);text(im,40,450,'Movie  ·  Action  ·  2008  ·  2h 32m    16+    CC',14,MUTED)
+    wrapped(im,40,486,item['overview'],500,14,WHITE,20,3)
+    button(im,40,563,'Play',83,True,focus=='Play','play',42)
+    for symbol,x,chosen in [('check' if saved else 'plus',139,focus=='list'),('thumb',194,focus=='like')]:
+        rr(im,(x,563,x+42,605),21,'#282A30','#999999',1);icon(im,symbol,x+10,573,22,WHITE)
+        if chosen:ring(im,(x-3,560,x+45,608),24)
+    if saved:text(im,249,584,'Added to My List',13,WHITE,False,'lm')
+    rr(im,(930,465,1240,531),10,'#191E29','#3C424E',1);icon(im,'film',944,483,23,MUTED);wrapped(im,978,479,'A hero tested by a city on the edge.',246,14,WHITE,19,2)
+    rr(im,(930,543,1240,614),10,'#171C27','#3C424E',1);icon(im,'info',944,560,23,MUTED);wrapped(im,978,556,'Christian Bale, Heath Ledger, Aaron Eckhart',242,13,WHITE,18,2);text(im,978,598,'Director: Christopher Nolan',11,MUTED)
+    x=40
+    for label in ['Details','More like this','Audio & Subtitles']:
+        ww=width(label,14,True)+36;rr(im,(x,654,x+ww,690),18,'#25272D');text(im,x+ww/2,672,label,14,WHITE,True,'mm');x+=ww+12
+    return im
+
+@lru_cache(maxsize=4)
+def episode_ui(season=1,index=0.):
+    im=base('#0C1017');item=BY_ID['stranger-things'];picture(im,item['backdrop_file'],(440,0,1280,385));scrim(im,(280,0,1280,387),'x',((0,255),(.3,180),(1,40)));scrim(im,(0,0,1280,392),'y',((0,50),(.5,80),(1,255)))
+    logo(im,1216,24,24,40);text(im,40,62,'STRANGER THINGS',38,WHITE,True);text(im,40,116,'Series  ·  Sci-Fi & Fantasy  ·  2016  ·  16+',14,MUTED)
+    wrapped(im,40,150,item['overview'],490,14,WHITE,20,2)
+    button(im,40,218,'Play Episode',150,True,False,'play',42)
+    text(im,40,287,'Episodes',23,WHITE,True)
+    for s in range(1,5):
+        x=40+(s-1)*113;rr(im,(x,330,x+101,363),16,'#FFFFFF' if season==s else '#292C33');text(im,x+50,346,'Season '+str(s),14,'#111111' if season==s else WHITE,season==s,'mm')
+    yy=394;frac=index-math.floor(index);idx=int(index)
+    for off in range(-1,5):
+        x=493+(off-frac)*206;j=idx+1+off
+        picture(im,item['backdrop_file'],(x,yy,x+190,yy+220),12,(clamp(.28+j*.09),.5));scrim(im,(x,yy,x+190,yy+220),'y',((0,30),(.55,0),(1,210)),12)
+        text(im,x+12,yy+12,'EP '+str(j+1),11,WHITE,True);text(im,x+12,yy+184,'Episode '+str(j+1),14,WHITE,True)
+    picture(im,item['backdrop_file'],(40,yy,477,yy+220),12,(.42,.5));scrim(im,(40,yy,477,yy+220),'y',((0,30),(.4,0),(1,205)),12)
+    rr(im,(52,yy+10,101,yy+29),4,'#15171B');text(im,59,yy+13,'EP '+str(round(index)+1),11,WHITE,True)
+    text(im,56,yy+169,'Episode '+str(round(index)+1),22,WHITE,True);text(im,56,yy+199,'Season '+str(season)+'  ·  50m',12,MUTED);ring(im,(40,yy,477,yy+220),12)
+    text(im,40,665,'Select an episode to start watching.',14,MUTED)
+    return im
+
+@lru_cache(maxsize=40)
+def search_ui(query='',key='',results=False):
+    im=base('#000000');nav(im,'Search')
+    rr(im,(40,68,270,116),12,'#222222','#454545');icon(im,'search',55,82,19,'#8C8C8C');text(im,84,92,query+'|' if query else 'Search movies, TV shows...',14,WHITE if query else '#909090',False,'lm')
+    rr(im,(40,130,206,164),5,'#252525');rr(im,(101,145,149,150),3,'#CFCFCF');rr(im,(214,130,270,164),5,'#191919');icon(im,'backspace',231,138,18,WHITE)
+    for n,c in enumerate('abcdefghijklmnopqrstuvwxyz1234567890'):
+        x=40+(n%6)*39;y=172+(n//6)*34;chosen=c==key;rr(im,(x,y,x+33,y+28),5,'#FFFFFF' if chosen else '#191919');text(im,x+16.5,y+14,c,14,'#000000' if chosen else WHITE,True,'mm')
+    text(im,40,407,'GENRES & CATEGORIES',11,'#858585',True)
+    for n,(label,sym) in enumerate([('Action','film'),('Comedy','comedy'),('Sci-Fi','rocket'),('Kids & Family','family')]):
+        y=436+n*36;icon(im,sym,42,y,18,MUTED);text(im,73,y+9,label,14,MUTED,False,'lm')
+    text(im,302,70,'Results for “'+query+'”' if query else 'Your search recommendations',20,WHITE,True)
+    items=[i for i in CAT if query.lower() in i['title'].lower()][:8] if query else FILMS[:8]
+    for n,it in enumerate(items):
+        x=302+(n%4)*230;y=112+(n//4)*349;picture(im,it['poster_file'],(x,y,x+214,y+321),12)
+        if results and n==0:ring(im,(x,y,x+214,y+321),12)
+    return im
+
+@lru_cache(maxsize=4)
+def my_ui(index=0.,vertical=0.):
+    im=base('#111823');nav(im,'My Netflix')
+    item=BY_ID['interstellar'];picture(im,item['backdrop_file'],(665,48,1280,312));scrim(im,(490,48,1280,315),'x',((0,255),(.32,200),(1,25)));scrim(im,(0,48,1280,335),'y',((0,20),(.3,40),(1,255)))
+    text(im,20,90,'Interstellar',39,WHITE,True);text(im,20,143,'2014    Science Fiction    2h 49m    13+',14,MUTED)
+    wrapped(im,20,177,'Pick up your story where you left off.',450,15,WHITE,21,2)
+    watching=[item,BY_ID['stranger-things'],BY_ID['the-dark-knight']]
+    row(im,324-vertical,'Continue Watching for Alex',watching,index,vertical<140,True)
+    row(im,654-vertical,'My List (Alex)',[BY_ID['the-dark-knight'],BY_ID['inception'],item],0,vertical>=140)
+    if vertical:rr(im,(0,0,1280,48),0,'#0D1219');nav(im,'My Netflix')
+    return im
+
+@lru_cache(maxsize=40)
+def audio_modal_ui(focus='English'):
+    im=base('#050607');icon(im,'cc',60,41,28,RED);text(im,100,43,'Audio & Subtitles',24,WHITE,True);rr(im,(1172,40,1220,88),24,'#282828','#777777',1.5);icon(im,'close',1185,53,22,WHITE)
+    text(im,60,134,'Audio (2)',16,'#8C8C8C',True);text(im,664,134,'Subtitles (8)',16,'#8C8C8C',True)
+    for n,label in enumerate(['English (Original)','Spanish']):
+        y=179+n*63;rr(im,(60,y,616,y+48),10,'#222222' if n==0 else '#151515');text(im,82,y+24,label,18,WHITE,n==0,'lm')
+        if n==0:icon(im,'check',577,y+14,20,RED)
+    for n,label in enumerate(['Off','English','Spanish','French','German','Italian','Portuguese','Japanese']):
+        y=179+n*54;sel=label==focus;rr(im,(664,y,1220,y+44),10,'#FFFFFF' if sel else '#151515');text(im,684,y+22,label,17,'#111111' if sel else WHITE,sel,'lm')
+        if sel:icon(im,'check',1180,y+12,20,'#111111')
+    return im
+def clock(seconds):
+    sec=int(seconds);return f'{sec//3600}:{sec%3600//60:02d}:{sec%60:02d}'
+@lru_cache(maxsize=6)
+def player_ui(progress=.38,sub='Off',scrubbing=False,modal=False,controls=True,t=0):
+    if modal:return audio_modal_ui('English').copy()
+    im=base();picture(im,'interstellar-backdrop.jpg',(0,0,1280,720))
+    if controls:
+        scrim(im,(0,0,1280,720),'y',((0,145),(.28,0),(.5,0),(.83,230),(1,255)))
+        icon(im,'back',40,25,26);icon(im,'replay',79,25,26);text(im,120,38,'OPTIONS',12,MUTED,True,'lm');text(im,1240,25,'Interstellar',20,WHITE,True,'rt');text(im,1240,56,'2014',14,MUTED,False,'rt')
+        if scrubbing:
+            for k in range(-2,3):
+                x=538+k*128;picture(im,'interstellar-backdrop.jpg',(x,491,x+120,559),5,(clamp(.5+k*.12),.5));
+                if k==0:ring(im,(x,491,x+120,559),5)
+            rr(im,(544,568,652,593),5,'#FFFFFF');text(im,598,580,clock(progress*10140),14,'#000000',True,'mm')
+        rr(im,(40,615,88,663),4,'#24282C');icon(im,'pause',52,627,24)
+        text(im,103,639,clock(progress*10140),15,WHITE,False,'lm');text(im,1240,639,'2:49:00',15,WHITE,False,'rm')
+        rr(im,(181,637,1160,641),2,'#6B6E73');rr(im,(181,637,181+979*progress,641),2,RED);circle(im,181+979*progress,639,6,RED)
+        icon(im,'cc',66,681,19,MUTED);text(im,92,691,'Subtitles:',13,MUTED,True,'lm')
+        x=179
+        for label in ['Off','English','Spanish','French','German']:
+            sel=label==sub;ww=width(label,13,True)+27+(19 if sel else 0);rr(im,(x,675,x+ww,706),16,'#FFFFFF' if sel else '#22252A')
+            if sel:icon(im,'check',x+11,683,15,'#111111')
+            text(im,x+ww/2+(8 if sel else 0),691,label,13,'#111111' if sel else '#B5B8BE',True,'mm');x+=ww+10
+        icon(im,'gear',1217,677,24,MUTED)
+    if sub=='English' and not modal:
+        # Original demonstration subtitle, not dialogue copied from the film.
+        val='Every story starts with a choice.'
+        y=476 if controls else 648
+        tw=width(val,23,True);rr(im,(640-tw/2-12,y-6,640+tw/2+12,y+33),4,'#0B0B0B');text(im,640,y,val,23,WHITE,True,'mt')
+    return im
+
+@lru_cache(maxsize=12)
+def edit_ui(focus=0,language=False):
+    im=base('#000000')
+    if language:
+        text(im,64,40,'Update profile language',32,WHITE,True);text(im,64,89,'Choose the language for this profile.',14,'#909090')
+        columns=[['Dansk','Deutsch','English','Español','Filipino','Français','Hrvatski'],['Indonesia','Italiano','Magyar','Melayu','Nederlands','Norsk bokmål','Polski','Português'],['Română','Suomi','Svenska','Tiếng Việt','Türkçe','Čeština','Ελληνικά','Русский'],['Українська','עברית','Arabic','Hindi','Thai','Chinese','Japanese','Korean']]
+        for c,items in enumerate(columns):
+            for row_no,label in enumerate(items):
+                x=64+c*287;y=144+row_no*49;chosen=label=='English'
+                if chosen:rr(im,(x,y,x+259,y+38),20,WHITE)
+                text(im,x+14,y+19,label,14,'#111111' if chosen else WHITE,chosen,'lm')
+        button(im,64,631,'Done',101,focus==7,focus==7,h=42)
+        return im
+    text(im,64,40,'Edit profile',32,WHITE,True);text(im,64,87,'Select what you want to change.',14,'#909090')
+    opts=[('Name','info'),('Icon','star'),('Kids experience (OFF)','family'),('Game handle','star'),('Language','globe'),('Profile lock (PIN Off)','lock')]
+    for n,(label,sym) in enumerate(opts):
+        y=124+n*54;sel=n==focus;rr(im,(64,y,484,y+44),4,'#FFFFFF' if sel else '#222222');col='#111111' if sel else WHITE
+        icon(im,sym,82,y+12,20,col);text(im,117,y+22,label,15,col,sel,'lm');icon(im,'right',453,y+13,18,col)
+    rr(im,(64,466,185,488),3,'#252525');text(im,73,477,'All maturity ratings',11,WHITE,True,'lm')
+    button(im,64,641,'Done',101,focus==6,focus==6,h=42);text(im,181,663,'Delete Profile',12,'#B5B5B5',False,'lm')
+    avatar(im,'alex',(884,247,1064,427),8);text(im,974,457,'Alex',28,WHITE,False,'mt')
+    return im
+
+@lru_cache(maxsize=4)
+def backdrop_wall():
+    im=Image.new('RGB',(2400,1350),rgb('#111111'))
+    for r in range(3):
+        for c in range(6):
+            it=CAT[(r*6+c)%len(CAT)];bit=cover(it['backdrop_file'],480,270)
+            im.paste(bit,(c*405-90*r,r*400+30))
+    return im
+
+@lru_cache(maxsize=1)
+def hero_glow():
+    glow=Image.new('RGBA',(W,H));gd=ImageDraw.Draw(glow);gd.ellipse((710,100,1210,630),fill=(229,9,20,45));return glow.filter(ImageFilter.GaussianBlur(110))
+@lru_cache(maxsize=4)
+def hero_composed(xx,yy,logo_y,outro):
+    wall=backdrop_wall();im=wall.crop((xx,yy,xx+W,yy+H)).copy();im=Image.blend(im,Image.new('RGB',(W,H),'#000000'),.85)
+    glow=hero_glow();im.paste(glow,(0,0),glow)
+    logo(im,601,logo_y,78,143)
+    text(im,640,322,'NETFLIX PRO',54,WHITE,True,'mt')
+    text(im,640,401,'Your next watch starts here.' if outro else 'The big-screen experience.',35,WHITE,False,'mt',True)
+    text(im,640,461,'Browse. Discover. Press play.' if outro else 'Made for your TV. Guided by your remote.',18,MUTED,False,'mt')
+    rr(im,(544,519,736,560),21,RED);text(im,640,539,'ANDROID TV' if outro else 'EXPLORE THE APP',13,WHITE,True,'mm')
+    text(im,640,656,'Independent app · Interface demonstration · Sample artwork',10,'#777D87',False,'mt')
+    return im
+def hero_frame(t,outro=False):
+    return hero_composed(int(95+55*math.sin(t*.045)),int(50+30*math.cos(t*.06)),round(132 if outro else 142+(1-event(t,0,2.5))*22,1),outro)
+
+def screen_state(kind,t):
+    z,cx,cy=1.,640.,360.;hint=''
+    if kind=='profiles':
+        pos=tween_keys(t,[(0,0),(3.2,0),(4.2,1),(7.2,1),(8.2,2),(10.4,2),(11.7,0),(16,0)])
+        ui=profile_motion_ui(pos)
+        hint='↓  CHOOSE PROFILE' if 3<t<11 else 'OK  ENTER'
+        z=tween_keys(t,[(0,1),(2,1),(4,1.38),(9,1.38),(12,1),(16,1)]);cx,cy=270,255
+    elif kind=='home':
+        focus='Play' if t<7 else 'More Info' if t<12 else 'category' if t<16 else None
+        ci=tween_keys(t,[(0,0),(12,0),(13,1),(14.5,1),(15.4,2),(19,2)])
+        ui=home_ui(focus,ci,dropdown=t>16)
+        z=tween_keys(t,[(0,1),(3,1),(5,1.40),(9,1.40),(11,1),(19,1)]);cx,cy=320,335
+        hint='→  MORE INFO' if 7<t<12 else '↓  EXPLORE' if 12<t<16 else 'OK  PROFILE MENU' if t>16 else 'OK  PLAY'
+    elif kind=='genres':
+        if t<11:
+            ci=tween_keys(t,[(0,2),(2,2),(3.2,3),(4.6,3),(5.8,4),(7,4),(8.4,6),(11,6)])
+            ui=home_ui('category',ci,scroll=245);z=tween_keys(t,[(0,1),(2,1.2),(8,1.2),(10,1)]);cx,cy=340,300;hint='→  EXPLORE GENRES'
+        else:
+            idx=tween_keys(t,[(11,0),(14,0),(15,1),(18,1),(19,2),(21,2)])
+            ui=browse_ui(idx,category='Sci-Fi');hint='OK  OPEN SCI-FI'
+    elif kind=='rows':
+        idx=tween_keys(t,[(0,0),(3,0),(4,1),(6,1),(7,2),(9,2),(10,3),(12,3),(13,4),(18,4)])
+        vertical=tween_keys(t,[(0,0),(12,0),(14,333),(18,333)])
+        ui=browse_ui(idx,vertical);z=tween_keys(t,[(0,1),(2,1),(4,1.20),(8,1.20),(11,1),(18,1)]);cx,cy=340,360;hint='↓  NEXT ROW' if t>12 else '→  BROWSE TITLES'
+    elif kind=='details':
+        focus='Play' if t<5 else 'list' if t<13 else 'like' if t<17 else 'Play'
+        ui=details_ui(t>=9,focus);z=tween_keys(t,[(0,1),(3,1),(5,1.26),(8,1.26),(10,1.7),(12,1.7),(15,1),(21,1)]);cx,cy=(250,558) if t>=8 and t<15 else (410,463);hint='OK  SAVE TO MY LIST' if 5<t<13 else 'OK  RATE THIS TITLE' if 13<t<17 else 'OK  PLAY'
+    elif kind=='episodes':
+        season=1 if t<4 else 2;idx=tween_keys(t,[(0,0),(6,0),(7,1),(9,1),(10,2),(13,2)])
+        ui=episode_ui(season,idx);z=tween_keys(t,[(0,1),(2,1.20),(5,1.20),(6,1),(13,1)]);cx,cy=350,360;hint='OK  CHOOSE SEASON' if t<6 else '→  CHOOSE EPISODE'
+    elif kind=='search':
+        n=0 if t<3 else min(4,int((t-3)/1.6)+1);q='dark'[:n];key='dark'[max(0,n-1)] if t>=2 and t<10 else ''
+        ui=search_ui(q,key,t>12);z=tween_keys(t,[(0,1),(2,1),(4,1.48),(8,1.48),(11,1),(17,1)]);cx,cy=228,254;hint='OK  TYPE “DARK”' if t<11 else '→  OPEN RESULTS'
+    elif kind=='my':
+        vertical=tween_keys(t,[(0,0),(6,0),(8,330),(11,330),(13,0),(14,0)])
+        ui=my_ui(0,vertical);z=tween_keys(t,[(0,1),(2,1.18),(5,1.18),(6,1),(14,1)]);cx,cy=338,466;hint='↓  MY LIST' if t>6 and t<12 else 'OK  RESUME'
+    elif kind=='player':
+        prog=tween_keys(t,[(0,.38),(3,.381),(4,.40),(5,.42),(6,.43),(7,.43),(17,.431)])
+        sub='Off' if t<9 else 'English';modal=13<=t<16
+        ui=player_ui(round(prog,4),sub,3<t<7,modal,controls=t<16)
+        z=tween_keys(t,[(0,1),(3,1),(4,1.27),(7,1.27),(8,1),(9,1.46),(11,1.46),(12,1),(17,1)]);cx,cy=(545,586) if t<8 else (361,648);hint='→  SEEK' if 3<t<7 else 'OK  ENGLISH SUBTITLES' if 8<t<12 else 'OK  AUDIO & SUBTITLES' if modal else 'PLAY'
+        if modal:z=1
+    elif kind=='edit':
+        ui=profile_ui(0) if t<1.8 else edit_ui(4,False) if t<4 else edit_ui(7,True) if t<7 else edit_ui(6,False)
+        z=1;hint='OK  EDIT PROFILE' if t<2 else 'OK  LANGUAGE' if t<7 else 'OK  DONE'
+    else:return None,1,640,360,''
+    return ui,z,cx,cy,hint
+
+@lru_cache(maxsize=6)
+def canvas_back():
+    im=Image.new('RGB',(W,H),'#030406');layer=Image.new('RGBA',(W,H));d=ImageDraw.Draw(layer);d.ellipse((-200,-180,1150,730),fill=(29,45,67,45));d.ellipse((1250,-80,2220,710),fill=(113,9,18,38));layer=layer.filter(ImageFilter.GaussianBlur(110));im.paste(layer,(0,0),layer)
+    return im
+APP_BOX=(176,126,1744,1008)
+APP_SIZE=(1568,882)
+@lru_cache(maxsize=2)
+def app_mask():
+    m=Image.new('L',APP_SIZE);ImageDraw.Draw(m).rounded_rectangle((0,0,APP_SIZE[0]-1,APP_SIZE[1]-1),radius=20,fill=255);return m
+def camera(ui,zoom,cx,cy):
+    ww=W/zoom;hh=H/zoom;x=clamp(cx*S-ww/2,0,W-ww);y=clamp(cy*S-hh/2,0,H-hh)
+    return ui.resize(APP_SIZE,Image.Resampling.BICUBIC,box=(x,y,x+ww,y+hh))
+LAST_BASE_KEY=None
+LAST_BASE_FRAME=None
+LAST_BASE_UI=None
+def raw_scene_frame(index,t):
+    global LAST_BASE_KEY,LAST_BASE_FRAME,LAST_BASE_UI
+    scene=SCENES[index];kind=scene[2]
+    if kind in ('intro','outro'):return hero_frame(t,kind=='outro')
+    ui,z,cx,cy,hint=screen_state(kind,t)
+    key=(index,id(ui),z,cx,cy,hint)
+    if key==LAST_BASE_KEY:return LAST_BASE_FRAME
+    im=canvas_back().copy();bit=camera(ui,z,cx,cy);im.paste(bit,APP_BOX[:2],app_mask())
+    d=ImageDraw.Draw(im);d.rounded_rectangle(APP_BOX,radius=20,outline='#303641',width=2)
+    number=index;label=f'{number:02d} / 10';text(im,118,39,label,11,'#888F9D',True)
+    text(im,118,57,scene[3],25,WHITE,True);logo(im,1114,39,15,27);text(im,1139,53,'NETFLIX PRO',11,'#A0A6B0',True,'lm')
+    if hint:
+        tw=width(hint,10,True);rr(im,(1146-tw,68,1160,91),11,'#141820','#2D3541',.7);text(im,1153-tw/2,80,hint,10,'#B8C0CE',True,'mm')
+    text(im,640,692,scene[4],14,'#B9C0CC',False,'mm')
+    LAST_BASE_KEY=key;LAST_BASE_FRAME=im;LAST_BASE_UI=ui
+    return im
+@lru_cache(maxsize=12)
+def scene_tail(index):return raw_scene_frame(index,SCENES[index][1]-SCENES[index][0]-.001)
+def frame(t):
+    index=min(len(SCENES)-1,max(0,bisect.bisect_right(STARTS,t)-1));local=t-SCENES[index][0]
+    im=raw_scene_frame(index,local)
+    if index and local<.7:im=Image.blend(scene_tail(index-1),im,ease(local/.7))
+    if t<1:im=Image.blend(Image.new('RGB',(W,H),'#000000'),im,ease(t))
+    if t>178.5:im=Image.blend(im,Image.new('RGB',(W,H),'#000000'),ease((t-178.5)/1.5))
+    # Quiet chapter progress strip; the interface remains the centre of attention.
+    if 9<t<174:
+        im=im.copy()
+        ImageDraw.Draw(im).rectangle((176,1062,1744,1064),fill='#242932');ImageDraw.Draw(im).rectangle((176,1062,176+round(1568*t/LENGTH),1064),fill=RED)
+    return im
+
+def build_audio():
+    sr=48000;n=sr*LENGTH;music=np.zeros((n,2),np.float32);rng=np.random.default_rng(7228);beat=60/90;bar=beat*4
+    chords=[(45,[57,60,64,67]),(41,[53,57,60,64]),(48,[55,60,64,67]),(43,[55,59,62,69])]
+    def hz(note):return 440*2**((note-69)/12)
+    def add(start,signal,pan=0):
+        a=max(0,int(start*sr));b=min(n,a+len(signal));p=signal[:b-a]
+        if len(p):music[a:b,0]+=p*math.sqrt((1-pan)/2);music[a:b,1]+=p*math.sqrt((1+pan)/2)
+    for bi in range(math.ceil(LENGTH/(bar*2))):
+        start=bi*bar*2;dur=min(bar*2+1,LENGTH-start);tt=np.arange(int(dur*sr))/sr
+        bass,notes=chords[bi%4];env=np.minimum(1,tt/1.0)*np.minimum(1,(dur-tt)/1.1)
+        for k,note in enumerate(notes):
+            f=hz(note);pad=(np.sin(2*np.pi*f*tt)+.35*np.sin(2*np.pi*f*1.003*tt)+.13*np.sin(4*np.pi*f*tt))*env*.032
+            add(start,pad,(-.42,.38,-.18,.25)[k])
+        add(start,np.sin(2*np.pi*hz(bass)*tt)*env*.044)
+    # Gentle pulse and evolving arpeggio, all synthesized specifically for this film.
+    for bi in range(int(LENGTH/beat)):
+        start=bi*beat;section=int(start/(bar*2));bass,notes=chords[section%4];tt=np.arange(int(.75*sr))/sr
+        energy=.52+.24*math.sin(math.pi*start/LENGTH)
+        kick=np.sin(2*np.pi*(43*tt+4*(1-np.exp(-tt*32))))*np.exp(-tt*13)*.05*energy;add(start,kick)
+        note=notes[(bi//2)%4]+12;tt=np.arange(int(1.2*sr))/sr
+        pluck=(np.sin(2*np.pi*hz(note)*tt)+.18*np.sin(2*np.pi*hz(note)*2*tt))*np.exp(-tt*4.8)*np.minimum(1,tt/.015)*.022*energy
+        if bi%2==0:add(start,pluck,.48*math.sin(bi*.4));add(start+.25,pluck*.30,-.48*math.sin(bi*.4))
+    # Original soft D-pad tick and select chime at staged interactions.
+    ticks=[13,17,20,31.8,36.8,39.5,46.8,49.5,51.8,55,58.8,68.8,71.8,74.8,77.8,86.8,90,97,108,111,114,120,121.6,123.2,124.8,129,141,153,154,157,161,167,169,172]
+    for at in ticks:
+        tt=np.arange(int(.085*sr))/sr;sound=(np.sin(2*np.pi*890*tt)+.24*np.sin(2*np.pi*1335*tt))*np.exp(-tt*62)*np.minimum(1,tt/.006)*.09;add(at,sound)
+    for scene in SCENES[1:]:
+        tt=np.arange(int(.7*sr))/sr;noise=rng.normal(0,1,len(tt)).astype(np.float32);noise=np.convolve(noise,np.ones(15)/15,'same');env=np.sin(np.pi*tt/.7)**2
+        add(scene[0]-.20,noise*env*.05,-.15)
+    fade=np.minimum(1,np.arange(n)/(sr*2))*np.minimum(1,(n-1-np.arange(n))/(sr*3));music*=fade[:,None]
+    peak=float(np.max(np.abs(music)));music*=min(1,.72/max(.001,peak))
+    with wave.open(str(ROOT/'original-soundtrack.wav'),'wb') as w:w.setnchannels(2);w.setsampwidth(2);w.setframerate(sr);w.writeframes((music*32767).astype('<i2').tobytes())
+    print(f'Original stereo soundtrack: {LENGTH}s, peak {peak:.3f}',flush=True)
+
+def metadata():
+    lines=[';FFMETADATA1','title=Netflix Pro — Your Next Watch Starts Here','artist=Netflix Pro','comment=Code-rendered app interface demonstration with illustrative artwork and an original synthesized soundtrack.']
+    for start,end,kind,title,caption in SCENES:
+        lines.extend(['[CHAPTER]','TIMEBASE=1/1000',f'START={start*1000}',f'END={end*1000}','title='+title.title()])
+    (ROOT/'chapters.ffmetadata').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+    def srt_time(t):return f'{int(t)//3600:02d}:{int(t)%3600//60:02d}:{int(t)%60:02d},000'
+    (ROOT/'NetflixPro-TV-3min.srt').write_text('\n\n'.join(f'{i+1}\n{srt_time(s[0])} --> {srt_time(s[1])}\n{s[3].title()}\n{s[4]}' for i,s in enumerate(SCENES))+'\n',encoding='utf-8')
+    (ROOT/'storyboard.json').write_text(json.dumps([dict(start=s[0],end=s[1],screen=s[2],heading=s[3],caption=s[4]) for s in SCENES],indent=2),encoding='utf-8')
+
+def contact_sheet():
+    times=[4,16,31,50,73,94,110,124,140,155,170,176]
+    sheet=Image.new('RGB',(1920,1440),'#07090C');d=ImageDraw.Draw(sheet)
+    for i,t in enumerate(times):
+        bit=frame(t).resize((624,351),Image.Resampling.LANCZOS);x=16+(i%3)*640;y=12+(i//3)*360;sheet.paste(bit,(x,y));d.text((x+9,y+9),f'{t//60:02d}:{t%60:02d}',font=ImageFont.truetype(str(BOLD),15),fill='white',stroke_width=2,stroke_fill='black')
+    sheet.save(ROOT/'Storyboard-Preview.jpg',quality=94)
+    frame(31).save(ROOT/'Video-Cover.jpg',quality=96)
+    frame(16).save(ROOT/'Profile-Closeup.jpg',quality=96)
+    print('Saved storyboard and video cover.',flush=True)
+
+def render_video(preview=False):
+    if not FFMPEG.exists():raise FileNotFoundError('Set AD_FFMPEG to a local FFmpeg executable.')
+    target=ROOT/('Preview-18s.mp4' if preview else 'NetflixPro-TV-3min-1080p60.mp4');temp=target.with_name(target.stem+'.rendering.mp4')
+    dur=18 if preview else LENGTH
+    cmd=[str(FFMPEG),'-y','-hide_banner','-loglevel','warning','-f','rawvideo','-vcodec','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','pipe:0','-i',str(ROOT/'original-soundtrack.wav'),'-i',str(ROOT/'chapters.ffmetadata'),'-map','0:v:0','-map','1:a:0','-map_metadata','2','-map_chapters','2','-c:v','libx264','-preset','fast','-crf','19','-threads','4','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-ar','48000','-movflags','+faststart','-t',str(dur),str(temp)]
+    log=(ROOT/'render.log').open('w',encoding='utf-8');proc=subprocess.Popen(cmd,stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=log,creationflags=0x08000000|0x00004000)
+    started=time.monotonic();last=started;total=FPS*dur
+    try:
+        for i in range(total):
+            t=(i/FPS if not preview else (i/FPS)*10)
+            proc.stdin.write(frame(t).tobytes())
+            now=time.monotonic()
+            if now-last>=15 or i==total-1:
+                print(f'Rendered {i+1}/{total} frames · {100*(i+1)/total:.1f}% · elapsed {now-started:.0f}s',flush=True);last=now
+        proc.stdin.close();code=proc.wait();log.close()
+        if code:raise RuntimeError('FFmpeg failed; see render.log')
+        temp.replace(target);print('SAVED '+str(target),flush=True)
+    except BaseException:
+        if proc.poll() is None:proc.terminate()
+        log.close();raise
+
+def render_segment(index):
+    """Independent frames can be rendered concurrently without holding a film in RAM."""
+    if os.name=='nt':
+        import ctypes
+        ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(),0x4000)
+    cache=ROOT/'.render-cache';cache.mkdir(exist_ok=True)
+    dest=cache/f'{index:02d}-{SCENES[index][2]}.mp4'
+    if dest.exists() and dest.stat().st_size>10000:return str(dest)
+    temp=dest.with_name(dest.stem+'.rendering.mp4')
+    start,end=SCENES[index][:2];total=(end-start)*FPS
+    cmd=[str(FFMPEG),'-y','-hide_banner','-loglevel','error','-f','rawvideo','-vcodec','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','pipe:0','-an','-c:v','libx264','-preset','veryfast','-crf','18','-threads','2','-pix_fmt','yuv420p','-video_track_timescale','60000',str(temp)]
+    began=time.monotonic();last=began
+    with (cache/f'{index:02d}.log').open('w',encoding='utf-8') as log:
+        proc=subprocess.Popen(cmd,stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=log,creationflags=0x08000000|0x00004000)
+        try:
+            for k in range(total):
+                proc.stdin.write(frame(start+k/FPS).tobytes())
+                now=time.monotonic()
+                if now-last>25:
+                    print(f'{SCENES[index][2]}: {100*(k+1)/total:.0f}% rendered',flush=True);last=now
+            proc.stdin.close()
+            if proc.wait():raise RuntimeError('Segment '+str(index)+' failed; inspect its log.')
+            temp.replace(dest)
+        except BaseException:
+            if proc.poll() is None:proc.terminate()
+            raise
+    print(f'Finished {SCENES[index][2]} ({end-start}s)',flush=True)
+    return str(dest)
+
+def render_parallel(workers=4):
+    if not (ROOT/'original-soundtrack.wav').exists():build_audio()
+    files={};began=time.monotonic()
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        pending={pool.submit(render_segment,i):i for i in range(len(SCENES))}
+        for future in as_completed(pending):
+            idx=pending[future];files[idx]=Path(future.result())
+            print(f'Completed {len(files)}/{len(SCENES)} chapters · elapsed {time.monotonic()-began:.0f}s',flush=True)
+    concat=ROOT/'.render-cache/concat.txt'
+    concat.write_text('\n'.join("file '"+files[i].name+"'" for i in range(len(SCENES)))+'\n',encoding='utf-8')
+    dest=ROOT/'NetflixPro-TV-3min-1080p60.mp4';temp=dest.with_name(dest.stem+'.rendering.mp4')
+    cmd=[str(FFMPEG),'-y','-hide_banner','-loglevel','warning','-f','concat','-safe','0','-i',str(concat),'-i',str(ROOT/'original-soundtrack.wav'),'-i',str(ROOT/'chapters.ffmetadata'),'-map','0:v:0','-map','1:a:0','-map_metadata','2','-map_chapters','2','-c:v','copy','-c:a','aac','-b:a','192k','-ar','48000','-movflags','+faststart','-t','180',str(temp)]
+    with (ROOT/'render.log').open('w',encoding='utf-8') as log:
+        subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=log,check=True,creationflags=0x08000000|0x00004000)
+    temp.replace(dest)
+    print('SAVED '+str(dest),flush=True)
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser();parser.add_argument('--storyboard-only',action='store_true');parser.add_argument('--preview',action='store_true');parser.add_argument('--workers',type=int,default=min(4,max(1,(os.cpu_count() or 4)//2)));args=parser.parse_args()
+    metadata();contact_sheet()
+    if not args.storyboard_only:
+        if args.preview:
+            if not (ROOT/'original-soundtrack.wav').exists():build_audio()
+            render_video(True)
+        else:render_parallel(args.workers)

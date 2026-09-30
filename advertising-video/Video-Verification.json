@@ -1,0 +1,48 @@
+{
+  "file": "D:\\Netflixtv\\advertising-video\\NetflixPro-TV-3min-1080p60.mp4",
+  "bytes": 42801595,
+  "duration_seconds": 180.0,
+  "frames": 10800,
+  "resolution": "1920x1080",
+  "fps": 60,
+  "video_codec": "H.264",
+  "audio_codec": "AAC",
+  "audio_channels": 2,
+  "audio_sample_rate": 48000,
+  "chapter_markers": 12,
+  "mux_notes": [
+    "[aist#1:0/pcm_s16le @ 000001ead7c0ecc0] Guessed Channel Layout: stereo"
+  ],
+  "decoded_checks": [
+    {
+      "screen": "06-episodes",
+      "second": 111
+    },
+    {
+      "screen": "07-search",
+      "second": 130
+    },
+    {
+      "screen": "08-my",
+      "second": 140
+    },
+    {
+      "screen": "09-player",
+      "second": 159
+    },
+    {
+      "screen": "10-edit",
+      "second": 170
+    },
+    {
+      "screen": "11-outro",
+      "second": 176
+    },
+    {
+      "screen": "player-modal",
+      "second": 162
+    }
+  ],
+  "render_mode": "Single renderer and encoder thread, Windows idle priority, CPU pacing and cooling pauses",
+  "completed": "2026-09-28T15:31:46+0300"
+}

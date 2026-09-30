@@ -1,0 +1,8 @@
+{
+  "name": "Remix Netflix Pro",
+  "description": "An immersive media dashboard optimized for physical remote D-Pad navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

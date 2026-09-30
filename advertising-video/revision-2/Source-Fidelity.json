@@ -1,0 +1,68 @@
+{
+  "active_details_route": "MainActivity.kt:42 imports com.example.ui.screens.details.DetailsScreen",
+  "sources": [
+    "HomeScreen.kt:1204 computeRowAlpha",
+    "HomeMotion.kt",
+    "components/NetflixMovieRow.kt",
+    "details/DetailsScreen.kt",
+    "details/DetailsInfoSection.kt",
+    "details/DetailsModalOverlay.kt",
+    "details/DetailsEpisodesSection.kt",
+    "util/TvMotion.kt"
+  ],
+  "native_geometry_dp": {
+    "viewport_top": 52,
+    "billboard": 432,
+    "categories": 96,
+    "row": 395,
+    "portrait": [
+      190,
+      270
+    ],
+    "expanded": [
+      437,
+      270
+    ],
+    "row_ring": [
+      16,
+      48,
+      437,
+      270
+    ],
+    "episode_base": [
+      230,
+      150
+    ],
+    "episode_expanded": [
+      290,
+      150
+    ]
+  },
+  "row_alpha_knots": {
+    "-1": 0,
+    "0": 1,
+    "1": 0.85,
+    "2": 0.65,
+    "3": 0.45,
+    "4": 0.25
+  },
+  "motion": {
+    "damping": 1,
+    "duration_scale": 1.3,
+    "vertical_base_stiffness": 430,
+    "horizontal_base_stiffness": 550,
+    "hero_slide_fraction": 0.35
+  },
+  "edit_changes": [
+    "Short visual hook",
+    "Faster remote interactions",
+    "Full-screen native browsing",
+    "Editorial split compositions",
+    "Magnified insets that preserve the full UI",
+    "Lateral camera moves",
+    "Selected-card transitions into details/playback",
+    "Directional page transitions",
+    "Short branded strip reveals"
+  ],
+  "limitations": "Code-rendered UI demonstration with illustrative catalogue data; not an APK recording. Georgia provides the generic serif fallback on Windows. Review copy is labelled as sample text."
+}

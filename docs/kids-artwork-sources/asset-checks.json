@@ -1,0 +1,70 @@
+[
+  {
+    "file": "tv_82728.png",
+    "width": 1402,
+    "height": 1903,
+    "bytes": 168307,
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "visible_bounds": [
+      147,
+      284,
+      1254,
+      1903
+    ],
+    "sha256": "09e880ccb6cdb25244406fc0ba677d3408f549b704055bf6839fb24e3ea8cf81"
+  },
+  {
+    "file": "tv_256953.png",
+    "width": 1402,
+    "height": 1903,
+    "bytes": 157945,
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "visible_bounds": [
+      182,
+      284,
+      1219,
+      1903
+    ],
+    "sha256": "749e0cbb85563bc8e9da2ab2f6d866bdfd6566d10f317d9c33cccf12211976aa"
+  },
+  {
+    "file": "movie_446893.png",
+    "width": 1400,
+    "height": 1200,
+    "bytes": 1324231,
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "visible_bounds": [
+      271,
+      31,
+      1050,
+      1200
+    ],
+    "sha256": "70a30991c48f83d377d4b99e180a26e9b9e60b966afd315393a9dbabd59a9171"
+  },
+  {
+    "file": "movie_901362.png",
+    "width": 944,
+    "height": 1200,
+    "bytes": 302023,
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "visible_bounds": [
+      67,
+      0,
+      938,
+      1200
+    ],
+    "sha256": "4cf53517a29c318f718138375d4255dd9a3cc27e0966f4f106480c344e064d65"
+  }
+]

@@ -1,0 +1,86 @@
+[
+  {
+    "start": 0,
+    "end": 9,
+    "screen": "intro",
+    "heading": "MEET NETFLIX PRO",
+    "caption": "The big-screen experience. Built around your remote."
+  },
+  {
+    "start": 9,
+    "end": 25,
+    "screen": "profiles",
+    "heading": "YOUR OWN SPACE",
+    "caption": "Choose a profile. Keep your viewing experience personal."
+  },
+  {
+    "start": 25,
+    "end": 44,
+    "screen": "home",
+    "heading": "A HOME WORTH EXPLORING",
+    "caption": "Featured stories, clear choices, and a world of entertainment."
+  },
+  {
+    "start": 44,
+    "end": 65,
+    "screen": "genres",
+    "heading": "FIND YOUR MOOD",
+    "caption": "Explore 11 genres. Open a category and discover its rows."
+  },
+  {
+    "start": 65,
+    "end": 83,
+    "screen": "rows",
+    "heading": "MADE FOR YOUR REMOTE",
+    "caption": "Move across titles and between rows. The focus stays clear."
+  },
+  {
+    "start": 83,
+    "end": 104,
+    "screen": "details",
+    "heading": "GET TO KNOW THE STORY",
+    "caption": "Read the details. Add to My List. Choose what to watch next."
+  },
+  {
+    "start": 104,
+    "end": 117,
+    "screen": "episodes",
+    "heading": "YOUR NEXT EPISODE",
+    "caption": "Choose a season, browse episodes, and press play."
+  },
+  {
+    "start": 117,
+    "end": 134,
+    "screen": "search",
+    "heading": "FIND IT WITH YOUR REMOTE",
+    "caption": "Use the on-screen keyboard. Move straight into your results."
+  },
+  {
+    "start": 134,
+    "end": 148,
+    "screen": "my",
+    "heading": "BACK TO YOUR FAVOURITES",
+    "caption": "Continue Watching, My List, and picks based on your activity."
+  },
+  {
+    "start": 148,
+    "end": 165,
+    "screen": "player",
+    "heading": "WATCH YOUR WAY",
+    "caption": "Seek with previews. Choose subtitles and audio in one place."
+  },
+  {
+    "start": 165,
+    "end": 174,
+    "screen": "edit",
+    "heading": "MAKE IT YOURS",
+    "caption": "Name, icon, language, kids experience, and profile lock."
+  },
+  {
+    "start": 174,
+    "end": 180,
+    "screen": "outro",
+    "heading": "YOUR NEXT WATCH STARTS HERE",
+    "caption": "Discover Netflix Pro on your Android TV."
+  }
+]

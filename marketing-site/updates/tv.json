@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "channel": "tv",
+  "packageName": "com.netflixprotv.apk",
+  "available": true,
+  "versionCode": 28092026,
+  "versionName": "28.9.2026",
+  "minSdk": 24,
+  "targetSdk": 35,
+  "sizeBytes": 24244116,
+  "sha256": "586263401208098c779e83cc9b74a0d395c2aa97a1135ce0298bd01dc4847a20",
+  "signingCertificateSha256": [
+    "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
+  ],
+  "apkUrl": "/downloads/tv/28092026-586263401208098c.apk",
+  "releaseNotes": "Existing TV release from 28 September. Install the next signed release to receive Update Gate and the latest fixes.",
+  "supportsUpdateGate": false,
+  "publishedAt": "2026-09-29T15:40:54.271Z"
+}

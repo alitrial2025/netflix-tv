@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "bluey",
+      "page": "https://www.bluey.tv/media-hub/",
+      "status": "local_artwork"
+    },
+    {
+      "id": "dreamworks",
+      "page": "https://www.dreamworks.com/trolls",
+      "status": "local_artwork"
+    },
+    {
+      "id": "netflix",
+      "page": "https://media.netflix.com/en/",
+      "status": "awaiting_title_cutouts"
+    }
+  ],
+  "artworks": [
+    {
+      "media_kind": "tv",
+      "tmdb_id": "82728",
+      "imdb_id": "tt7678620",
+      "title": "Bluey",
+      "provider": "bluey",
+      "source_page": "https://www.bluey.tv/characters/bluey/",
+      "image_url": "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png",
+      "file": "tv_82728.png",
+      "rights_status": "redistribution_not_confirmed"
+    },
+    {
+      "media_kind": "tv",
+      "tmdb_id": "256953",
+      "imdb_id": "tt32328599",
+      "title": "Bluey Minisodes",
+      "provider": "bluey",
+      "source_page": "https://www.bluey.tv/characters/bingo/",
+      "image_url": "https://www.bluey.tv/wp-content/uploads/2023/07/B2.png",
+      "file": "tv_256953.png",
+      "rights_status": "redistribution_not_confirmed"
+    },
+    {
+      "media_kind": "movie",
+      "tmdb_id": "446893",
+      "imdb_id": "tt6587640",
+      "title": "Trolls World Tour",
+      "provider": "dreamworks",
+      "source_page": "https://www.dreamworks.com/movies/trolls-world-tour",
+      "image_url": "https://www.dreamworks.com/storage/cms-uploads/twt-poppy.png",
+      "file": "movie_446893.png",
+      "rights_status": "redistribution_not_confirmed"
+    },
+    {
+      "media_kind": "movie",
+      "tmdb_id": "901362",
+      "imdb_id": "tt14362112",
+      "title": "Trolls Band Together",
+      "provider": "dreamworks",
+      "source_page": "https://www.dreamworks.com/movies/trolls-band-together",
+      "image_url": "https://www.dreamworks.com/storage/cms-uploads/trolls-band-together-poppy.png",
+      "file": "movie_901362.png",
+      "rights_status": "redistribution_not_confirmed"
+    }
+  ]
+}

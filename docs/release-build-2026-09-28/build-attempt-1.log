@@ -1,0 +1,64 @@
+
+Welcome to Gradle 8.9!
+
+Here are the highlights of this release:
+ - Enhanced Error and Warning Messages
+ - IDE Integration Improvements
+ - Daemon JVM Information
+
+For more details see https://docs.gradle.org/8.9/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Observed package id 'platforms;android-35-ext15' in inconsistent location 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35' (Expected 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35-ext15')
+Observed package id 'platforms;android-35-ext15' in inconsistent location 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35' (Expected 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35-ext15')
+Checking the license for package Android SDK Platform 35 in D:\Netflixtv\.release-build-temp-20260928\sdk\licenses
+License for package Android SDK Platform 35 accepted.
+Preparing "Install Android SDK Platform 35 (revision 2)".
+Warning: Package "Android SDK Platform 35" (platforms;android-35) should be installed in 
+"D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35" but 
+"Android SDK Platform 35" (platforms;android-35-ext15) is already installed there.
+Installing in "D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35-2" instead.
+"Install Android SDK Platform 35 (revision 2)" ready.
+Installing Android SDK Platform 35 in D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35-2
+"Install Android SDK Platform 35 (revision 2)" complete.
+"Install Android SDK Platform 35 (revision 2)" finished.
+Observed package id 'platforms;android-35-ext15' in inconsistent location 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35' (Expected 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35-ext15')
+Observed package id 'platforms;android-35' in inconsistent location 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35-2' (Expected 'D:\Netflixtv\.release-build-temp-20260928\sdk\platforms\android-35')
+> Task :app:buildKotlinToolingMetadata
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:generateReleaseBuildConfig
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResValues
+> Task :app:processReleaseGoogleServices
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+> Task :app:mergeReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:parseReleaseLocalResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage
+> Task :app:processReleaseResources
+> Task :app:kspReleaseKotlin
+Exception in thread "AWT-EventQueue-0" java.lang.NullPointerException: Cannot invoke "ksp.com.intellij.openapi.application.Application.getService(java.lang.Class)" because the return value of "ksp.com.intellij.openapi.application.ApplicationManager.getApplication()" is null
+	at ksp.com.intellij.openapi.fileEditor.FileDocumentManager.getInstance(FileDocumentManager.java:35)
+	at ksp.com.intellij.openapi.fileTypes.BinaryFileTypeDecompilers.lambda$notifyDecompilerSetChange$1(BinaryFileTypeDecompilers.java:29)
+	at java.desktop/java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:318)
+	at java.desktop/java.awt.EventQueue.dispatchEventImpl(EventQueue.java:771)
+	at java.desktop/java.awt.EventQueue$4.run(EventQueue.java:722)
+	at java.desktop/java.awt.EventQueue$4.run(EventQueue.java:716)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at java.base/java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:86)
+	at java.desktop/java.awt.EventQueue.dispatchEvent(EventQueue.java:741)
+	at java.desktop/java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:203)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:124)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:113)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
+	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
+> Task :app:compileReleaseKotlin

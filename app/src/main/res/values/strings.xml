@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Netflix Pro</string>
+
+    <!-- UpgradePlanModal: subscription/upgrade flow strings -->
+    <string name="upgrade_modal_title">Upgrade Netflix Plan</string>
+    <string name="upgrade_modal_lock_icon_desc">Lock</string>
+    <string name="upgrade_modal_cta">Upgrade &amp; Stream Now</string>
+    <string name="upgrade_modal_watch_trailer">Watch Trailer</string>
+    <string name="upgrade_modal_most_popular">MOST POPULAR</string>
+    <string name="upgrade_modal_plan_summary">%1$s • %2$s</string>
+    <string name="upgrade_modal_price_per_month">%1$s / mo</string>
+
+    <!-- Subscription lock-reason messages (from UserSubscription.getLockReason) -->
+    <string name="lock_reason_guest">Guest Mode: Watch Official Trailer or Sign In to stream full title.</string>
+    <string name="lock_reason_grace_period">Please update your payment method to keep streaming.</string>
+    <string name="lock_reason_past_due">Your last payment failed. Please update your payment method to resume streaming.</string>
+    <string name="lock_reason_cancelled">Your subscription ends in %1$d day(s). Renew to keep streaming.</string>
+    <string name="lock_reason_expired">Subscription Expired: Please renew to continue streaming.</string>
+    <string name="lock_reason_mobile">Locked on Mobile Plan. Upgrade to Standard or Premium to stream this title in Full HD / 4K.</string>
+    <string name="lock_reason_basic_4k">4K Ultra HD Exclusive: This title requires Standard or Premium plan.</string>
+    <string name="lock_reason_default">Upgrade plan to unlock this title.</string>
+</resources>

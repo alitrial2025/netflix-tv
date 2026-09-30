@@ -1,0 +1,18 @@
+{
+  "workspace": "D:\\Netflixtv",
+  "scratch": "D:\\Netflixtv\\.release-build-temp-20260928",
+  "output": "D:\\Netflixtv\\release",
+  "log_directory": "D:\\Netflixtv\\docs\\release-build-2026-09-28",
+  "java_home": "C:\\Program Files\\Java\\jdk-17",
+  "existing_sdk": "C:\\Users\\mzazimhenga\\AppData\\Local\\Android\\Sdk",
+  "gradle_version": "8.9",
+  "cpu_percent": 35,
+  "heap_mb": 1536,
+  "deadline_minutes": 15,
+  "sdk_archive": {
+    "url": "https://dl.google.com/android/repository/platform-35-ext15_r01.zip",
+    "checksum": "ce757091f933b7ac646bf197ce8957cc73b95614",
+    "checksum_type": "sha1",
+    "size": 64492044
+  }
+}

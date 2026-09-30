@@ -1,0 +1,80 @@
+{
+  "verified_at": "2026-09-28T17:04:14.499935+03:00",
+  "path": "D:\\Netflixtv\\advertising-video\\NetflixPro-TV-3min-v2-1080p60.mp4",
+  "bytes": 41241301,
+  "duration_seconds": 180.0,
+  "frames": 10800,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "fps": 60,
+  "video_codec": "H.264",
+  "audio_codec": "AAC",
+  "audio_rate_hz": 48000,
+  "audio_channels": 2,
+  "chapters": 12,
+  "decoded_samples": [
+    {
+      "time": 10.7,
+      "label": "profile-motion",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\00-profile-motion.jpg"
+    },
+    {
+      "time": 23.1,
+      "label": "home-stage",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\01-home-stage.jpg"
+    },
+    {
+      "time": 37.9,
+      "label": "categories-fade",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\02-categories-fade.jpg"
+    },
+    {
+      "time": 60.1,
+      "label": "rows-before",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\03-rows-before.jpg"
+    },
+    {
+      "time": 60.35,
+      "label": "rows-moving",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\04-rows-moving.jpg"
+    },
+    {
+      "time": 61.1,
+      "label": "rows-after",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\05-rows-after.jpg"
+    },
+    {
+      "time": 75.3,
+      "label": "details-transition",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\06-details-transition.jpg"
+    },
+    {
+      "time": 76.8,
+      "label": "details",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\07-details.jpg"
+    },
+    {
+      "time": 90.7,
+      "label": "details-more-info",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\08-details-more-info.jpg"
+    },
+    {
+      "time": 95.2,
+      "label": "recommendations",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\09-recommendations.jpg"
+    },
+    {
+      "time": 109.0,
+      "label": "episodes",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\10-episodes.jpg"
+    },
+    {
+      "time": 157.7,
+      "label": "player-language",
+      "path": "D:\\Netflixtv\\advertising-video\\revision-2\\encoded-inspection\\11-player-language.jpg"
+    }
+  ],
+  "verification": "Container metadata, exact frame count and sampled frame decoding. Code-rendered interface demonstration."
+}
