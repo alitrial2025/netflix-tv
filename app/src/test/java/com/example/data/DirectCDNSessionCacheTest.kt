@@ -98,4 +98,27 @@ class DirectCDNSessionCacheTest {
         assertFalse(prefs.contains("freecdn_nonce"))
         assertFalse(prefs.contains("freecdn_routing_v1"))
     }
+
+    @Test fun naturalTenHourExpiryRetiresNewerDependentTokensOnlyOnce() {
+        val expired = session(System.currentTimeMillis() - StreamSessionPolicy.TTL_MS)
+        prefs.edit().putString("directcdn_sessions", JSONArray().put(expired).toString())
+            .putString("freecdn_nonce", "token-created-after-the-cookie")
+            .putString("freecdn_routing_v1", "cached-route").commit()
+        val resolver = DirectCDNResolver(context)
+        assertFalse(resolver.hasValidSession())
+        assertEquals(1L, resolver.sessionVersion)
+        assertFalse(prefs.contains("freecdn_nonce"))
+        assertFalse(prefs.contains("freecdn_routing_v1"))
+        assertEquals(0, JSONArray(prefs.getString("directcdn_sessions", "[]")).length())
+        assertFalse(resolver.hasValidSession())
+        assertEquals(1L, resolver.sessionVersion)
+        assertFalse(DirectCDNResolver(context).hasValidSession())
+    }
+
+    @Test fun expirySafetyMarginTriggersRenewalBeforeTheTenHourBoundary() {
+        val nearExpiry = session(System.currentTimeMillis() - StreamSessionPolicy.TTL_MS + 30_000)
+        prefs.edit().putString("directcdn_sessions", JSONArray().put(nearExpiry).toString()).commit()
+        assertFalse(DirectCDNResolver(context).hasValidSession())
+        assertEquals(0, JSONArray(prefs.getString("directcdn_sessions", "[]")).length())
+    }
 }

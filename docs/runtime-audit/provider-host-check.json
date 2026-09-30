@@ -1,0 +1,9 @@
+{
+  "net52.cc": {
+    "failure": "proxy CONNECT rejected"
+  },
+  "userver.net52.cc": {
+    "httpStatus": 200,
+    "responseBytes": 34
+  }
+}

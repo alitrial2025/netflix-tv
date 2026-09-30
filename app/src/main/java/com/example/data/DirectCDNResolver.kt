@@ -1,6 +1,5 @@
 package com.example.data
 
-import android.app.ActivityManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -141,6 +140,8 @@ class DirectCDNResolver(private val context: Context) {
         }
     }
     private val sessionMutex = kotlinx.coroutines.sync.Mutex()
+    private val sessionDemand = SessionDemand()
+    suspend fun <T> withForegroundSessionDemand(block: suspend () -> T): T = sessionDemand.withRequest(block)
     fun playbackCooldownMillis(): Long = PlaybackServiceGate.remainingMs()
     fun recordPlaybackRateLimit(retryAfterMs: Long? = null) { PlaybackServiceGate.recordLimit(retryAfterMs) }
     fun checkPlaybackCooldown() { PlaybackServiceGate.check() }
@@ -210,9 +211,12 @@ class DirectCDNResolver(private val context: Context) {
     private fun getPrefs(): SharedPreferences =
         context.getSharedPreferences("directcdn_prefs", Context.MODE_PRIVATE)
 
-    private fun canUseWebViewFallback(): Boolean {
-        val memory = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-        return memory != null && !memory.isLowRamDevice && memory.memoryClass >= 128
+    private fun canUseWebViewFallback(): Boolean = try {
+        // Background warming stays native-only. An active viewer still needs
+        // the recovery path on low-RAM TVs when the native handshake fails.
+        android.os.Build.VERSION.SDK_INT < 26 || WebView.getCurrentWebViewPackage() != null
+    } catch (_: Exception) {
+        false
     }
 
     private var activeDomain: String = "net52.cc"
@@ -304,10 +308,12 @@ class DirectCDNResolver(private val context: Context) {
     private fun loadStoredSessions(): List<StoredSession> {
         val directPrefs = getPrefs()
         val list = mutableListOf<StoredSession>()
+        var hadStoredEntries = false
         val s = directPrefs.getString("directcdn_sessions", null)
         if (s != null) {
             try {
                 val array = JSONArray(s)
+                hadStoredEntries = array.length() > 0
                 for (i in 0 until array.length()) {
                     val json = array.getJSONObject(i)
                     val fetchedAt = json.optLong("fetchedAt", 0L)
@@ -329,6 +335,7 @@ class DirectCDNResolver(private val context: Context) {
         if (s == null) {
             val legacy = directPrefs.getString("directcdn_session", null)
             if (legacy != null) {
+                hadStoredEntries = true
                 try {
                     val json = JSONObject(legacy)
                     val fetchedAt = json.optLong("fetchedAt", 0L)
@@ -346,7 +353,11 @@ class DirectCDNResolver(private val context: Context) {
             }
         }
         
-        if (s == null && directPrefs.contains("directcdn_session")) saveStoredSessions(list)
+        if (hadStoredEntries && list.isEmpty()) {
+            // Natural TTL expiry must retire dependent tokens too, just like
+            // server revocation. Otherwise newer manifests can outlive cookies.
+            clearSessionState()
+        } else if (s == null && directPrefs.contains("directcdn_session")) saveStoredSessions(list)
         if (list.isNotEmpty()) activeDomain = list.first().domain
         com.example.ui.util.AppDiagnosticsLogger.event("DirectCDN", "loadStoredSessions loaded ${list.size} sessions. Active Domain: $activeDomain")
         return list
@@ -477,9 +488,12 @@ class DirectCDNResolver(private val context: Context) {
         throw java.io.IOException("Stored playback session could not be verified", lastFailure)
     }
 
-    private suspend fun ensureSession(allowWebViewFallback: Boolean = true): StoredSession = withContext(Dispatchers.IO) {
+    private suspend fun ensureSession(allowWebViewFallback: Boolean? = null): StoredSession = withContext(Dispatchers.IO) {
+        val mayUseWebView = allowWebViewFallback ?: (currentCoroutineContext()[PreviewResolutionContext] == null)
         // One foreground session; no detached pool top-up competing with playback or home entry.
+        val lockStartedAt = com.example.ui.util.RuntimeTiming.start()
         sessionMutex.withLock {
+            com.example.ui.util.RuntimeTiming.elapsed("session_wait_for_generation", lockStartedAt)
             val cached = synchronized(sessionStateLock) { loadStoredSessions().maxByOrNull { it.fetchedAt } }
             if (cached != null) {
                 com.example.ui.util.AppDiagnosticsLogger.event("DirectCDN", "ensureSession retrieved cached session for domain: ${cached.domain} (t_hash_t cookie is present)")
@@ -489,7 +503,7 @@ class DirectCDNResolver(private val context: Context) {
             val generation = sessionGeneration.get()
             // A rejected cookie must never ride along in a new handshake.
             cookieJar.clear()
-            val session = withTimeoutOrNull(58_000L) { generateNewSession(allowWebViewFallback) }
+            val session = withTimeoutOrNull(58_000L) { generateNewSession(mayUseWebView) }
                 ?: throw java.io.IOException("Session warmup timed out. Please retry.")
             currentCoroutineContext().ensureActive()
             synchronized(sessionStateLock) {
@@ -675,83 +689,94 @@ class DirectCDNResolver(private val context: Context) {
         Log.d("DirectCDN", "🔑 Performing standalone session warmup for DirectCDN...")
         val domain = resolveActiveDomain()
 
-        // 1. Fetch addhash
-        val homeUrl = "https://$domain/mobile/home?app=1"
-        val homeReq = Request.Builder()
-            .url(homeUrl)
-            .header("User-Agent", MOBILE_UA)
-            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-            .header("Accept-Language", "en-US,en;q=0.9")
-            .header("sec-ch-ua", SEC_CH_UA)
-            .header("sec-ch-ua-mobile", "?1")
-            .header("sec-ch-ua-platform", "\"Android\"")
-            .header("Sec-Fetch-Site", "none")
-            .header("Sec-Fetch-Mode", "navigate")
-            .header("Sec-Fetch-Dest", "document")
-            .header("Sec-Fetch-User", "?1")
-            .header("Upgrade-Insecure-Requests", "1")
-            .header("x-requested-with", "")
-            .build()
-        val homeRes = client.fetch(homeReq)
-        val finalDomain = homeRes.request.url.host.ifBlank { domain }
-        val homeHeaders = homeRes.headers
-        val homeBody = homeRes.body
-
-        var addhashEncoded = extractSetCookie(homeHeaders, "addhash")
-        if (addhashEncoded.isEmpty()) {
-            addhashEncoded = cookieJar.getCookieValue(finalDomain, "addhash") ?: ""
-        }
-
+        var finalDomain = domain
+        var addhashEncoded = ""
         var addhashRaw = ""
-        if (addhashEncoded.isNotEmpty()) {
-            addhashRaw = java.net.URLDecoder.decode(addhashEncoded, "UTF-8")
-        } else {
-            val m = Regex("""data-(?:hash|addhash|token)=["']([^"']+)["']""").find(homeBody)
-                ?: Regex("""(?:var|window\.)addhash\s*=\s*["']([^"']+)["']""").find(homeBody)
-                ?: Regex("""\b([A-Za-z0-9+/=]{10,}::[A-Za-z0-9+/=]{4,}::[A-Za-z0-9+/=]{4,})\b""").find(homeBody)
-            if (m != null) {
-                addhashRaw = m.groupValues[1]
-                addhashEncoded = URLEncoder.encode(addhashRaw, "UTF-8").replace("+", "%20")
-            } else {
-                Log.d("DirectCDN", "⚠️ No addhash in home HTML, checking fallback...")
-            }
-        }
-
         var tHashTEncoded = ""
-        if (addhashRaw.split("::").size >= 3) {
-            // 2. Extract Qury, Vsite, verify endpoint dynamically
-            val quryMatch = Regex("""var\s+Qury\s*=\s*["']([^"']+)["']""").find(homeBody)
-                ?: Regex("""(?:window\.)?Qury\s*=\s*["']([^"']+)["']""").find(homeBody)
-                ?: Regex("""\?([a-zA-Z0-9_]{3,10})=\s*\+\s*encodeURIComponent""").find(homeBody)
-            val quryParam = quryMatch?.groupValues?.get(1) ?: "hee5"
+        var nativeFailure: Exception? = null
+        try {
+            // 1. Fetch addhash
+            val homeUrl = "https://$domain/mobile/home?app=1"
+            val homeReq = Request.Builder()
+                .url(homeUrl)
+                .header("User-Agent", MOBILE_UA)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("sec-ch-ua", SEC_CH_UA)
+                .header("sec-ch-ua-mobile", "?1")
+                .header("sec-ch-ua-platform", "\"Android\"")
+                .header("Sec-Fetch-Site", "none")
+                .header("Sec-Fetch-Mode", "navigate")
+                .header("Sec-Fetch-Dest", "document")
+                .header("Sec-Fetch-User", "?1")
+                .header("Upgrade-Insecure-Requests", "1")
+                .header("x-requested-with", "")
+                .build()
+            val homeRes = client.fetch(homeReq)
+            finalDomain = homeRes.request.url.host.ifBlank { domain }
+            val homeHeaders = homeRes.headers
+            val homeBody = homeRes.body
 
-            val vsiteMatch = Regex("""var\s+Vsite2?\s*=\s*["']([^"']+)["']""").find(homeBody)
-                ?: Regex("""(?:window\.)?Vsite2?\s*=\s*["']([^"']+)["']""").find(homeBody)
-            val vsiteSubdomain = vsiteMatch?.groupValues?.get(1) ?: "userver"
-
-            val verifyMatch = Regex("""["']/(?:mobile/)?(verify[0-9]*\.php)["']""").find(homeBody)
-            val verifyEndpoint = if (verifyMatch != null) "/mobile/${verifyMatch.groupValues[1]}" else "/mobile/verify2.php"
-
-            try {
-                triggerUserver(finalDomain, addhashRaw, quryParam, vsiteSubdomain)
-            } catch (e: Exception) {
-                rethrowControlFailure(e)
-                Log.d("DirectCDN", "Userver trigger non-fatal: ${e.message}")
+            addhashEncoded = extractSetCookie(homeHeaders, "addhash")
+            if (addhashEncoded.isEmpty()) {
+                addhashEncoded = cookieJar.getCookieValue(finalDomain, "addhash") ?: ""
             }
 
-            // The postback often arrives well after the userver response.
-            delay(1_000L)
-            val polled = pollVerify2(finalDomain, addhashEncoded, verifyEndpoint)
-            if (polled != null) {
-                tHashTEncoded = polled
+            if (addhashEncoded.isNotEmpty()) {
+                addhashRaw = java.net.URLDecoder.decode(addhashEncoded, "UTF-8")
+            } else {
+                val m = Regex("""data-(?:hash|addhash|token)=["']([^"']+)["']""").find(homeBody)
+                    ?: Regex("""(?:var|window\.)addhash\s*=\s*["']([^"']+)["']""").find(homeBody)
+                    ?: Regex("""\b([A-Za-z0-9+/=]{10,}::[A-Za-z0-9+/=]{4,}::[A-Za-z0-9+/=]{4,})\b""").find(homeBody)
+                if (m != null) {
+                    addhashRaw = m.groupValues[1]
+                    addhashEncoded = URLEncoder.encode(addhashRaw, "UTF-8").replace("+", "%20")
+                } else {
+                    Log.d("DirectCDN", "⚠️ No addhash in home HTML, checking fallback...")
+                }
             }
+
+            if (addhashRaw.split("::").size >= 3) {
+                // 2. Extract Qury, Vsite, verify endpoint dynamically
+                val quryMatch = Regex("""var\s+Qury\s*=\s*["']([^"']+)["']""").find(homeBody)
+                    ?: Regex("""(?:window\.)?Qury\s*=\s*["']([^"']+)["']""").find(homeBody)
+                    ?: Regex("""\?([a-zA-Z0-9_]{3,10})=\s*\+\s*encodeURIComponent""").find(homeBody)
+                val quryParam = quryMatch?.groupValues?.get(1) ?: "hee5"
+
+                val vsiteMatch = Regex("""var\s+Vsite2?\s*=\s*["']([^"']+)["']""").find(homeBody)
+                    ?: Regex("""(?:window\.)?Vsite2?\s*=\s*["']([^"']+)["']""").find(homeBody)
+                val vsiteSubdomain = vsiteMatch?.groupValues?.get(1) ?: "userver"
+
+                val verifyMatch = Regex("""["']/(?:mobile/)?(verify[0-9]*\.php)["']""").find(homeBody)
+                val verifyEndpoint = if (verifyMatch != null) "/mobile/${verifyMatch.groupValues[1]}" else "/mobile/verify2.php"
+
+                try {
+                    triggerUserver(finalDomain, addhashRaw, quryParam, vsiteSubdomain)
+                } catch (e: Exception) {
+                    rethrowControlFailure(e)
+                    Log.d("DirectCDN", "Userver trigger non-fatal: ${e.message}")
+                }
+
+                // The postback often arrives well after the userver response.
+                delay(1_000L)
+                val polled = pollVerify2(finalDomain, addhashEncoded, verifyEndpoint)
+                if (polled != null) {
+                    tHashTEncoded = polled
+                }
+            }
+
+        } catch (error: Exception) {
+            rethrowControlFailure(error)
+            nativeFailure = error
+            Log.w("DirectCDN", "Native handshake failed (${error.javaClass.simpleName}); checking foreground recovery")
         }
 
         // A native addhash without t_hash_t is not an authenticated session.
-        if (allowWebViewFallback && canUseWebViewFallback() &&
+        if ((allowWebViewFallback || sessionDemand.isRequested) && canUseWebViewFallback() &&
             (addhashEncoded.isEmpty() || tHashTEncoded.isEmpty())) {
             Log.d("DirectCDN", "⚠️ Native handshake incomplete — trying silent WebView for $finalDomain...")
-            val fallback = silentWebViewWarmup(finalDomain)
+            val fallback = if (allowWebViewFallback) silentWebViewWarmup(finalDomain)
+                else sessionDemand.whileRequested { silentWebViewWarmup(finalDomain) }
             if (fallback != null) {
                 addhashEncoded = fallback.first
                 addhashRaw = java.net.URLDecoder.decode(addhashEncoded, "UTF-8")
@@ -760,7 +785,7 @@ class DirectCDNResolver(private val context: Context) {
         }
 
         if (addhashEncoded.isEmpty() || tHashTEncoded.isEmpty()) {
-            throw java.io.IOException("DirectCDN warmup failed: complete session cookies not received from $finalDomain")
+            throw java.io.IOException("DirectCDN warmup failed: complete session cookies not received", nativeFailure)
         }
 
         val cookieHeader = "addhash=$addhashEncoded; t_hash_t=$tHashTEncoded; lang=eng"
@@ -2211,6 +2236,8 @@ class DirectCDNResolver(private val context: Context) {
         }
 
     private suspend fun resolveStreamForPurpose(movie: Movie, season: Int, episode: Int, purpose: StreamPurpose): NetMirrorStream {
+        // Retire naturally expired state before capturing a request generation.
+        hasValidSession()
         val t0 = System.currentTimeMillis()
         com.example.ui.util.AppDiagnosticsLogger.event("Stream", "▶️ Start resolving: \"${movie.title}\" (tmdbId=${movie.id}, S${season}E${episode})")
         repeat(2) { attempt ->
@@ -2257,14 +2284,16 @@ class DirectCDNResolver(private val context: Context) {
             masterManifestCache.clear()
             cachedSourceRevision = PlaybackServiceGate.sourceRevision
         }
+        // Expired cookie state invalidates any dependent in-memory manifests.
+        val hasSession = hasValidSession()
         val tmdbId = movie.id
         val type = movie.catalogMediaKind()
         val playbackKey = "${type}_${tmdbId}_${season}_${episode}"
-        if (purpose != StreamPurpose.PLAYBACK) streamCache[playbackKey]?.let { cached ->
+        if (hasSession && purpose != StreamPurpose.PLAYBACK) streamCache[playbackKey]?.let { cached ->
             if (cached.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS) return@withContext cached
         }
         val cacheKey = if (purpose == StreamPurpose.PLAYBACK) playbackKey else "${purpose.name}_$playbackKey"
-        streamCache[cacheKey]?.let { cached ->
+        if (hasSession) streamCache[cacheKey]?.let { cached ->
             if (cached.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS) {
                 Log.d("DirectCDN", "💾 Cached stream for $cacheKey")
                 com.example.ui.util.AppDiagnosticsLogger.event("Stream", "💾 Stream cache hit for $cacheKey (valid for ${(cached.expiresAt - System.currentTimeMillis()) / 1000}s)")
@@ -2364,22 +2393,27 @@ class DirectCDNResolver(private val context: Context) {
             val pool = loadStoredSessions()
             // Ignore a delayed failure from a cookie that has already been replaced.
             if (!rejectedHash.isNullOrBlank() && pool.isNotEmpty() && pool.none { it.tHashTEncoded == rejectedHash }) return
-            sessionGeneration.incrementAndGet()
-            lastSuccessfulVerifyAtMs = 0L
-            cookieJar.clear()
-            streamCache.clear()
-            contentIdCache.clear()
-            episodeListCache.clear()
-            showHostCache.clear()
-            masterManifestCache.clear()
-            contentSubtitlesCache.clear()
-            getPrefs().edit()
-                .putString("directcdn_sessions", "[]")
-                .remove("directcdn_session")
-                .remove(NONCE_KEY)
-                .remove(ROUTING_KEY)
-                .apply()
+            clearSessionState()
         }
+    }
+
+
+    private fun clearSessionState() = synchronized(sessionStateLock) {
+        sessionGeneration.incrementAndGet()
+        lastSuccessfulVerifyAtMs = 0L
+        cookieJar.clear()
+        streamCache.clear()
+        contentIdCache.clear()
+        episodeListCache.clear()
+        showHostCache.clear()
+        masterManifestCache.clear()
+        contentSubtitlesCache.clear()
+        getPrefs().edit()
+            .putString("directcdn_sessions", "[]")
+            .remove("directcdn_session")
+            .remove(NONCE_KEY)
+            .remove(ROUTING_KEY)
+            .apply()
     }
 
     suspend fun resolveStream(tmdbId: String, type: String, season: Int = 0, episode: Int = 0): NetMirrorStream = withContext(Dispatchers.IO) {

@@ -1915,13 +1915,18 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
     fun hasValidStreamSession(): Boolean = directCDNResolver.hasValidSession()
 
-    suspend fun ensureStreamWarmedAsync(): Boolean = directCDNResolver.ensureSessionWarm()
+    private fun canWarmStreamSession(): Boolean = authenticatedUid() != null &&
+        _selectedProfile.value != null && _userSubscription.value.isTvAllowed
+
+    suspend fun ensureStreamWarmedAsync(): Boolean =
+        canWarmStreamSession() && directCDNResolver.ensureSessionWarm()
 
     private val warmupJobLock = Any()
     @Volatile private var warmupJob: kotlinx.coroutines.Job? = null
     private var warmupIsImmediate = false
     private var warmupHasStartedAttempt = false
     fun ensureStreamWarmed(immediate: Boolean = false) {
+        if (!canWarmStreamSession()) return
         synchronized(warmupJobLock) {
             val pending = warmupJob?.takeIf { it.isActive }
             if (pending != null) {
@@ -1937,10 +1942,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             }
             warmupIsImmediate = immediate
             warmupHasStartedAttempt = false
+            val requestedAt = com.example.ui.util.RuntimeTiming.start()
             warmupJob = viewModelScope.launch(Dispatchers.IO) {
                 val ownJob = currentCoroutineContext()[kotlinx.coroutines.Job]
                 try {
                     suspend fun warmOnce(): Boolean {
+                        if (!canWarmStreamSession()) return false
                         val resolver = directCDNResolver
                         val mayRun = synchronized(warmupJobLock) {
                             val current = warmupJob === ownJob && ownJob?.isActive == true
@@ -1948,9 +1955,15 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                             current
                         }
                         if (!mayRun) return false
+                        val attemptStartedAt = com.example.ui.util.RuntimeTiming.start()
                         try {
-                            return resolver.ensureSessionWarm()
+                            val warmed = resolver.ensureSessionWarm()
+                            com.example.ui.util.RuntimeTiming.elapsed(
+                                if (warmed) "warmup_native_verified" else "warmup_native_incomplete", attemptStartedAt
+                            )
+                            return warmed
                         } finally {
+                            com.example.ui.util.RuntimeTiming.elapsed("warmup_native_finished", attemptStartedAt)
                             synchronized(warmupJobLock) {
                                 if (warmupJob === ownJob) warmupHasStartedAttempt = false
                             }
@@ -1962,14 +1975,15 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         awaitHomeIdle()
                     }
                     if (directCDNResolver.isSessionRecentlyVerified()) return@launch
+                    com.example.ui.util.RuntimeTiming.elapsed("warmup_requested_to_start", requestedAt)
                     if (warmOnce()) {
                         return@launch
                     }
                     // A Details/Play attempt has a bounded foreground budget.
                     // Only Home's quiet background job should retry later.
-                    if (synchronized(warmupJobLock) { warmupIsImmediate }) return@launch
+                    if (!canWarmStreamSession() || synchronized(warmupJobLock) { warmupIsImmediate }) return@launch
                     var retryDelayMs = 60_000L
-                    while (isActive) {
+                    while (isActive && canWarmStreamSession()) {
                         kotlinx.coroutines.delay(retryDelayMs)
                         if (!synchronized(warmupJobLock) { warmupIsImmediate }) awaitHomeIdle()
                         if (warmOnce()) {
@@ -2511,7 +2525,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         val withinFallbackTtl = age >= 0 && age < streamCacheFallbackTtlMs
         val expiresAt = cached.stream.expiresAt
         val hasEnoughLifetime = expiresAt <= 0L || expiresAt - currentTime > streamExpirySafetyMarginMs
-        return cached.sessionVersion == directCDNResolver.sessionVersion && withinFallbackTtl && hasEnoughLifetime
+        return directCDNResolver.hasValidSession() &&
+            cached.sessionVersion == directCDNResolver.sessionVersion && withinFallbackTtl && hasEnoughLifetime
     }
 
     /** Returns a valid resolved stream without starting a network request. */
@@ -2587,7 +2602,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         // Count the wait for a pending warmup, session renewal, and manifest
         // discovery together. A first Play must finish or fail within a minute.
         return kotlinx.coroutines.withTimeoutOrNull(58_000L) {
-            val stream = resolveStreamWithinDeadline(movie, season, episode, purpose)
+            val stream = if (purpose == com.example.data.StreamPurpose.PLAYBACK) {
+                directCDNResolver.withForegroundSessionDemand { resolveStreamWithinDeadline(movie, season, episode, purpose) }
+            } else resolveStreamWithinDeadline(movie, season, episode, purpose)
             if (authenticatedUid() == ownerUid && _userSubscription.value.isTvAllowed && !isMovieLocked(movie)) stream else null
         }
     }
@@ -2597,7 +2614,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         getCachedStream(movie, season, episode, purpose)?.let { return it }
         // Play never waits for a Home-idle timer. Join a handshake already in
         // flight; otherwise cancel the deferred job and resolve immediately.
-        val pendingWarmup = synchronized(warmupJobLock) {
+        synchronized(warmupJobLock) {
             val pending = warmupJob?.takeIf { it.isActive }
             if (pending != null && !warmupIsImmediate &&
                 !(warmupHasStartedAttempt && directCDNResolver.isSessionGenerationInProgress())) {
@@ -2607,15 +2624,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 null
             } else pending
         }
-        if (pendingWarmup?.isActive == true) {
-            try {
-                kotlinx.coroutines.withTimeoutOrNull(20_000L) {
-                    pendingWarmup.join()
-                }
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {}
-        }
+        // The resolver's session mutex joins an active handshake directly.
+        // Foreground demand permits recovery without a second warmup-job wait.
         val cacheKey = streamCacheKey(movie, season, episode, purpose)
         getCachedStream(movie, season, episode, purpose)?.let { return it }
 
@@ -2633,7 +2643,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 } catch (limited: com.example.data.PlaybackRateLimitedException) {
                     throw limited
                 } catch (e: Exception) {
-                    android.util.Log.w("NetflixViewModel", "⚠️ DirectCDNResolver failed: ${e.message}")
+                    android.util.Log.w("NetflixViewModel", "DirectCDNResolver failed (${e.javaClass.simpleName})")
                 }
 
                 if (stream != null) {

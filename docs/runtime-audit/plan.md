@@ -2,7 +2,7 @@
 
 - [x] Confirm both previous PR heads pass GitHub build/test/lint; compare supplied Firebase configuration without exposing values.
 - [x] Prepare a real Android TV AVD; check supported live-view capability.
-- [ ] Sign in with the supplied test account; confirm membership and catalog availability.
+- [x] Sign in with the supplied test account; confirm membership and catalog availability.
 - [ ] Capture cold and warm startup, splash, auth/keyboard, walkthrough/profile setup, profile picker/edit/avatar/PIN, Home tabs, search/categories, details, player controls/audio/subtitles/settings and return navigation.
 - [ ] Record billboard and movie-card preview eligibility, resolution, preparation, first visible frame and cancellation while moving focus.
 - [ ] Attempt five distinct movies and five distinct TV shows; record resolution and first-frame durations, errors, playback stability, return/resume behavior and one next-episode handoff.

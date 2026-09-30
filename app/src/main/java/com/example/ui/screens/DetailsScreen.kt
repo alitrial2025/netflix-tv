@@ -500,7 +500,10 @@ fun DetailsScreen(
             return@LaunchedEffect
         }
         isStreamReady = false
-        viewModel.ensureStreamWarmed(immediate = true)
+        // The preview resolves through the same session coordinator as Play.
+        // A separate native-only warmup here can consume its foreground budget.
+        androidx.compose.runtime.withFrameNanos { }
+        viewModel.awaitBrowsingIdle()
         try {
             resolveAndPlayStream(
                 context = context,

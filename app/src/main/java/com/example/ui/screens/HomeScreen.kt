@@ -174,6 +174,7 @@ fun HomeScreen(
     val categoryRows by viewModel.categoryRows.collectAsStateWithLifecycle()
     val isCatalogLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val selectedProfile by viewModel.selectedProfile.collectAsStateWithLifecycle()
+    val userSubscription by viewModel.userSubscription.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val continueWatchingList by viewModel.continueWatchingList.collectAsStateWithLifecycle()
     val watchHistoryMovies by viewModel.watchHistoryMovies.collectAsStateWithLifecycle()
@@ -322,8 +323,8 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(selectedProfile?.id, isHomeResumed) {
-        if (selectedProfile != null && isHomeResumed) viewModel.ensureStreamWarmed()
+    LaunchedEffect(selectedProfile?.id, isHomeResumed, userSubscription.isTvAllowed) {
+        if (selectedProfile != null && isHomeResumed && userSubscription.isTvAllowed) viewModel.ensureStreamWarmed()
     }
 
     // Row generation depends on catalogue membership and each user's saved / in-progress

@@ -1,0 +1,11 @@
+kind,title,season,episode,resolver_ended_seconds,first_frame_seconds,outcome,host_observation_seconds
+movie,Dune,1,1,37.388,not rendered,resolution_returned_no_source,96.125
+movie,The Dark Knight,1,1,47.766,not rendered,resolution_cancelled_or_failed,102.447
+movie,Inception,1,1,49.032,not rendered,resolution_cancelled_or_failed,98.336
+movie,Interstellar,1,1,26.032,not rendered,resolution_returned_no_source,59.369
+movie,The Matrix,1,1,52.427,not rendered,resolution_cancelled_or_failed,90.582
+tv,Mr. Robot,1,1,20.258,not rendered,resolution_returned_no_source,49.057
+tv,The Last of Us,1,1,48.575,not rendered,resolution_cancelled_or_failed,93.041
+tv,Squid Game,1,1,18.807,not rendered,resolution_returned_no_source,47.762
+tv,Stranger Things,1,1,48.925,not rendered,resolution_cancelled_or_failed,87.55
+tv,Wednesday,1,1,43.282,not rendered,resolution_cancelled_or_failed,88.337
