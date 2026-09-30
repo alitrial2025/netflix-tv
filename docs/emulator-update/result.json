@@ -1,0 +1,13 @@
+{
+  "emulatorApi": 28,
+  "baselineVersionCode": 29092026,
+  "installedVersionCode": 29092028,
+  "newerApkSha256": "b45a50418fdb6432c7f70c69b9b54dd015932da0722b0488d0af0e885d0a52ca",
+  "newerApkBytes": 29954215,
+  "installationRoute": "app DownloadManager -> private APK verification -> Android permission settings -> PackageInstaller user approval",
+  "negativeSignerVersionCode": 29092029,
+  "negativeSignerResult": "rejected; baseline version unchanged",
+  "noUpdateResult": "normal auth screen; Update Gate absent",
+  "postUpdateResult": "normal auth after manual relaunch and remote input; Update Gate absent",
+  "runtimeFatalExceptions": 0
+}

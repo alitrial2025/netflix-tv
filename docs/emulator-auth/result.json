@@ -1,0 +1,8 @@
+{
+  "emulatorApi": 28,
+  "idleSeconds": 118,
+  "authVisibleAfterIdle": true,
+  "ambientEnteredDuringAuth": false,
+  "focusedSpaceMark": "dark on white focus background",
+  "runtimeFatalExceptions": 0
+}

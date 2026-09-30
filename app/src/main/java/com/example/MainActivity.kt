@@ -168,6 +168,9 @@ class MainActivity : ComponentActivity() {
                     val currentBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = currentBackStackEntry?.destination?.route ?: ""
                     val isPlayerScreen = currentRoute.contains("player", ignoreCase = true)
+                    // Keep auth, splash, profile selection and editing visible while idle.
+                    val canShowWallpaper = currentRoute == "home" ||
+                        currentRoute.startsWith("category/") || currentRoute.startsWith("details/")
 
                     LaunchedEffect(currentRoute) {
                         if (currentRoute.isNotEmpty()) {
@@ -180,15 +183,15 @@ class MainActivity : ComponentActivity() {
                     val previewWasPlaying = remember { PreviewPlaybackFlag() }
 
                     // App-wide Idle Inactivity Monitor:
-                    // Automatically triggers Ambient Wallpaper when user is idle for 60s (except during video playback)
+                    // Triggers Ambient Wallpaper after 60s only while browsing, outside playback.
                     // The loop reads the latest timestamp directly. Collecting it here
                     // would recompose the entire navigation host on every remote press.
-                    LaunchedEffect(isPlayerScreen, isBillboardPlaying) {
+                    LaunchedEffect(canShowWallpaper, isBillboardPlaying) {
                         if (previewWasPlaying.value && !isBillboardPlaying) {
                             _userInteractionTimestamp.value = System.currentTimeMillis()
                         }
                         previewWasPlaying.value = isBillboardPlaying
-                        if (isPlayerScreen) {
+                        if (!canShowWallpaper) {
                             _isWallpaperActiveState.value = false
                         } else if (!isBillboardPlaying) {
                             val idleTimeoutMs = 60_000L // 60 seconds of inactivity
@@ -640,7 +643,7 @@ class MainActivity : ComponentActivity() {
 
                         // App-Wide Ambient Wallpaper / Screensaver Overlay
                         AnimatedVisibility(
-                            visible = isWallpaperActive && !isPlayerScreen,
+                            visible = isWallpaperActive && canShowWallpaper,
                             enter = fadeIn(animationSpec = tween(700, easing = FastOutSlowInEasing)),
                             exit = fadeOut(animationSpec = tween(350, easing = FastOutSlowInEasing))
                         ) {

@@ -270,7 +270,7 @@ fun SearchSection(
                                 modifier = Modifier
                                     .width(48.dp)
                                     .height(5.dp)
-                                    .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                                    .background(androidx.tv.material3.LocalContentColor.current.copy(alpha = 0.7f), CircleShape)
                             )
                         },
                         modifier = Modifier
@@ -565,7 +565,9 @@ fun KeyboardKeyButton(
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color(0xFF2A2A2A),
-            focusedContainerColor = Color.White
+            contentColor = Color.White.copy(alpha = 0.85f),
+            focusedContainerColor = Color.White,
+            focusedContentColor = Color.Black
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f)
     ) {

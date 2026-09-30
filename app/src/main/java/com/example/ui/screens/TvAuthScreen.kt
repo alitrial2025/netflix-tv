@@ -473,7 +473,7 @@ fun TvAuthScreen(
                                     modifier = Modifier
                                         .width(48.dp)
                                         .height(5.dp)
-                                        .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                                        .background(androidx.tv.material3.LocalContentColor.current.copy(alpha = 0.7f), CircleShape)
                                 )
                             },
                             modifier = Modifier
