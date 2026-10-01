@@ -75,7 +75,7 @@ data class ContinueWatchingEntity(
                 (playbackPositionMs.toFloat() / durationMs.toFloat()) * 100f
             } else 0f
             val isNearEnd = durationMs > 0L && (durationMs - playbackPositionMs) <= 30_000L
-            val completed = isNearEnd || percentage >= 95f
+            val completed = ContinueWatchingEventPolicy.completed(playbackPositionMs, durationMs)
             return ContinueWatchingEntity(
                 profileId = profileId,
                 movieId = movie.id,
@@ -247,14 +247,16 @@ class ContinueWatchingRepository(private val dao: ContinueWatchingDao) {
         season: Int = 1,
         episode: Int = 1,
         episodeName: String = "",
-        force: Boolean = false
+        force: Boolean = false,
+        watchedAt: Long = com.example.data.ContinueWatchingEventPolicy.newTimestamp()
     ) = saveMutex.withLock {
         if (durationMs > 0 && profileId.isNotEmpty()) {
             try {
                 val percentage = (playbackPositionMs.toFloat() / durationMs.toFloat()) * 100
                 val isNearEnd = (durationMs - playbackPositionMs) <= 30000L // 30 seconds remaining
-                val isCompleted = isNearEnd || percentage >= 95f
+                val isCompleted = ContinueWatchingEventPolicy.completed(playbackPositionMs, durationMs)
                 val existing = dao.getOne(profileId, movie.id)
+                if (!ContinueWatchingEventPolicy.isNewer(watchedAt, existing?.lastWatchedTimestamp)) return@withLock
                 val sameTitle = existing != null && existing.title.equals(movie.title, true) &&
                     existing.toMovie().catalogMediaKind() == movie.catalogMediaKind()
                 val episodeChanged = sameTitle && (existing!!.season != season || existing.episode != episode)
@@ -277,7 +279,7 @@ class ContinueWatchingRepository(private val dao: ContinueWatchingDao) {
                         season = season,
                         episode = episode,
                         episodeName = episodeName
-                    )
+                    ).copy(lastWatchedTimestamp = watchedAt)
                     dao.insertOrUpdate(entity)
                 }
             } catch (e: Exception) {
@@ -285,6 +287,24 @@ class ContinueWatchingRepository(private val dao: ContinueWatchingDao) {
                 android.util.Log.e("ContinueWatchingRepository", "saveProgress failed for ${movie.id}", e)
             }
         }
+    }
+
+    suspend fun upsertRemoteProgressIfNewer(
+        profileId: String, movie: Movie, playbackPositionMs: Long, durationMs: Long,
+        season: Int = 1, episode: Int = 1, episodeName: String = "",
+        watchedAt: Long, completed: Boolean = ContinueWatchingEventPolicy.completed(playbackPositionMs, durationMs)
+    ) = saveMutex.withLock {
+        val existing = dao.getOne(profileId, movie.id)
+        if (ContinueWatchingEventPolicy.isNewer(watchedAt, existing?.lastWatchedTimestamp)) {
+            dao.insertOrUpdate(ContinueWatchingEntity.fromMovie(profileId, movie, playbackPositionMs, durationMs,
+                season, episode, episodeName).copy(lastWatchedTimestamp = watchedAt, completed = completed))
+        }
+    }
+
+    suspend fun applyRemoteRemoval(profileId: String, mediaId: String, watchedAt: Long) = saveMutex.withLock {
+        val existing = dao.getOne(profileId, mediaId)
+        if (existing != null && watchedAt >= existing.lastWatchedTimestamp) dao.insertOrUpdate(existing.copy(
+            lastWatchedTimestamp = watchedAt, completed = true))
     }
 
     suspend fun deleteProgress(profileId: String, movieId: String) {

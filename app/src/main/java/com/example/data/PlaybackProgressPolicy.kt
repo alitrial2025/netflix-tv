@@ -10,8 +10,9 @@ internal object PlaybackProgressPolicy {
             remoteId?.endsWith("_S${season}_$episode", ignoreCase = true) == true
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun resolvePosition(positionMs: Long, durationMs: Long, remotePositionMs: Long): Long =
-        maxOf(positionMs, remotePositionMs).coerceIn(0L, durationMs.coerceAtLeast(0L))
+        positionMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
 
     fun shouldDebounce(
         positionMs: Long, season: Int, episode: Int,

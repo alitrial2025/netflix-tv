@@ -142,6 +142,7 @@ class UserSubscriptionTest {
         val sub = UserSubscription(
             status = "GRACE_PERIOD",
             planId = "plan_standard",
+            expiresAt = fixedNowMillis - oneDayMs,
             gracePeriodEndsAt = fixedNowMillis + oneDayMs
         )
         assertTrue(sub.isInGracePeriod)

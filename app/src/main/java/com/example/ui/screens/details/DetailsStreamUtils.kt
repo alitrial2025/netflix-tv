@@ -64,7 +64,7 @@ suspend fun resolveAndPlayStream(
         cw.playbackPositionMs.coerceAtLeast(0L) else 0L
     onCaptions(stream.captions)
     exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
-        .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+        .setMaxVideoSize(Int.MAX_VALUE, if (trailerOnly) 1080 else viewModel.userSubscription.value.maxVideoHeight.coerceAtLeast(480))
         .setMaxVideoBitrate(Int.MAX_VALUE)
         .setMaxVideoFrameRate(Int.MAX_VALUE)
         .setForceLowestBitrate(false)

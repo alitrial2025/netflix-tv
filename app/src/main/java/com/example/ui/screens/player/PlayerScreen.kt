@@ -500,7 +500,7 @@ fun PlayerScreen(
             if (!viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
             exoPlayer.volume = 1f
             exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
-                .setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+                .setMaxVideoSize(Int.MAX_VALUE, if (isTrailerPlayback) 1080 else userSubscription.maxVideoHeight.coerceAtLeast(480))
                 .setMaxVideoBitrate(Int.MAX_VALUE)
                 .setMaxVideoFrameRate(Int.MAX_VALUE)
                 .setForceLowestBitrate(false)

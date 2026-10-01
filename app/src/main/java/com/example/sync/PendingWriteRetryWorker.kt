@@ -166,6 +166,7 @@ class PendingWriteRetryWorker(
                     ?: throw IllegalStateException("batch row missing payload")
                 val arr = org.json.JSONArray(payload)
                 val batch = db.batch()
+                val progressRecords = mutableListOf<Pair<com.google.firebase.firestore.DocumentReference, Map<String, Any?>>>()
                 for (i in 0 until arr.length()) {
                     val op = arr.getJSONObject(i)
                     val opName = op.getString("op")
@@ -177,12 +178,15 @@ class PendingWriteRetryWorker(
                         PendingWrite.OP_UPDATE, PendingWrite.OP_CREATE -> {
                             val data = jsonToMap(op.getJSONObject("data"))
                             batch.set(docRef, data, SetOptions.merge())
+                            if (coll.endsWith("/continue_watching") || coll.endsWith("/continueWatching")) progressRecords.add(docRef to data)
                         }
                         PendingWrite.OP_DELETE -> batch.delete(docRef)
                         else -> throw IllegalStateException("unknown batch op: $opName")
                     }
                 }
-                batch.commit().await()
+                if (progressRecords.size == arr.length() && progressRecords.isNotEmpty() && progressRecords.first().second["lastWatchedTimestamp"] is Number)
+                    com.example.data.ContinueWatchingCloudCommit.write(db, progressRecords)
+                else batch.commit().await()
             }
             else -> throw IllegalStateException("unknown operation: ${row.operation}")
         }
@@ -202,8 +206,8 @@ class PendingWriteRetryWorker(
     ): com.google.firebase.firestore.DocumentReference {
         val parts = collectionPath.split("/").filter { it.isNotBlank() }
         require(parts.isNotEmpty()) { "empty collection path" }
-        require(parts.size % 2 == 0) {
-            "collection path must end in a document id segment: $collectionPath"
+        require(parts.size % 2 == 1) {
+            "collection path must end in a collection segment: $collectionPath"
         }
         // parts is [coll0, doc0, coll1, doc1, ...]
         var collRef: com.google.firebase.firestore.CollectionReference =

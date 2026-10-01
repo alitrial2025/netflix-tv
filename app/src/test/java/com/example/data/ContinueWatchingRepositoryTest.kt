@@ -57,4 +57,24 @@ class ContinueWatchingRepositoryTest {
         repository.saveProgress("profile", show, 13_000L, 600_000L, force = true)
         assertEquals(13_000L, repository.getContinueWatchingById("profile", "42")?.playbackPositionMs)
     }
+    @Test fun remoteRewindWinsAndOlderEpisodeCannotOverwriteIt() = runBlocking {
+        repository.upsertRemoteProgressIfNewer("profile", show, 300_000L, 600_000L, 1, 2, "Second", 100L)
+        repository.upsertRemoteProgressIfNewer("profile", show, 50_000L, 600_000L, 1, 2, "Second", 200L)
+        repository.upsertRemoteProgressIfNewer("profile", show, 400_000L, 600_000L, 1, 1, "Old", 150L)
+        val resume = repository.getContinueWatchingById("profile", "42")!!
+        assertEquals(50_000L, resume.playbackPositionMs)
+        assertEquals(200L, resume.lastWatchedTimestamp)
+        assertEquals(2, resume.episode)
+    }
+
+    @Test fun removalRejectsAnOlderSaveButReplayCanStartAgain() = runBlocking {
+        repository.upsertRemoteProgressIfNewer("profile", show, 300_000L, 600_000L, watchedAt = 100L)
+        repository.applyRemoteRemoval("profile", "42", 200L)
+        repository.upsertRemoteProgressIfNewer("profile", show, 400_000L, 600_000L, watchedAt = 150L)
+        assertNull(repository.getContinueWatchingById("profile", "42"))
+        repository.upsertRemoteProgressIfNewer("profile", show, 0L, 600_000L, 1, 2, "Second", 300L)
+        assertEquals(2, repository.getContinueWatchingById("profile", "42")?.episode)
+        assertEquals(0L, repository.getContinueWatchingById("profile", "42")?.playbackPositionMs)
+    }
+
 }

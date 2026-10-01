@@ -163,7 +163,7 @@ fun UpgradePlanModal(
                                     )
                                 }
                                 Text(
-                                    text = stringResource(R.string.upgrade_modal_price_per_month, plan.priceUsd),
+                                    text = stringResource(R.string.upgrade_modal_price_per_month, "KSh ${plan.priceKes}"),
                                     color = Color.White,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold

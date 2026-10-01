@@ -8,7 +8,7 @@
     <string name="upgrade_modal_watch_trailer">Watch Trailer</string>
     <string name="upgrade_modal_most_popular">MOST POPULAR</string>
     <string name="upgrade_modal_plan_summary">%1$s • %2$s</string>
-    <string name="upgrade_modal_price_per_month">%1$s / mo</string>
+    <string name="upgrade_modal_price_per_month">%1$s / 30 days</string>
 
     <!-- Subscription lock-reason messages (from UserSubscription.getLockReason) -->
     <string name="lock_reason_guest">Guest Mode: Watch Official Trailer or Sign In to stream full title.</string>

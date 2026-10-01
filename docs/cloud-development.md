@@ -18,3 +18,6 @@ The marketing site passed Chromium checks at desktop, tablet and phone widths, w
 Release verification still needs the original signing key, a deployed update URL, device playback/episode handoff checks, remote-control focus checks across auth/walkthrough/profile flows and timing measurements on real TV hardware. A passing debug build is not a production-readiness certification.
 
 The later Android TV runtime baseline and explicit incomplete checks are in `docs/runtime-audit`; cold-play session promotion/expiry scheduling and acceptance criteria are in `docs/runtime-audit/warmup-plan.md`. Ten authenticated titles, including Mr. Robot, failed to render frames before those later pipeline corrections. New unit checks validate promotion/cancellation and ten-hour cache expiry, but live recovery still needs a working provider session.
+
+
+The October 2026 review builds use the new NetflixPro signing key supplied locally in ignored app/release.jks and app/release-signing.properties. They require uninstalling the previous differently signed APK once. Future release builds must retain this same new key. Signing files are private and must never be committed to GitHub.
