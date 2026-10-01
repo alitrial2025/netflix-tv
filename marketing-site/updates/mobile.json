@@ -2,5 +2,18 @@
   "schemaVersion": 1,
   "channel": "mobile",
   "packageName": "com.netflixpro.apk",
-  "available": false
+  "available": true,
+  "versionCode": 5,
+  "versionName": "1.4",
+  "minSdk": 24,
+  "targetSdk": 35,
+  "sizeBytes": 44444859,
+  "sha256": "df46f8697379b652595e5c12b7c6c2e93fc96fe54f50b02e9020cef102a7a8b1",
+  "signingCertificateSha256": [
+    "8fe8dba9926a17c17f22a5f080bdcc5c63611d3ef9c504fd3363b4a3fa25497c"
+  ],
+  "apkUrl": "https://github.com/alitrial2025/netflix-tv/raw/284fbfadfb45fa2501fb8104bf8de34862c2499f/NetflixPro-Mobile-debug.apk",
+  "supportsUpdateGate": true,
+  "publishedAt": "2026-10-01T07:27:04.983044Z",
+  "releaseNotes": "Debug review build: Home scroll work reduced, provider-aware Smart Downloads, separate-audio offline HLS and clearer errors. Uses the Android debug certificate; compatible with earlier desktop debug builds, not a differently signed production installation."
 }

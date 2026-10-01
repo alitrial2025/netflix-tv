@@ -1265,6 +1265,7 @@ h1,h2,h3,h4,p { margin: 0; }
 @media(max-width:640px) { .releases { grid-template-columns:1fr; } .release { padding:24px; } }
 </style>
 <link rel="stylesheet" href="assets/app-look.css" />
+<link rel="stylesheet" href="assets/mobile-tour.css" />
 </head>
 <body>
 
@@ -1311,7 +1312,7 @@ h1,h2,h3,h4,p { margin: 0; }
     </div>
     <nav class="experience-rail" aria-label="Explore the NetflixPro experience">
       <a class="experience-card" href="#features">Browse &amp; preview</a>
-      <a class="experience-card" href="#downloads">TV + mobile</a>
+      <a class="experience-card" href="#phone-tour">TV + mobile</a>
       <a class="experience-card" href="#screens">Profiles &amp; kids</a>
       <a class="experience-card" href="#features">My List</a>
       <a class="experience-card" href="#features">Watch history</a>
@@ -1615,8 +1616,8 @@ h1,h2,h3,h4,p { margin: 0; }
 </defs></svg>
 <section class="section" id="screens">
   <div class="container">
-    <h2 class="section__title section__title--center">A Closer Look at the App</h2>
-    <p class="section__sub">Explore the current TV design, from your first profile to Update Gate. These are screen illustrations.</p>
+    <h2 class="section__title section__title--center">Made for the big screen</h2>
+    <p class="section__sub">Explore NetflixPro TV, from your first profile to Update Gate. Then take a look at the phone experience below.</p>
     <div class="carousel" id="carousel" aria-label="App tour">
       <div class="carousel__track" id="track">
         <div class="shot shot--home" data-screen="Home" data-label="Home — cinematic artwork, genre cards, and rows made for your remote." role="button" tabindex="0" aria-label="Expand Home preview">
@@ -1714,6 +1715,36 @@ h1,h2,h3,h4,p { margin: 0; }
 </section>
 
 
+
+<!-- Phone layouts follow the current Kotlin screens. Artwork is bundled, not a live catalogue. -->
+<section class="section phone-tour" id="phone-tour" aria-labelledby="phoneTourTitle">
+  <div class="container phone-tour__layout">
+    <div class="phone-tour__copy">
+      <p class="phone-tour__eyebrow">NETFLIXPRO · ANDROID PHONE</p>
+      <h2 class="section__title" id="phoneTourTitle">The same world.<br>Your own screen.</h2>
+      <p class="section__sub">Poster-rich browsing, a closer look at every story, and a place for the titles you take with you.</p>
+      <div class="phone-tour__tabs" role="group" aria-label="Choose a phone screen">
+        <button type="button" data-phone-screen="home" aria-pressed="true" aria-controls="phonePreview">Home</button>
+        <button type="button" data-phone-screen="details" aria-pressed="false" aria-controls="phonePreview">Details</button>
+        <button type="button" data-phone-screen="downloads" aria-pressed="false" aria-controls="phonePreview">Downloads</button>
+        <button type="button" data-phone-screen="smart" aria-pressed="false" aria-controls="phonePreview">Smart Downloads</button>
+        <button type="button" data-phone-screen="search" aria-pressed="false" aria-controls="phonePreview">Search</button>
+        <button type="button" data-phone-screen="profile" aria-pressed="false" aria-controls="phonePreview">Edit profile</button>
+      </div>
+      <p class="phone-tour__caption" id="phoneCaption" aria-live="polite">Home — a cinematic hero, familiar categories and your next watch within reach.</p>
+      <a class="cta cta--primary" href="#downloads">Get the phone app <svg class="app-icon" aria-hidden="true"><use href="#app-icon-right"></use></svg></a>
+      <p class="phone-tour__note">Interactive screen illustrations. Try the controls; preview changes stay in this page.</p>
+    </div>
+    <div class="phone-device">
+      <div class="phone-device__screen" id="phonePreview" role="region" aria-label="NetflixPro phone Home preview" tabindex="0">
+        <div class="phone-status" aria-hidden="true"><span>9:41</span><span>▮▮▮ ◔ ▰</span></div>
+        <div id="phoneContent"></div>
+      </div>
+      <div class="phone-device__gesture" aria-hidden="true"></div>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════ FAQ ═══════════════ -->
 <section class="section section--dark" id="faq">
   <div class="container">
@@ -1741,9 +1772,9 @@ h1,h2,h3,h4,p { margin: 0; }
       <div class="footer__col">
         <div class="footer__about">
           <span class="brand__n" aria-hidden="true"><img src="assets/netflix-n.svg" alt="" /></span>
-          <span class="brand__word">NetflixPro TV</span>
+          <span class="brand__word">NetflixPro</span>
         </div>
-        <p class="footer__tag">The Netflix experience, built for the big screen.</p>
+        <p class="footer__tag">Your next watch, on TV and on your phone.</p>
       </div>
       <div class="footer__col">
         <h4>Product</h4>
@@ -1768,12 +1799,12 @@ h1,h2,h3,h4,p { margin: 0; }
     </div>
     <div class="footer__bottom">
       <div class="footer__legal">
-        <span>© 2026 NetflixPro TV. Not affiliated with Netflix, Inc. All trademarks are the property of their respective owners.</span>
+        <span>© 2026 NetflixPro. Not affiliated with Netflix, Inc. All trademarks are the property of their respective owners.</span>
         <p class="footer__tmdb">This product uses the TMDB API but is not endorsed or certified by TMDB. Movie data and images © The Movie Database.</p>
       </div>
       <div class="footer__copy">
-        <span>© 2026 NetflixPro TV</span>
-        <span>Made with ♥ for the Android TV community.</span>
+        <span>© 2026 NetflixPro</span>
+        <span>Made for Android TV and Android phones.</span>
       </div>
     </div>
   </div>
@@ -2238,5 +2269,6 @@ h1,h2,h3,h4,p { margin: 0; }
 
 <script type="module" src="assets/updates.mjs"></script>
 <script type="module" src="assets/app-look.mjs"></script>
+<script type="module" src="assets/mobile-tour.mjs"></script>
 </body>
 </html>

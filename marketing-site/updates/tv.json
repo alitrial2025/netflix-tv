@@ -3,17 +3,17 @@
   "channel": "tv",
   "packageName": "com.netflixprotv.apk",
   "available": true,
-  "versionCode": 28092026,
-  "versionName": "28.9.2026",
+  "versionCode": 29092029,
+  "versionName": "1.10.2026.2",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 24244116,
-  "sha256": "586263401208098c779e83cc9b74a0d395c2aa97a1135ce0298bd01dc4847a20",
+  "sizeBytes": 33165079,
+  "sha256": "958a5a388b02381a687f9dc9f723a02e8191b876905dfcb37d1c1d2e1a895eb1",
   "signingCertificateSha256": [
-    "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
+    "8fe8dba9926a17c17f22a5f080bdcc5c63611d3ef9c504fd3363b4a3fa25497c"
   ],
-  "apkUrl": "/downloads/tv/28092026-586263401208098c.apk",
-  "releaseNotes": "Existing TV release from 28 September. Install the next signed release to receive Update Gate and the latest fixes.",
-  "supportsUpdateGate": false,
-  "publishedAt": "2026-09-29T15:40:54.271Z"
+  "apkUrl": "https://github.com/alitrial2025/netflix-tv/raw/284fbfadfb45fa2501fb8104bf8de34862c2499f/NetflixPro-TV-debug.apk",
+  "supportsUpdateGate": true,
+  "publishedAt": "2026-10-01T07:27:04.989821Z",
+  "releaseNotes": "Debug review build: warm-session/CDN renewal fixes, independent CDN requests, preserved audio signatures and Smallville route parity. Uses the Android debug certificate; compatible with earlier desktop debug builds, not a differently signed production installation."
 }
