@@ -1,0 +1,7 @@
+{
+  "activityFirstDrawSeconds": 21.622,
+  "earlierFirstDrawSeconds": 20.526,
+  "scope": "debug software Android TV, one guest CPU, no KVM; boot, shader and JIT caches differ",
+  "catalogStartedBeforeAuthentication": false,
+  "improvementClaim": "None. Deferral removes startup work; these two cold draws do not show a first-draw speedup."
+}

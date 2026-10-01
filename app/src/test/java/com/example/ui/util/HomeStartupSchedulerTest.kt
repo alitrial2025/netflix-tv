@@ -64,4 +64,40 @@ class HomeStartupSchedulerTest {
         assertTrue(previewReady)
         discovery.cancel()
     }
+
+    @Test fun leavingDuringQuietCountdownRequiresTheNextHomeFrame() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime })
+        gate.markHomeReady()
+        var started = false
+        val warmup = launch { gate.awaitIdle(); started = true }
+        advanceTimeBy(900)
+        gate.markHomeHidden()
+        advanceTimeBy(5_000)
+        runCurrent()
+        assertFalse(started)
+        gate.markHomeReady()
+        advanceTimeBy(999)
+        runCurrent()
+        assertFalse(started)
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue(started)
+        warmup.join()
+    }
+
+    @Test fun cancelledBackgroundWaitDoesNotHoldTheForegroundGate() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime })
+        val background = launch { gate.awaitIdle(); error("Home never became ready") }
+        runCurrent()
+        background.cancel()
+        background.join()
+        var foregroundReady = false
+        launch { gate.awaitBrowsingIdle(); foregroundReady = true }
+        advanceTimeBy(999)
+        runCurrent()
+        assertFalse(foregroundReady)
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue(foregroundReady)
+    }
 }

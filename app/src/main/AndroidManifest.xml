@@ -45,6 +45,7 @@
         </receiver>
         <activity
             android:name=".MainActivity"
+            android:launchMode="singleTop"
             android:exported="true"
             android:hardwareAccelerated="true"
             android:screenOrientation="landscape"

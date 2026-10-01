@@ -1,10 +1,8 @@
 package com.example.ui.screens.details
 
 import android.view.KeyEvent
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -44,6 +42,8 @@ import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.ui.util.TvKeyPacer
+import com.example.ui.components.movieRowWindow
 import com.example.data.ContinueWatchingEntity
 import com.example.model.Episode
 import com.example.ui.screens.handleTvDpadNavigation
@@ -79,21 +79,15 @@ fun EpisodesRowSection(
         }
     }
 
-    val animIndex = remember(currentSeason) { Animatable(initialIndex.toFloat()) }
-    LaunchedEffect(focusedIndex) {
-        val diff = kotlin.math.abs(animIndex.value - focusedIndex)
-        if (diff <= 2.5f && diff > 0.001f) {
-            animIndex.animateTo(
-                targetValue = focusedIndex.toFloat(),
-                animationSpec = spring(
-                    dampingRatio = 1f,
-                    stiffness = TvMotion.stiffness(1000f),
-                    visibilityThreshold = 0.001f
-                )
-            )
-        } else if (diff > 0.001f) {
-            animIndex.snapTo(focusedIndex.toFloat())
-        }
+    val keyPacer = remember(currentSeason) { TvKeyPacer() }
+    // animateFloatAsState retargets the running spring with its current velocity.
+    // A new season starts on its own selection, rather than gliding through the old list.
+    val animIndex = key(currentSeason) {
+        animateFloatAsState(
+            targetValue = focusedIndex.toFloat(),
+            animationSpec = TvMotion.carouselSpring(0.001f),
+            label = "episodesPosition"
+        )
     }
 
     val baseWidth = 230.dp
@@ -173,7 +167,7 @@ fun EpisodesRowSection(
             }
         }
 
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(cardHeight + 10.dp)
@@ -182,6 +176,7 @@ fun EpisodesRowSection(
                         when (keyEvent.nativeKeyEvent.keyCode) {
                             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                                 if (episodes.isEmpty()) return@onPreviewKeyEvent true
+                                if (!keyPacer.accept(1, repeatCount = keyEvent.nativeKeyEvent.repeatCount)) return@onPreviewKeyEvent true
                                 if (focusedIndex < episodes.size - 1) {
                                     focusedIndex++
                                     val ep = episodes[focusedIndex]
@@ -191,6 +186,7 @@ fun EpisodesRowSection(
                             }
                             KeyEvent.KEYCODE_DPAD_LEFT -> {
                                 if (episodes.isEmpty()) return@onPreviewKeyEvent true
+                                if (!keyPacer.accept(-1, repeatCount = keyEvent.nativeKeyEvent.repeatCount)) return@onPreviewKeyEvent true
                                 if (focusedIndex > 0) {
                                     focusedIndex--
                                     val ep = episodes[focusedIndex]
@@ -199,6 +195,7 @@ fun EpisodesRowSection(
                                 true
                             }
                             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                                if (keyEvent.nativeKeyEvent.repeatCount != 0) return@onPreviewKeyEvent true
                                 val ep = episodes.getOrNull(focusedIndex)
                                 if (ep != null) {
                                     onEpisodeClick(ep)
@@ -227,12 +224,13 @@ fun EpisodesRowSection(
                 .focusable()
                 .clipToBounds()
         ) {
-            val baseIdx = focusedIndex
-            val startWindow = maxOf(0, baseIdx - 1)
-            val endWindow = minOf(episodes.size - 1, baseIdx + 6)
+            // Mount the rendered viewport, not the latest requested episode.
+            // Fast taps must not remove the posters the spring is still crossing.
+            val posterSlots = kotlin.math.ceil((maxWidth / itemSpacing).toDouble()).toInt() + 1
+            val posterWindow = movieRowWindow(heroIndexState.value, posterSlots, episodes.size, isInfinite = false)
 
             // ── LAYER 1: Sliding base episode card strip ──
-            for (i in startWindow..endWindow) {
+            for (i in posterWindow) {
                 key("ep_card_$i") {
                     val ep = episodes.getOrNull(i)
                     if (ep != null) {

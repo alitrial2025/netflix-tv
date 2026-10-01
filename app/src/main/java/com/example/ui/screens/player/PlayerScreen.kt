@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.example.ui.screens.player
 
 import android.view.KeyEvent
@@ -69,7 +71,7 @@ private class PlayerJobHolder {
     var job: Job? = null
 }
 
-@OptIn(androidx.media3.common.util.UnstableApi::class)
+
 private fun Throwable.playbackHttpResponseCode(): Int? {
     var current: Throwable? = this
     val visited = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
@@ -80,7 +82,7 @@ private fun Throwable.playbackHttpResponseCode(): Int? {
     return null
 }
 
-@OptIn(androidx.media3.common.util.UnstableApi::class)
+
 @Composable
 fun PlayerScreen(
     movie: Movie,
@@ -101,6 +103,9 @@ fun PlayerScreen(
     val isLoggedIn = viewModel.isUserLoggedIn()
     val userSubscription by viewModel.userSubscription.collectAsStateWithLifecycle()
     val isTrailerPlayback = trailerOnly || !isLoggedIn
+    val playbackAccessLocked = remember(movie, userSubscription, isTrailerPlayback) {
+        !isTrailerPlayback && viewModel.isMovieLocked(movie)
+    }
     val playbackOwner = remember(movie.id, movie.title, movie.type) { "player:${java.util.UUID.randomUUID()}" }
     val sharedPlaybackOwner by viewModel.sharedPlaybackOwner.collectAsStateWithLifecycle()
     val ownsPlayback = sharedPlaybackOwner == playbackOwner
@@ -143,6 +148,10 @@ fun PlayerScreen(
     }
     var playbackError by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf<String?>(null) }
     var loadAttempt by remember(movie.id, currentSeason, currentEpisode) { mutableIntStateOf(0) }
+    val playbackStartedAt = remember(movie.id, currentSeason, currentEpisode, loadAttempt) {
+        com.example.ui.util.RuntimeTiming.start()
+    }
+    var firstFrameReported by remember(movie.id, currentSeason, currentEpisode, loadAttempt) { mutableStateOf(false) }
     var sessionRecoveryAttempts by remember(movie.id, currentSeason, currentEpisode) { mutableIntStateOf(0) }
     val renderedMediaId by viewModel.sharedVideoFrameMediaId.collectAsStateWithLifecycle()
     var hasVideoFrame by remember(initialTargetMediaId) {
@@ -202,6 +211,7 @@ fun PlayerScreen(
     val progressRequester = remember { FocusRequester() }
 
     var isExitProgressSaved by remember { mutableStateOf(false) }
+    var startedEpisodeSaved by remember(initialTargetMediaId) { mutableStateOf(false) }
     fun saveCurrentProgress(forceSync: Boolean) {
         if (isTrailerPlayback || !viewModel.ownsSharedPlayback(playbackOwner) ||
             exoPlayer.currentMediaItem?.mediaId != initialTargetMediaId) return
@@ -321,7 +331,18 @@ fun PlayerScreen(
                 }
             }
             override fun onRenderedFirstFrame() {
-                if (ownsCurrentMedia()) hasVideoFrame = true
+                if (ownsCurrentMedia()) {
+                    if (!firstFrameReported) {
+                        firstFrameReported = true
+                        com.example.ui.util.RuntimeTiming.elapsed("player_first_frame", playbackStartedAt)
+                    }
+                    hasVideoFrame = true
+                    // Persist the newly started episode immediately, even at position zero.
+                    if (!startedEpisodeSaved) {
+                        saveCurrentProgress(forceSync = true)
+                        startedEpisodeSaved = true
+                    }
+                }
             }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 if (ownsCurrentMedia()) isPlaying = playWhenReady
@@ -403,8 +424,9 @@ fun PlayerScreen(
                         playbackError = "The trailer could not be played."
                         return
                     }
-                    // A signed stream and its cookies expire together. Reusing the
-                    // raw URL with the same headers cannot recover an auth failure.
+                    // A CDN signature can fail while the provider cookie remains
+                    // valid. Refresh this route; renew a cookie only when one was
+                    // actually sent and rejected.
                     viewModel.reportBadSession(activeStream?.headers?.get("Cookie"))
                     viewModel.invalidateStream(movie, listenerSeason, listenerEpisode)
                     if (sessionRecoveryAttempts < 1) {
@@ -452,7 +474,7 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(initialTargetMediaId, loadAttempt, playbackActive, userSubscription, ownsPlayback) {
+    LaunchedEffect(initialTargetMediaId, loadAttempt, playbackActive, playbackAccessLocked, ownsPlayback) {
         if (!playbackActive || !viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
         val thisAttempt = kotlinx.coroutines.currentCoroutineContext()[Job]
         resolutionJobHolder.job = thisAttempt
@@ -461,7 +483,7 @@ fun PlayerScreen(
             (exoPlayer.playbackState == Player.STATE_READY || exoPlayer.playbackState == Player.STATE_BUFFERING)
         playbackError = null
         try {
-            if (!isTrailerPlayback && viewModel.isMovieLocked(movie)) {
+            if (playbackAccessLocked) {
                 playbackError = "This title requires an active plan. Return to Details to unlock it."
                 return@LaunchedEffect
             }
@@ -508,23 +530,32 @@ fun PlayerScreen(
             isLoading = true
             hasVideoFrame = false
             playbackMarkers = PlaybackMarkers()
-            val stream = withContext(Dispatchers.IO) {
-                if (isTrailerPlayback) kotlinx.coroutines.withTimeoutOrNull(55_000L) {
-                    val trailer = viewModel.resolveTrailerStream(movie, allowExternalFallback = true)
-                    if (trailer?.type == "youtube") {
-                        withContext(Dispatchers.Main) {
-                            try {
-                                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(trailer.url)))
-                                playbackError = "Trailer opened in YouTube. Press Back to return."
-                            } catch (_: Exception) {
-                                playbackError = "Install or enable YouTube to open this official trailer."
+            val resolutionStartedAt = com.example.ui.util.RuntimeTiming.start()
+            val stream = try {
+                withContext(Dispatchers.IO) {
+                    if (isTrailerPlayback) kotlinx.coroutines.withTimeoutOrNull(55_000L) {
+                        val trailer = viewModel.resolveTrailerStream(movie, allowExternalFallback = true)
+                        if (trailer?.type == "youtube") {
+                            withContext(Dispatchers.Main) {
+                                try {
+                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(trailer.url)))
+                                    playbackError = "Trailer opened in YouTube. Press Back to return."
+                                } catch (_: Exception) {
+                                    playbackError = "Install or enable YouTube to open this official trailer."
+                                }
                             }
-                        }
-                        null
-                    } else trailer?.toNetMirrorStream(movie.title, "trailer_${movie.id}")
-                } else viewModel.resolveStream(movie, currentSeason, currentEpisode)
+                            null
+                        } else trailer?.toNetMirrorStream(movie.title, "trailer_${movie.id}")
+                    } else viewModel.resolveStream(movie, currentSeason, currentEpisode)
+                }
+            } finally {
+                // Include failures/cancellation; readiness alone is not a video frame.
+                com.example.ui.util.RuntimeTiming.elapsed("player_resolution_finished", resolutionStartedAt)
             }
+            com.example.ui.util.RuntimeTiming.elapsed(
+                if (stream == null) "player_resolve_failed" else "player_resolved", resolutionStartedAt
+            )
             ensureActive()
             if (!viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
             if (stream == null) {
@@ -746,27 +777,7 @@ fun PlayerScreen(
     LaunchedEffect(exoPlayer) {
         while (true) {
             delay(15_000L)
-            val safeState = try {
-                Triple(exoPlayer.duration > 0, exoPlayer.isPlaying, exoPlayer.currentPosition to exoPlayer.duration)
-            } catch (_: IllegalStateException) {
-                null
-            } catch (_: Exception) {
-                null
-            }
-            if (safeState != null) {
-                val (hasDuration, playing, posDur) = safeState
-                if (hasDuration && playing && !isTrailerPlayback && viewModel.ownsSharedPlayback(playbackOwner)) {
-                    viewModel.savePlaybackProgress(
-                        movie = movie,
-                        positionMs = posDur.first,
-                        durationMs = posDur.second,
-                        season = currentSeason,
-                        episode = currentEpisode,
-                        episodeName = currentEpisodeName,
-                        forceFirestoreSync = false
-                    )
-                }
-            }
+            if (exoPlayer.isPlaying) saveLatestProgress(false)
         }
     }
 
@@ -1196,11 +1207,8 @@ fun PlayerScreen(
                 onRetry = {
                     if (!viewModel.ownsSharedPlayback(playbackOwner)) return@PlayerErrorOverlay
                     sessionRecoveryAttempts = 0
-                    // If resolution never produced a stream, a rejected cookie may
-                    // have looked like empty search results. Retry with a fresh session.
-                    if (!isTrailerPlayback && activeStream == null && playbackError?.contains("rate limited", ignoreCase = true) != true) {
-                        viewModel.reportBadSession(null)
-                    }
+                    // Resolver verification handles revoked cookies. A missing
+                    // title or CDN failure alone must not force a fresh handshake.
                     if (!isTrailerPlayback && playbackError?.contains("rate limited", ignoreCase = true) == true) {
                         viewModel.evictCachedStream(movie, currentSeason, currentEpisode)
                     } else if (!isTrailerPlayback) {

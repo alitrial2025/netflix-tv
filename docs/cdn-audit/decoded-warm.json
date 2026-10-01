@@ -1,0 +1,461 @@
+{
+  "timestamp": "2026-10-01T06:23:16.030Z",
+  "implementation": "normal_provider_protocol_node_curl",
+  "claims": "Container validation is not an Android decoder or first-frame measurement.",
+  "runs": [
+    {
+      "title": "Mr. Robot",
+      "year": 2015,
+      "season": 1,
+      "episode": 1,
+      "phase": "warm_session_new_title",
+      "totalMs": 3133,
+      "handshakes": 0,
+      "sessionReadyMs": 0,
+      "success": false,
+      "error": "cdn_route_rejected",
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 711,
+          "status": 200,
+          "bytes": 74,
+          "connectMs": 5,
+          "firstByteMs": 650,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 345,
+          "status": 200,
+          "bytes": 135,
+          "connectMs": 3,
+          "firstByteMs": 296,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "post",
+          "host": "net52.cc",
+          "path": "/mobile/pv/post.php",
+          "queryKeys": [
+            "id",
+            "t"
+          ],
+          "elapsedMs": 354,
+          "status": 200,
+          "bytes": 3160,
+          "connectMs": 2,
+          "firstByteMs": 325,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t"
+          ],
+          "elapsedMs": 605,
+          "status": 200,
+          "bytes": 1610,
+          "connectMs": 3,
+          "firstByteMs": 575,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t",
+            "page"
+          ],
+          "elapsedMs": 312,
+          "status": 200,
+          "bytes": 77,
+          "connectMs": 1,
+          "firstByteMs": 293,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "playlist_discovery",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "elapsedMs": 228,
+          "status": 200,
+          "bytes": 731,
+          "connectMs": 1,
+          "firstByteMs": 214,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "master_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0RZED4V5SOLKXX2U04B6XONCIM.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "elapsedMs": 258,
+          "status": 200,
+          "bytes": 2701,
+          "connectMs": 1,
+          "firstByteMs": 243,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s10.freecdn43.top",
+          "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 312,
+          "status": 403,
+          "bytes": 25,
+          "connectMs": 1,
+          "firstByteMs": 290,
+          "redirects": 0,
+          "kind": "cdn_route_rejected",
+          "proxyBlocked": false
+        }
+      ]
+    },
+    {
+      "title": "Smallville",
+      "year": 2001,
+      "season": 4,
+      "episode": 8,
+      "phase": "warm_session_new_title",
+      "totalMs": 2989,
+      "handshakes": 0,
+      "sessionReadyMs": 0,
+      "success": true,
+      "segmentCount": 2,
+      "separateAudioValidated": false,
+      "evidence": "hls_and_media_container_bytes",
+      "decodedSampleFrame": true,
+      "androidFirstFrameMeasured": false,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 254,
+          "status": 200,
+          "bytes": 110,
+          "connectMs": 1,
+          "firstByteMs": 239,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "post",
+          "host": "net52.cc",
+          "path": "/mobile/post.php",
+          "queryKeys": [
+            "id",
+            "t"
+          ],
+          "elapsedMs": 248,
+          "status": 200,
+          "bytes": 2931,
+          "connectMs": 1,
+          "firstByteMs": 229,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t"
+          ],
+          "elapsedMs": 289,
+          "status": 200,
+          "bytes": 901,
+          "connectMs": 1,
+          "firstByteMs": 272,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t",
+            "page"
+          ],
+          "elapsedMs": 234,
+          "status": 200,
+          "bytes": 859,
+          "connectMs": 1,
+          "firstByteMs": 214,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t",
+            "page"
+          ],
+          "elapsedMs": 254,
+          "status": 200,
+          "bytes": 237,
+          "connectMs": 1,
+          "firstByteMs": 239,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "playlist_discovery",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "elapsedMs": 253,
+          "status": 200,
+          "bytes": 1016,
+          "connectMs": 2,
+          "firstByteMs": 221,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "master_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/82171151.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "elapsedMs": 236,
+          "status": 200,
+          "bytes": 482,
+          "connectMs": 1,
+          "firstByteMs": 213,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 693,
+          "status": 200,
+          "bytes": 8141,
+          "connectMs": 3,
+          "firstByteMs": 666,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_000.jpg",
+          "queryKeys": [],
+          "elapsedMs": 174,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 121,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_001.jpg",
+          "queryKeys": [],
+          "elapsedMs": 249,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 197,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        }
+      ]
+    },
+    {
+      "title": "Mr. Robot",
+      "year": 2015,
+      "season": 1,
+      "episode": 1,
+      "phase": "warm_repeat",
+      "totalMs": 404,
+      "handshakes": 0,
+      "sessionReadyMs": 0,
+      "success": false,
+      "error": "cdn_route_rejected",
+      "events": [
+        {
+          "stage": "master_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0RZED4V5SOLKXX2U04B6XONCIM.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "elapsedMs": 237,
+          "status": 200,
+          "bytes": 2701,
+          "connectMs": 1,
+          "firstByteMs": 209,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s10.freecdn43.top",
+          "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 166,
+          "status": 403,
+          "bytes": 25,
+          "connectMs": 2,
+          "firstByteMs": 152,
+          "redirects": 0,
+          "kind": "cdn_route_rejected",
+          "proxyBlocked": false
+        }
+      ]
+    },
+    {
+      "title": "Smallville",
+      "year": 2001,
+      "season": 4,
+      "episode": 8,
+      "phase": "warm_repeat",
+      "totalMs": 1056,
+      "handshakes": 0,
+      "sessionReadyMs": 0,
+      "success": true,
+      "segmentCount": 2,
+      "separateAudioValidated": false,
+      "evidence": "hls_and_media_container_bytes",
+      "decodedSampleFrame": true,
+      "androidFirstFrameMeasured": false,
+      "events": [
+        {
+          "stage": "master_manifest",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 597,
+          "status": 200,
+          "bytes": 8141,
+          "connectMs": 1,
+          "firstByteMs": 580,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_000.jpg",
+          "queryKeys": [],
+          "elapsedMs": 152,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 104,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_001.jpg",
+          "queryKeys": [],
+          "elapsedMs": 175,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 143,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        }
+      ]
+    }
+  ],
+  "skipped": []
+}

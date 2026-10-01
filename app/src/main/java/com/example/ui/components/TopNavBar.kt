@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 import android.app.Activity
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
@@ -894,8 +896,8 @@ fun TopNavBar(
         } else {
             Image(
                 painter = painterResource(id = R.drawable.ic_netflix_n),
-                contentDescription = "Netflix Logo",
-                modifier = Modifier.align(Alignment.CenterEnd).height(29.dp).width(17.dp)
+                contentDescription = "NetflixPro logo",
+                modifier = Modifier.align(Alignment.CenterEnd).height(29.dp).width(29.dp * NetflixProLogoGeometry.MarkAspectRatio)
             )
         }
     }

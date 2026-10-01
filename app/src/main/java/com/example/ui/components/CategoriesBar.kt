@@ -146,11 +146,7 @@ fun CategoriesBarSection(
     // Retarget from the current position and velocity, even while a key is held.
     val animIndex = animateFloatAsState(
         targetValue = (focusedIndex - animationOrigin).toFloat(),
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = TvMotion.stiffness(550f),
-            visibilityThreshold = 0.005f
-        ),
+        animationSpec = TvMotion.carouselSpring(0.005f),
         label = "categoriesPosition"
     )
     val animatedFloor by remember { derivedStateOf { animationOrigin + floor(animIndex.value).toInt() } }

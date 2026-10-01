@@ -1,5 +1,7 @@
 package com.example.tv
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -28,6 +30,9 @@ import kotlinx.coroutines.sync.withLock
  * Manages the dedicated "NETFLIX PRO" Android TV / Google TV Home Screen Channel
  * and the system-wide "Play Next" / Watch Next row via the official Android TV Provider API.
  */
+// Public PreviewProgram/WatchNextProgram builders inherit methods from AndroidX's
+// library-restricted base classes. These are the documented app-facing builders.
+@android.annotation.SuppressLint("RestrictedApi")
 object TvHomeChannelManager {
     private const val TAG = "TvHomeChannelManager"
     private const val CHANNEL_NAME = "NETFLIX PRO"
@@ -541,7 +546,9 @@ object TvHomeChannelManager {
             val drawable = ContextCompat.getDrawable(context, R.drawable.ic_netflix_logo) ?: return null
             val bitmap = Bitmap.createBitmap(300, 100, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            val logoHeight = (canvas.width / NetflixProLogoGeometry.WordmarkAspectRatio).toInt()
+            val top = (canvas.height - logoHeight) / 2
+            drawable.setBounds(0, top, canvas.width, top + logoHeight)
             drawable.draw(canvas)
             bitmap
         } catch (e: Exception) {

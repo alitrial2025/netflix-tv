@@ -361,7 +361,7 @@ fun ProfileScreen(
                             ) {
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_netflix_logo),
-                                    contentDescription = "Netflix",
+                                    contentDescription = "NetflixPro",
                                     modifier = Modifier
                                         .height(36.dp)
                                         .width(136.dp),

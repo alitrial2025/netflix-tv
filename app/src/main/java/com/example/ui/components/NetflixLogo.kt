@@ -20,8 +20,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 
+/** Shared proportions for the outlined SVGs and their Android vector exports. */
+internal object NetflixProLogoGeometry {
+    const val MarkAspectRatio = 1044f / 1000f
+    const val WordmarkAspectRatio = 1506f / 277f
+    const val WordmarkNWidthFraction = 140.803f / 1506f
+}
+
 /**
- * Official Netflix Wordmark Vector Logo for Android TV
+ * Outlined NetflixPro wordmark for Android TV
  */
 @Composable
 fun NetflixWordmark(
@@ -30,24 +37,25 @@ fun NetflixWordmark(
 ) {
     Image(
         painter = painterResource(id = R.drawable.ic_netflix_logo),
-        contentDescription = "Netflix",
+        contentDescription = "NetflixPro",
         contentScale = ContentScale.Fit,
         modifier = modifier.height(height)
+            .width(height * NetflixProLogoGeometry.WordmarkAspectRatio)
     )
 }
 
 /**
- * Official Netflix 3D Ribbon 'N' Vector Logo for Android TV
+ * Npro ribbon lockup for Android TV
  */
 @Composable
 fun NetflixNLogo(
     modifier: Modifier = Modifier,
     size: Dp = 36.dp
 ) {
-    val width = size * 0.60f
+    val width = size * NetflixProLogoGeometry.MarkAspectRatio
     Image(
         painter = painterResource(id = R.drawable.ic_netflix_n),
-        contentDescription = "Netflix N Logo",
+        contentDescription = "Npro logo",
         contentScale = ContentScale.Fit,
         modifier = modifier.size(width = width, height = size)
     )

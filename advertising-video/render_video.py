@@ -8,7 +8,7 @@ from functools import lru_cache
 import argparse, bisect, gc, json, math, os, re, shutil, struct, subprocess, time, wave
 import xml.etree.ElementTree as ET
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps, ImageChops
 
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / 'assets'
@@ -298,14 +298,28 @@ def svg_shapes(path):
                 cur=p3
         if points:sub.append(points)
         col=e.attrib.get('fill',RED);col='#B1060F' if col.startswith('url') else col
-        shapes.append((sub,col))
+        shapes.append((sub,col,e.attrib.get('fill-rule', 'nonzero')))
     return vb,shapes
 LOGO=svg_shapes(ASSETS/'netflix-logo.svg');N_LOGO=svg_shapes(ASSETS/'netflix-n.svg')
 def logo(im,x,y,w,h,full=False):
     vb,shapes=LOGO if full else N_LOGO
+    # Preserve the outlined lockups instead of stretching the wider PRO suffix.
+    scale=min(w/vb[2],h/vb[3]) if full else h/vb[3]
+    actual_w,actual_h=vb[2]*scale,vb[3]*scale
+    x+=(w-actual_w)/2;y+=(h-actual_h)/2
     d=ImageDraw.Draw(im)
-    for subs,col in shapes:
-        for points in subs:d.polygon([(px(x+a*w/vb[2]),px(y+b*h/vb[3])) for a,b in points],fill=rgb(col))
+    for subs,col,fill_rule in shapes:
+        if fill_rule=='evenodd':
+            size=(max(1,math.ceil(px(actual_w))),max(1,math.ceil(px(actual_h))))
+            mask=Image.new('1',size)
+            for points in subs:
+                contour=Image.new('1',size)
+                ImageDraw.Draw(contour).polygon([(px(a*scale),px(b*scale)) for a,b in points],fill=1)
+                mask=ImageChops.logical_xor(mask,contour)
+            im.paste(rgb(col),(px(x),px(y),px(x)+size[0],px(y)+size[1]),mask.convert('L'))
+        else:
+            for points in subs:d.polygon([(px(x+a*scale),px(y+b*scale)) for a,b in points],fill=rgb(col))
+
 def ring(im,box,r=10):rr(im,box,r,None,WHITE,2.5)
 def button(im,x,y,label,w=100,primary=False,selected=False,symbol=None,h=38):
     rr(im,(x,y,x+w,y+h),7,'#F7F7F7' if primary else '#2D3038')

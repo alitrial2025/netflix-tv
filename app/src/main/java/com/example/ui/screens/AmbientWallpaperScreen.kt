@@ -1,6 +1,8 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class, androidx.tv.foundation.ExperimentalTvFoundationApi::class)
 package com.example.ui.screens
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 import android.app.Activity
 import android.content.Context
 import android.os.PowerManager
@@ -345,10 +347,10 @@ fun AmbientWallpaperScreen(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_netflix_n),
-                contentDescription = "Netflix",
+                contentDescription = "NetflixPro",
                 modifier = Modifier
                     .height(36.dp)
-                    .width(20.dp)
+                    .width(36.dp * NetflixProLogoGeometry.MarkAspectRatio)
             )
 
             Box(

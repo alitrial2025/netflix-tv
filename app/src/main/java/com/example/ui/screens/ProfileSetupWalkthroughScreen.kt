@@ -298,6 +298,12 @@ fun WalkthroughRightAvatarColumn(avatarUrl: String?, avatarColor: Color) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(avatarColor)
         ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(84.dp).align(Alignment.Center)
+            )
             val ctx = androidx.compose.ui.platform.LocalContext.current
             val density = androidx.compose.ui.platform.LocalDensity.current
             val sizePx = remember(density) { with(density) { 175.dp.toPx().toInt().coerceAtLeast(1) } }
@@ -674,8 +680,15 @@ fun WalkthroughStep4(name: String, avatarUrl: String?, isKid: Boolean) {
                 .scale(scale)
                 .size(136.dp)
                 .clip(RoundedCornerShape(20.dp))
+                .background(NetflixRed)
                 .border(4.dp, if (isKid) Color(0xFFFF9D2B) else NetflixRed, RoundedCornerShape(20.dp))
         ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(72.dp).align(Alignment.Center)
+            )
             val ctx = androidx.compose.ui.platform.LocalContext.current
             val density = androidx.compose.ui.platform.LocalDensity.current
             val sizePx = remember(density) { with(density) { 136.dp.toPx().toInt().coerceAtLeast(1) } }

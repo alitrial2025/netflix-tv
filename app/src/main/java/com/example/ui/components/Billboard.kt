@@ -466,7 +466,7 @@ fun BillboardSection(
             ) {
                 BillboardCalloutBadgesRow(
                     badges = calloutBadges,
-                    darkenedMoodColor = darkenedMoodColor
+                    darkenedMoodColor = lerp(ambientColorProvider?.invoke() ?: ambientColor, Color.Black, 0.36f)
                 )
             }
         }

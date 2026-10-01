@@ -1,0 +1,8 @@
+{
+  "bootColdActivityFirstDrawSeconds": 20.526,
+  "amStartWait": "timeout",
+  "amStartWaitSeconds": 11.403,
+  "appFatalExceptionObserved": false,
+  "systemImageNoise": "Katniss/GMS first-boot ANRs and repeated Live Channels DVR crashes",
+  "scope": "first launch on software-emulated Android TV; not physical-device timing"
+}

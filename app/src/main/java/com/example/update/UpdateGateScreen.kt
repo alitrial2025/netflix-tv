@@ -71,6 +71,9 @@ fun UpdateGateHost(content: @Composable () -> Unit) {
     }
     if (state.phase == UpdatePhase.CONTINUE) {
         content()
+    } else if (state.phase == UpdatePhase.CHECKING) {
+        // Check before Splash without showing update controls on every launch.
+        Box(Modifier.fillMaxSize().background(Color.Black))
     } else {
         BackHandler { gate.later() }
         UpdateGateScreen(
@@ -90,7 +93,7 @@ private fun Context.findActivity(): Activity? = when (this) {
 }
 
 @Composable
-private fun UpdateGateScreen(
+internal fun UpdateGateScreen(
     state: UpdateGateState,
     onLater: () -> Unit,
     onRetry: () -> Unit,
@@ -128,7 +131,7 @@ private fun UpdateGateScreen(
             Text(state.message, color = Color.White, fontSize = 16.sp, textAlign = TextAlign.Center)
             if (state.phase == UpdatePhase.DOWNLOADING) {
                 LinearProgressIndicator(
-                    progress = { state.progress }, modifier = Modifier.fillMaxWidth().height(4.dp),
+                    progress = state.progress, modifier = Modifier.fillMaxWidth().height(4.dp),
                     color = Color(0xFFE50914), trackColor = Color.White.copy(alpha = .15f)
                 )
                 Text("${(state.progress * 100).toInt()}%", color = Color.White.copy(alpha = .7f), fontSize = 14.sp)

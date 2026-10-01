@@ -41,9 +41,14 @@ class UserSubscriptionTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun isActive_trueForActiveStatus() {
-        val sub = UserSubscription(status = "ACTIVE", planId = "plan_standard")
+    fun isActive_trueForActiveStatusWithFutureExpiry() {
+        val sub = UserSubscription(status = "ACTIVE", planId = "plan_standard", expiresAt = fixedNowMillis + oneDayMs)
         assertTrue(sub.isActive)
+    }
+
+    @Test
+    fun activeStatusWithoutExpiryDoesNotGrantMembership() {
+        assertFalse(UserSubscription(status = "ACTIVE", planId = "plan_standard").isActive)
     }
 
     @Test
@@ -53,23 +58,23 @@ class UserSubscriptionTest {
     }
 
     @Test
-    fun isActive_trueForTrialWhenNotExpired() {
+    fun isActive_falseForTrialWhenNotExpired() {
         val sub = UserSubscription(
             status = "TRIAL",
             planId = "plan_standard",
             trialEndsAt = fixedNowMillis + oneDayMs
         )
-        assertTrue(sub.isActive)
+        assertFalse(sub.isActive)
     }
 
     @Test
-    fun isActive_trueForGracePeriodWhenNotExpired() {
+    fun isActive_falseForGracePeriodWhenNotExpired() {
         val sub = UserSubscription(
             status = "GRACE_PERIOD",
             planId = "plan_standard",
             gracePeriodEndsAt = fixedNowMillis + oneDayMs
         )
-        assertTrue(sub.isActive)
+        assertFalse(sub.isActive)
     }
 
     @Test
@@ -79,13 +84,13 @@ class UserSubscriptionTest {
     }
 
     @Test
-    fun isActive_trueForCancelledWhenExpiresAtIsInFuture() {
+    fun isActive_falseForCancelledWhenExpiresAtIsInFuture() {
         val sub = UserSubscription(
             status = "CANCELLED",
             planId = "plan_standard",
             expiresAt = fixedNowMillis + oneDayMs
         )
-        assertTrue(sub.isActive)
+        assertFalse(sub.isActive)
     }
 
     @Test
@@ -119,13 +124,13 @@ class UserSubscriptionTest {
     }
 
     @Test
-    fun isActive_trueForPendingActivationWhenLastVerifiedAtIsNotNull() {
+    fun isActive_falseForPendingActivationWhenLastVerifiedAtIsNotNull() {
         val sub = UserSubscription(
             status = "PENDING_ACTIVATION",
             planId = "plan_standard",
             lastVerifiedAt = fixedNowMillis - oneDayMs
         )
-        assertTrue(sub.isActive)
+        assertFalse(sub.isActive)
     }
 
     // -----------------------------------------------------------------------

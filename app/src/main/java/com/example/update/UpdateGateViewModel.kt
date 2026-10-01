@@ -199,6 +199,9 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            // Report the failing check without URLs, response bodies, or credential values.
+            val check = error.stackTrace.firstOrNull { it.className.startsWith(javaClass.name) }
+            android.util.Log.w("UpdateGate", "Update rejected: ${error.javaClass.simpleName} at ${check?.methodName}:${check?.lineNumber}")
             // A failed/mismatched response must not keep consuming storage in the background.
             val id = prefs.getLong("download_id", -1L)
             if (id >= 0L) runCatching { downloads.remove(id) }
@@ -284,7 +287,11 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
         }
         require(digest.digest().joinToString("") { "%02x".format(it) } == release.sha256) { "APK hash mismatch" }
         val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
-        val apk = context.packageManager.getPackageArchiveInfo(verifiedFile.absolutePath, flags)
+        // Android 9 collects archive certificates only when GET_SIGNATURES is also set.
+        // Keep GET_SIGNING_CERTIFICATES for the complete current signer set on newer APIs.
+        val apk = context.packageManager.getPackageArchiveInfo(
+            verifiedFile.absolutePath, flags or PackageManager.GET_SIGNATURES
+        )
             ?: error("Invalid APK")
         val installed = context.packageManager.getPackageInfo(context.packageName, flags)
         require(apk.packageName == context.packageName && apk.packageName == release.packageName)
@@ -459,7 +466,11 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                fail("The update could not be downloaded. Check your connection and try again.")
+                fail(if (_state.value.phase == UpdatePhase.VERIFYING) {
+                    "This update could not be verified. Keep using the app and try again later."
+                } else {
+                    "The update could not be downloaded. Check your connection and try again."
+                })
             }
         }
     }

@@ -7,9 +7,12 @@ import org.junit.Test
 class TmdbTest2 {
     @Test
     fun testTrending() = runBlocking {
+        org.junit.Assume.assumeTrue("Opt in to live TMDB integration checks", System.getenv("RUN_LIVE_TMDB_TESTS") == "true")
+        val apiKey = System.getenv("TMDB_API_KEY").orEmpty()
+        org.junit.Assume.assumeTrue("Provide TMDB_API_KEY securely", apiKey.isNotBlank())
         val repo = TmdbRepository()
         try {
-            val tmdb = com.example.api.TmdbClient.instance.getTrending("8baba8ab6b8bbe247645bcae7df63d0d")
+            val tmdb = com.example.api.TmdbClient.instance.getTrending(apiKey)
             println("TMDB SUCCESS: \${tmdb.results.size}")
             
             // Try to map

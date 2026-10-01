@@ -1,4 +1,8 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.example.ui.screens
+
+import com.example.ui.components.NetflixProLogoGeometry
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -498,7 +502,10 @@ fun DetailsScreen(
             return@LaunchedEffect
         }
         isStreamReady = false
-        viewModel.ensureStreamWarmed(immediate = true)
+        // The preview resolves through the same session coordinator as Play.
+        // A separate native-only warmup here can consume its foreground budget.
+        androidx.compose.runtime.withFrameNanos { }
+        viewModel.awaitBrowsingIdle()
         try {
             resolveAndPlayStream(
                 context = context,
@@ -1045,11 +1052,11 @@ fun DetailsHeaderRow() {
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_netflix_n),
-            contentDescription = "Netflix Logo",
+            contentDescription = "NetflixPro logo",
             // bugfix: the source PNG is not 24x40. Without an explicit contentScale
             // the painter is cropped/distorted unpredictably across devices.
             contentScale = ContentScale.Fit,
-            modifier = Modifier.height(40.dp).width(24.dp)
+            modifier = Modifier.height(40.dp).width(40.dp * NetflixProLogoGeometry.MarkAspectRatio)
         )
     }
 }
@@ -1104,13 +1111,13 @@ fun DetailsLeftInfoColumn(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_netflix_n),
-                        contentDescription = "Netflix N Logo",
+                        contentDescription = "Npro logo",
                         // bugfix: same as the header logo — explicit contentScale avoids
                         // unexpected stretching of the small N glyph.
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .height(17.dp)
-                            .width(9.5.dp)
+                            .width(17.dp * NetflixProLogoGeometry.MarkAspectRatio)
                     )
                     val label = when {
                         isKidContent && isTvSeries -> "KIDS SERIES"
@@ -2330,279 +2337,19 @@ fun EpisodesRowSection(
     onDpadDown: () -> Boolean = { false },
     episodesFocusRequester: FocusRequester? = null
 ) {
-    if (episodes.isEmpty()) return
-
-    val initialIndex = remember(episodes, currentEpisodeNumber) {
-        val idx = episodes.indexOfFirst { it.episodeNumber == currentEpisodeNumber }
-        if (idx >= 0) idx else 0
-    }
-    var focusedIndex by remember(episodes, initialIndex) { mutableIntStateOf(initialIndex) }
-
-    LaunchedEffect(episodes, currentEpisodeNumber) {
-        val idx = episodes.indexOfFirst { it.episodeNumber == currentEpisodeNumber }
-        if (idx >= 0 && idx != focusedIndex) {
-            focusedIndex = idx
-        }
-    }
-
-    val animIndex = remember(currentSeason) { Animatable(initialIndex.toFloat()) }
-    LaunchedEffect(focusedIndex) {
-        val diff = kotlin.math.abs(animIndex.value - focusedIndex)
-        if (diff <= 2.5f && diff > 0.001f) {
-            animIndex.animateTo(
-                targetValue = focusedIndex.toFloat(),
-                animationSpec = tween(
-                    durationMillis = 200,
-                    easing = LinearOutSlowInEasing
-                )
-            )
-        } else if (diff > 0.001f) {
-            animIndex.snapTo(focusedIndex.toFloat())
-        }
-    }
-
-    val baseWidth = 230.dp
-    val expandedWidth = 290.dp
-    val cardHeight = 150.dp
-    val gap = 16.dp
-    val itemSpacing = baseWidth + gap
-    val ringStart = 0.dp
-    val ringEnd = ringStart + expandedWidth
-
-    val density = LocalDensity.current
-    val itemSpacingPx = remember(density, itemSpacing) { with(density) { itemSpacing.toPx() } }
-    val ringStartPx = remember(density, ringStart) { with(density) { ringStart.toPx() } }
-    val ringEndPx = remember(density, ringEnd) { with(density) { ringEnd.toPx() } }
-    val gapPx = remember(density, gap) { with(density) { gap.toPx() } }
-    val heroSlideDistancePx = remember(density, expandedWidth) { with(density) { (expandedWidth * 0.35f).toPx() } }
-
-    var isRowFocused by remember { mutableStateOf(false) }
-    val actualFocusRequester = episodesFocusRequester ?: remember { FocusRequester() }
-    val activeSeasonRequester = remember { FocusRequester() }
-
-    val ringAlpha by animateFloatAsState(
-        targetValue = if (isRowFocused) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "episodesRingAlpha"
+    com.example.ui.screens.details.EpisodesRowSection(
+        episodes = episodes,
+        currentSeason = currentSeason,
+        currentEpisodeNumber = currentEpisodeNumber,
+        availableSeasons = availableSeasons,
+        continueWatchingData = continueWatchingData,
+        onSeasonSelected = onSeasonSelected,
+        onEpisodeFocused = onEpisodeFocused,
+        onEpisodeClick = onEpisodeClick,
+        onDpadUp = onDpadUp,
+        onDpadDown = onDpadDown,
+        episodesFocusRequester = episodesFocusRequester
     )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            availableSeasons.forEach { seasonNum ->
-                val isSeasonActive = currentSeason == seasonNum
-                var isSeasonFocused by remember { mutableStateOf(false) }
-                Surface(
-                    onClick = { onSeasonSelected(seasonNum) },
-                    modifier = Modifier
-                        .then(if (isSeasonActive) Modifier.focusRequester(activeSeasonRequester) else Modifier)
-                        .onFocusChanged { isSeasonFocused = it.isFocused }
-                        .handleTvDpadNavigation(
-                            onDpadUp = { onDpadUp() },
-                            onDpadDown = {
-                                try { actualFocusRequester.requestFocus(); true } catch (_: Exception) { false }
-                            }
-                        ),
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = if (isSeasonActive) Color.White else Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = if (isSeasonActive) Color.White else Color.White.copy(alpha = 0.25f)
-                    ),
-                    border = ClickableSurfaceDefaults.border(
-                        border = Border(BorderStroke(if (isSeasonFocused) 2.dp else 0.dp, Color.White.copy(alpha = 0.6f))), // a11y: always-on focus state
-                        focusedBorder = Border(BorderStroke(2.5.dp, Color.White))
-                    ),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f)
-                ) {
-                    Text(
-                        text = "Season $seasonNum",
-                        color = if (isSeasonActive) Color.Black else Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = if (isSeasonActive) FontWeight.Bold else FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(cardHeight + 10.dp)
-                .onPreviewKeyEvent { keyEvent ->
-                    if (isRowFocused && keyEvent.type == KeyEventType.KeyDown) {
-                        when (keyEvent.nativeKeyEvent.keyCode) {
-                            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                if (episodes.isEmpty()) return@onPreviewKeyEvent true
-                                if (focusedIndex < episodes.size - 1) {
-                                    focusedIndex++
-                                    val ep = episodes[focusedIndex]
-                                    onEpisodeFocused(ep)
-                                }
-                                true
-                            }
-                            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                if (episodes.isEmpty()) return@onPreviewKeyEvent true
-                                if (focusedIndex > 0) {
-                                    focusedIndex--
-                                    val ep = episodes[focusedIndex]
-                                    onEpisodeFocused(ep)
-                                }
-                                true
-                            }
-                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                                val ep = episodes.getOrNull(focusedIndex)
-                                if (ep != null) {
-                                    onEpisodeClick(ep)
-                                }
-                                true
-                            }
-                            KeyEvent.KEYCODE_DPAD_DOWN -> onDpadDown()
-                            KeyEvent.KEYCODE_DPAD_UP -> {
-                                try {
-                                    activeSeasonRequester.requestFocus()
-                                    true
-                                } catch (_: Exception) {
-                                    onDpadUp()
-                                }
-                            }
-                            else -> false
-                        }
-                    } else false
-                }
-                .onFocusChanged { isRowFocused = it.hasFocus }
-                .focusProperties {
-                    left = FocusRequester.Cancel
-                    right = FocusRequester.Cancel
-                }
-                .focusRequester(actualFocusRequester)
-                .focusable()
-                .clipToBounds()
-        ) {
-            val baseIdx = focusedIndex
-            val startWindow = maxOf(0, baseIdx - 1)
-            val endWindow = minOf(episodes.size - 1, baseIdx + 6)
-
-            // ── LAYER 1: Sliding base episode card strip (Zero width snap during animation) ──
-            for (i in startWindow..endWindow) {
-                key("ep_card_$i") {
-                    val ep = episodes.getOrNull(i)
-                    if (ep != null) {
-                        Box(
-                            modifier = Modifier
-                                .graphicsLayer {
-                                    val animVal = animIndex.value
-                                    val f = kotlin.math.floor(animVal).toInt()
-                                    val frac = animVal - f
-                                    val offsetPx = when {
-                                        i < f -> ringStartPx - itemSpacingPx * (f - i) - itemSpacingPx * frac
-                                        i == f -> ringStartPx - itemSpacingPx * frac
-                                        i == f + 1 -> ringEndPx + gapPx - itemSpacingPx * frac
-                                        else -> ringEndPx + gapPx + itemSpacingPx * (i - f - 1) - itemSpacingPx * frac
-                                    }
-                                    translationX = offsetPx
-                                }
-                                .zIndex(1f)
-                        ) {
-                            EpisodeCardItem(
-                                episode = ep,
-                                currentSeason = currentSeason,
-                                cardWidth = baseWidth,
-                                height = cardHeight,
-                                isExpanded = false,
-                                isSelectedEpisode = (continueWatchingData?.season == currentSeason && continueWatchingData?.episode == ep.episodeNumber),
-                                onClick = {
-                                    focusedIndex = i
-                                    onEpisodeFocused(ep)
-                                    onEpisodeClick(ep)
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── LAYER 2: Expanded episode card inside ring viewport (35% subtle slide + soft crossfade) ──
-            Box(
-                modifier = Modifier
-                    .offset(x = ringStart)
-                    .width(expandedWidth)
-                    .height(cardHeight)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clipToBounds()
-                    .zIndex(5f)
-            ) {
-                val animVal = animIndex.value
-                val animFloor = kotlin.math.floor(animVal).toInt()
-                val currentFrac = animVal - animFloor
-
-                // Outgoing expanded episode card
-                val outgoingEp = episodes.getOrNull(animFloor)
-                if (outgoingEp != null) {
-                    Box(
-                        modifier = Modifier
-                            .graphicsLayer {
-                                translationX = -heroSlideDistancePx * currentFrac
-                                this.alpha = (1f - currentFrac).coerceIn(0f, 1f)
-                            }
-                    ) {
-                        EpisodeCardItem(
-                            episode = outgoingEp,
-                            currentSeason = currentSeason,
-                            cardWidth = expandedWidth,
-                            height = cardHeight,
-                            isExpanded = true,
-                            isSelectedEpisode = (continueWatchingData?.season == currentSeason && continueWatchingData?.episode == outgoingEp.episodeNumber),
-                            onClick = { onEpisodeClick(outgoingEp) }
-                        )
-                    }
-                }
-
-                // Incoming expanded episode card
-                val incomingEp = episodes.getOrNull(animFloor + 1)
-                if (incomingEp != null) {
-                    Box(
-                        modifier = Modifier
-                            .graphicsLayer {
-                                translationX = heroSlideDistancePx * (1f - currentFrac)
-                                this.alpha = currentFrac.coerceIn(0f, 1f)
-                            }
-                    ) {
-                        EpisodeCardItem(
-                            episode = incomingEp,
-                            currentSeason = currentSeason,
-                            cardWidth = expandedWidth,
-                            height = cardHeight,
-                            isExpanded = true,
-                            isSelectedEpisode = (continueWatchingData?.season == currentSeason && continueWatchingData?.episode == incomingEp.episodeNumber),
-                            onClick = { onEpisodeClick(incomingEp) }
-                        )
-                    }
-                }
-            }
-
-            // ── LAYER 3: Fixed white selection ring on top ──
-            if (ringAlpha > 0.01f) {
-                Box(
-                    modifier = Modifier
-                        .offset(x = ringStart)
-                        .width(expandedWidth)
-                        .height(cardHeight)
-                        .graphicsLayer { this.alpha = ringAlpha }
-                        .border(3.5.dp, Color.White, RoundedCornerShape(12.dp))
-                        .zIndex(10f)
-                )
-            }
-        }
-    }
 }
 
 @Composable

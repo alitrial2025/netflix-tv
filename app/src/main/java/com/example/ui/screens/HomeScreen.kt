@@ -174,6 +174,7 @@ fun HomeScreen(
     val categoryRows by viewModel.categoryRows.collectAsStateWithLifecycle()
     val isCatalogLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val selectedProfile by viewModel.selectedProfile.collectAsStateWithLifecycle()
+    val userSubscription by viewModel.userSubscription.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val continueWatchingList by viewModel.continueWatchingList.collectAsStateWithLifecycle()
     val watchHistoryMovies by viewModel.watchHistoryMovies.collectAsStateWithLifecycle()
@@ -322,8 +323,8 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(selectedProfile?.id, isHomeResumed) {
-        if (selectedProfile != null && isHomeResumed) viewModel.ensureStreamWarmed()
+    LaunchedEffect(selectedProfile?.id, isHomeResumed, userSubscription.isTvAllowed) {
+        if (selectedProfile != null && isHomeResumed && userSubscription.isTvAllowed) viewModel.ensureStreamWarmed()
     }
 
     // Row generation depends on catalogue membership and each user's saved / in-progress
@@ -578,7 +579,7 @@ fun HomeScreen(
     }
     val homeFocusPosition = focusTransition.animateFloat(
         transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(430f), visibilityThreshold = 0.005f)
+            TvMotion.carouselSpring(0.005f)
         },
         label = "homeFocusPosition"
     ) { it.toFloat() }
@@ -991,7 +992,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
         repeat(2) {
             withFrameNanos { }
             if (currentFocusLevelState.intValue != requestedLevel) return@LaunchedEffect
-            if (runCatching { requester.requestFocus() }.isSuccess) return@LaunchedEffect
+            if (runCatching { requester.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
         }
     }
     LaunchedEffect(activeDisplayedCategoryRows.size, activeTab) {
@@ -1068,7 +1069,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
     // each index boundary. A pixel spring moves immediately and keeps velocity.
     val scrollOffsetState = focusTransition.animateFloat(
         transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(430f), visibilityThreshold = 0.5f)
+            TvMotion.carouselSpring(0.5f)
         },
         label = "homeScrollOffsetPx"
     ) { calculateTargetScrollY(it) }
@@ -1104,6 +1105,27 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
+            .handleHomeVerticalNavigation(
+                level = { currentFocusLevelState.intValue },
+                rowCount = activeDisplayedCategoryRows.size,
+                hasCategories = !isKidProfile && activeTab == "Home",
+                hasBillboard = !isKidProfile || activeTab == "Home",
+                onMove = { next ->
+                    currentFocusLevelState.intValue = next
+                    when {
+                        next < -1 -> requestNavBarFocus()
+                        next == -1 -> runCatching { billboardFocusRequester.requestFocus() }
+                        !isKidProfile && activeTab == "Home" && next == 0 -> {
+                            firstRowPrepared.value = true
+                            runCatching { categoriesFocusRequester.requestFocus() }
+                        }
+                        else -> {
+                            val firstRowLevel = if (!isKidProfile && activeTab == "Home") 1 else 0
+                            runCatching { activeRowFocusRequesters.getOrNull(next - firstRowLevel)?.requestFocus() }
+                        }
+                    }
+                }
+            )
             .pointerInput(isKidProfile, activeTab, maxLevelProvider) {
                 detectVerticalDragGestures(
                     onDragStart = {
@@ -1372,7 +1394,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
                     translationY = topPx + manualTouchOffsetAnim.value + dragOffsetState.floatValue +
                         (if (isKidProfile && activeTab != "Home") 16.dp.toPx() else 0f)
                 }
-                .border(2.5.dp, Color.White, RoundedCornerShape(8.dp))
+                .border(1.5.dp, Color.White, RoundedCornerShape(8.dp))
                 .zIndex(20f)
         )
         }
@@ -1685,11 +1707,15 @@ private fun HomeRowWrapper(
                 }
                 true
             },
+            // A departing row may still own the Android focus node for one
+            // frame. Its debounced metadata/touch callback must not undo a
+            // newer vertical request while the destination is attaching.
+            isNavigationActive = { currentFocusLevelState.value == rowFocusLevel },
             onMovieFocused = { _ ->
-                onUpdateFocusLevel(if (isKidProfile || activeTab != "Home") index else index + 1)
+                if (currentFocusLevelState.value == rowFocusLevel) onUpdateFocusLevel(rowFocusLevel)
             },
             onRowFocused = {
-                onUpdateFocusLevel(if (isKidProfile || activeTab != "Home") index else index + 1)
+                if (currentFocusLevelState.value == rowFocusLevel) onUpdateFocusLevel(rowFocusLevel)
             },
             onMovieClick = { movie ->
                 viewModel.cacheMovie(movie)

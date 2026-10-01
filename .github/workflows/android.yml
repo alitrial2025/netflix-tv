@@ -1,0 +1,48 @@
+name: Android validation
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  debug:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v5
+      # Ubuntu 24.04 already provides Android command-line tools and licenses.
+      - name: Verify preinstalled Android build packages
+        run: |
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/34.0.0/aapt2"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
+      - name: Validate update release rules
+        if: ${{ github.repository == 'alitrial2025/netflix-tv' }}
+        run: node --test tools/update-gate/release-lib.test.mjs
+      - name: Build debug APK
+        run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug
+      - name: Run unit tests
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
+      - name: Android lint
+        if: ${{ !cancelled() }}
+        run: ./gradlew --no-daemon --max-workers=2 :app:lintDebug
+      - name: Save APK and validation reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: android-debug-and-reports
+          if-no-files-found: warn
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/reports/
+            app/build/test-results/

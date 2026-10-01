@@ -1,6 +1,8 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class, androidx.tv.foundation.ExperimentalTvFoundationApi::class)
 package com.example.ui.components
 
+import com.example.ui.components.NetflixProLogoGeometry
+
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -62,7 +64,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -270,7 +271,7 @@ fun SearchSection(
                                 modifier = Modifier
                                     .width(48.dp)
                                     .height(5.dp)
-                                    .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                                    .background(androidx.tv.material3.LocalContentColor.current.copy(alpha = 0.7f), CircleShape)
                             )
                         },
                         modifier = Modifier
@@ -395,7 +396,7 @@ fun SearchSection(
                             val code = event.nativeKeyEvent.keyCode
                             when (code) {
                                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
-                                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> !resultKeyPacer.accept(code)
+                                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> !resultKeyPacer.accept(code, repeatCount = event.nativeKeyEvent.repeatCount)
                                 else -> false
                             }
                         }
@@ -417,14 +418,14 @@ fun SearchSection(
 
                 val animatedRingX = animateDpAsState(
                     targetValue = targetRingX,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(600f)),
+                    animationSpec = TvMotion.focusRingSpring(0.1.dp),
                     label = "searchRingX"
                 )
 
                 val targetScrollY = (focusedRowIndex * rowStep.value).dp
                 val animatedScrollY = animateDpAsState(
                     targetValue = targetScrollY,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = TvMotion.stiffness(430f)),
+                    animationSpec = TvMotion.carouselSpring(0.1.dp),
                     label = "searchGridScroll"
                 )
 
@@ -463,15 +464,10 @@ fun SearchSection(
                     // Smooth Sliding White Selection Ring — fits exactly over card without expanding
                     Box(
                         modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    animatedRingX.value.roundToPx(),
-                                    0
-                                )
-                            }
                             .width(cardWidth)
                             .height(cardHeight)
                             .graphicsLayer {
+                                translationX = animatedRingX.value.toPx()
                                 alpha = if (isResultsFocused && focusedCardIndex >= 0) 1f else 0f
                                 compositingStrategy = CompositingStrategy.ModulateAlpha
                             }
@@ -482,7 +478,7 @@ fun SearchSection(
                                 ambientColor = Color.White.copy(alpha = 0.25f)
                             )
                             .border(
-                                BorderStroke(3.dp, Color.White),
+                                BorderStroke(1.5.dp, Color.White),
                                 RoundedCornerShape(12.dp)
                             )
                     )
@@ -565,7 +561,9 @@ fun KeyboardKeyButton(
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color(0xFF2A2A2A),
-            focusedContainerColor = Color.White
+            contentColor = Color.White.copy(alpha = 0.85f),
+            focusedContainerColor = Color.White,
+            focusedContentColor = Color.Black
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f)
     ) {
@@ -663,12 +661,12 @@ fun SearchResultMovieCard(
             // Netflix 'N' Badge
             Image(
                 painter = painterResource(id = R.drawable.ic_netflix_n),
-                contentDescription = "Netflix N Logo",
+                contentDescription = "Npro logo",
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(6.dp)
                     .height(18.dp)
-                    .width(10.dp)
+                    .width(18.dp * NetflixProLogoGeometry.MarkAspectRatio)
             )
 
             // Bottom Gradient Overlay when focused — smooth fade in without expanding bounds

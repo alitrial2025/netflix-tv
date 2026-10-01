@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.example.ui.screens.details
 
 import android.view.KeyEvent
@@ -158,7 +160,9 @@ fun DetailsScreen(
         mutableIntStateOf(if (isTvSeries && initialCw != null && initialCw.episode > 0) initialCw.episode else 1)
     }
     var availableSeasons by remember(movie.id) { mutableStateOf(listOf(1)) }
-    var cwSelectionApplied by remember(movieKey) { mutableStateOf(initialCw != null) }
+    var appliedResumeEpisode by remember(movieKey) {
+        mutableStateOf(initialCw?.let { it.season to it.episode })
+    }
     var episodesLoading by remember(movieKey) { mutableStateOf(isTvSeries) }
     var episodesRetry by remember(movieKey) { mutableIntStateOf(0) }
 
@@ -212,24 +216,6 @@ fun DetailsScreen(
         }
     }
 
-    LaunchedEffect(movieKey, continueWatchingList) {
-        val cw = withContext(Dispatchers.IO) {
-            (continueWatchingList.find {
-                it.movieId == movie.id && it.title.equals(movie.title, true) &&
-                    it.toMovie().catalogMediaKind() == movie.catalogMediaKind()
-            } ?: viewModel.getContinueWatching(movie.id))?.takeIf {
-                it.title.equals(movie.title, true) && it.toMovie().catalogMediaKind() == movie.catalogMediaKind()
-            }
-        }
-        ensureActive()
-        continueWatchingData = cw
-        if (isTvSeries && cw != null && !cwSelectionApplied) {
-            cwSelectionApplied = true
-            currentSeason = cw.season.coerceAtLeast(1)
-            currentEpisode = cw.episode.coerceAtLeast(1)
-        }
-    }
-
     LaunchedEffect(movieKey, currentSeason, episodesRetry) {
         if (!isTvSeries) return@LaunchedEffect
         episodesLoading = true
@@ -265,6 +251,25 @@ fun DetailsScreen(
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
     }
     var isNavigatingToPlayer by remember(movieKey) { mutableStateOf(false) }
+    LaunchedEffect(movieKey, continueWatchingList, isDetailsResumed) {
+        if (!isDetailsResumed) return@LaunchedEffect
+        val cw = withContext(Dispatchers.IO) {
+            (continueWatchingList.find {
+                it.movieId == movie.id && it.title.equals(movie.title, true) &&
+                    it.toMovie().catalogMediaKind() == movie.catalogMediaKind()
+            } ?: viewModel.getContinueWatching(movie.id))?.takeIf {
+                it.title.equals(movie.title, true) && it.toMovie().catalogMediaKind() == movie.catalogMediaKind()
+            }
+        }
+        ensureActive()
+        continueWatchingData = cw
+        val resumeEpisode = cw?.let { it.season.coerceAtLeast(1) to it.episode.coerceAtLeast(1) }
+        if (isTvSeries && resumeEpisode != null && resumeEpisode != appliedResumeEpisode) {
+            appliedResumeEpisode = resumeEpisode
+            currentSeason = resumeEpisode.first
+            currentEpisode = resumeEpisode.second
+        }
+    }
     val previewIsTrailer = !viewModel.isUserLoggedIn() || viewModel.isMovieLocked(movie)
     val targetMediaId = movie.playbackMediaId(currentSeason, currentEpisode) + if (previewIsTrailer) ":trailer" else ""
     var isStreamReady by remember(targetMediaId) { mutableStateOf(false) }
@@ -502,7 +507,7 @@ fun DetailsScreen(
             }
     ) {
         // 1. Live video stream playing in background
-        AndroidView(
+        if (isDetailsResumed && !isNavigatingToPlayer && ownsPlayback) AndroidView(
             factory = { ctx ->
                 val view = android.view.LayoutInflater.from(ctx)
                     .inflate(com.example.R.layout.media_player_view, null) as PlayerView
@@ -745,7 +750,6 @@ fun DetailsScreen(
                 continueWatchingData = continueWatchingData,
                 onSeasonSelected = { newSeason ->
                     if (currentSeason != newSeason) {
-                        cwSelectionApplied = true
                         currentSeason = newSeason
                         currentEpisode = 1
                     }

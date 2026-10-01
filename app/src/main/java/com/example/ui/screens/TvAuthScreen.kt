@@ -328,6 +328,7 @@ fun TvAuthScreen(
                                 } else if (passwordInput.length < 6) {
                                     authError = "Password must be at least 6 characters."
                                 } else {
+                                    authError = null
                                     isAuthenticating = true
                                     viewModel.signInWithEmail(
                                         email = email,
@@ -473,7 +474,7 @@ fun TvAuthScreen(
                                     modifier = Modifier
                                         .width(48.dp)
                                         .height(5.dp)
-                                        .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                                        .background(androidx.tv.material3.LocalContentColor.current.copy(alpha = 0.7f), CircleShape)
                                 )
                             },
                             modifier = Modifier

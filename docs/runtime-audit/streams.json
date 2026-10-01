@@ -1,0 +1,186 @@
+[
+  {
+    "number": 1,
+    "kind": "movie",
+    "tmdbId": "438631",
+    "title": "Dune",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_returned_no_source",
+    "metricsMs": {
+      "player_resolution_finished": 37388,
+      "player_resolve_failed": 37389
+    },
+    "hostObservationSeconds": 96.125,
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 2,
+    "kind": "movie",
+    "tmdbId": "155",
+    "title": "The Dark Knight",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_cancelled_or_failed",
+    "metricsMs": {
+      "player_resolution_finished": 47766
+    },
+    "hostObservationSeconds": 102.447,
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 3,
+    "kind": "movie",
+    "tmdbId": "27205",
+    "title": "Inception",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_cancelled_or_failed",
+    "metricsMs": {
+      "player_resolution_finished": 49032
+    },
+    "hostObservationSeconds": 98.336,
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 4,
+    "kind": "movie",
+    "tmdbId": "157336",
+    "title": "Interstellar",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_returned_no_source",
+    "metricsMs": {
+      "player_resolution_finished": 26032,
+      "player_resolve_failed": 26032
+    },
+    "hostObservationSeconds": 59.369,
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 5,
+    "kind": "movie",
+    "tmdbId": "603",
+    "title": "The Matrix",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_cancelled_or_failed",
+    "metricsMs": {
+      "player_resolution_finished": 52427
+    },
+    "hostObservationSeconds": 90.582,
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 6,
+    "kind": "tv",
+    "tmdbId": "73375",
+    "title": "Mr. Robot",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_returned_no_source",
+    "metricsMs": {
+      "player_resolution_finished": 20258,
+      "player_resolve_failed": 20259
+    },
+    "hostObservationSeconds": 49.057,
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 7,
+    "kind": "tv",
+    "tmdbId": "100088",
+    "title": "The Last of Us",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_cancelled_or_failed",
+    "metricsMs": {
+      "player_resolution_finished": 48575
+    },
+    "hostObservationSeconds": 93.041,
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 8,
+    "kind": "tv",
+    "tmdbId": "93405",
+    "title": "Squid Game",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_returned_no_source",
+    "metricsMs": {
+      "player_resolution_finished": 18807,
+      "player_resolve_failed": 18822
+    },
+    "hostObservationSeconds": 47.762,
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 9,
+    "kind": "tv",
+    "tmdbId": "66732",
+    "title": "Stranger Things",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_cancelled_or_failed",
+    "metricsMs": {
+      "player_resolution_finished": 48925
+    },
+    "hostObservationSeconds": 87.55,
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionMentionsAreNotConfirmedThrows": true
+  },
+  {
+    "number": 10,
+    "kind": "tv",
+    "tmdbId": "119051",
+    "title": "Wednesday",
+    "season": 1,
+    "episode": 1,
+    "outcome": "resolution_cancelled_or_failed",
+    "metricsMs": {
+      "player_resolution_finished": 43282
+    },
+    "hostObservationSeconds": 88.337,
+    "exceptionClassMentions": [
+      "java.io.IOException"
+    ],
+    "trigger": "Supported Play deep link; Android shell may recreate the task",
+    "exceptionMentionsAreNotConfirmedThrows": true
+  }
+]
