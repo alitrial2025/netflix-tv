@@ -3,7 +3,7 @@ NetflixPro desktop review package — 1 October 2026
 Extract the downloaded ZIP into a folder on your desktop.
 
 NetflixPro-TV-debug.apk: Android TV review build, version 29.9.2026.1.
-NetflixPro-Mobile-debug.apk: Android mobile review build, version 1.2.
+NetflixPro-Mobile-debug.apk: Android mobile review build, version 1.3 (version code 4).
 Both apps require Android 7.0 (API 24) or newer. Install the matching APK on your Android TV/phone, not directly on Windows. These are debug-signed testing builds. A previously installed app signed with another key will reject an in-place update; retain your data before changing installations.
 
 NetflixPro-Cinematic-1080p.mp4: completed 3-minute film with stereo sound; open in your desktop media player.
