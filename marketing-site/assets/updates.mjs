@@ -51,7 +51,27 @@ async function loadChannel(channel) {
         if (release) cta.setAttribute('download', `NetflixPro-tv-${release.versionCode}.apk`);
         else cta.removeAttribute('download');
       });
-      document.getElementById('heroRelease').textContent = release ? `TV version ${release.versionName}` : 'TV and phone downloads';
+    }
+    if (channel === 'mobile') {
+      document.querySelectorAll('.cta-download-mobile').forEach(cta => {
+        cta.href = release?.apkUrl || '#downloads';
+        if (release) cta.setAttribute('download', `NetflixPro-mobile-${release.versionCode}.apk`);
+        else cta.removeAttribute('download');
+      });
+    }
+    const heroReleaseEl = document.getElementById('heroRelease');
+    if (heroReleaseEl) {
+      const tvCard = document.querySelector('[data-release-card="tv"] [data-release-summary]');
+      const mobileCard = document.querySelector('[data-release-card="mobile"] [data-release-summary]');
+      const tvMatch = tvCard?.textContent.match(/Version ([^\s·]+)/);
+      const mobileMatch = mobileCard?.textContent.match(/Version ([^\s·]+)/);
+      if (tvMatch && mobileMatch) {
+        heroReleaseEl.textContent = `TV v${tvMatch[1]} · Phone v${mobileMatch[1]}`;
+      } else if (tvMatch) {
+        heroReleaseEl.textContent = `TV version ${tvMatch[1]}`;
+      } else if (mobileMatch) {
+        heroReleaseEl.textContent = `Phone version ${mobileMatch[1]}`;
+      }
     }
     return true;
   } catch {
@@ -61,6 +81,9 @@ async function loadChannel(channel) {
     badge.textContent = 'Please retry';
     link.textContent = 'Unavailable';
     if (channel === 'tv') document.querySelectorAll('.cta-download').forEach(cta => {
+      cta.href = '#downloads'; cta.removeAttribute('download');
+    });
+    if (channel === 'mobile') document.querySelectorAll('.cta-download-mobile').forEach(cta => {
       cta.href = '#downloads'; cta.removeAttribute('download');
     });
     return false;
@@ -78,7 +101,7 @@ async function refresh() {
 
 retry.addEventListener('click', refresh);
 document.addEventListener('click', event => {
-  const link = event.target.closest('[data-release-download], .cta-download');
+  const link = event.target.closest('[data-release-download], .cta-download, .cta-download-mobile');
   if (!link) return;
   if (link.dataset.unavailable === 'true') { event.preventDefault(); return; }
   if (link.hasAttribute('download')) status.textContent = 'Download requested. Check your browser’s downloads for progress.';

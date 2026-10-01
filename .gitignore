@@ -28,3 +28,4 @@ debug.keystore
 **/.render-cache/
 **/__pycache__/
 **/node_modules/
+*.zip
