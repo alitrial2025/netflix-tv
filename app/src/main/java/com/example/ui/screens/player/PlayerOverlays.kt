@@ -410,36 +410,9 @@ fun SubtitleOverlay(
 @Composable
 fun PlayerLoadingOverlay(
     isLoading: Boolean,
-    isBuffering: Boolean,
-    exoPlayer: ExoPlayer,
-    isTargetMediaReady: Boolean
+    isTargetMediaReady: Boolean,
+    percentage: Int?
 ) {
-    var loadingPercentage by remember { mutableIntStateOf(1) }
-
-    LaunchedEffect(isLoading, isBuffering) {
-        if (isLoading) {
-            loadingPercentage = 1
-            while (isLoading) {
-                delay(60)
-                if (loadingPercentage < 98) {
-                    loadingPercentage += (1..3).random()
-                }
-            }
-            loadingPercentage = 100
-        } else if (isBuffering) {
-            while (isBuffering) {
-                val pct = try {
-                    exoPlayer.bufferedPercentage
-                } catch (_: IllegalStateException) {
-                    break
-                } catch (_: Exception) {
-                    break
-                }
-                loadingPercentage = if (pct > 0) pct else (loadingPercentage + 1).coerceAtMost(99)
-                delay(100)
-            }
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -449,7 +422,7 @@ fun PlayerLoadingOverlay(
     ) {
         NetflixSpinner(
             size = 90.dp,
-            percentage = loadingPercentage
+            percentage = percentage
         )
     }
 }
