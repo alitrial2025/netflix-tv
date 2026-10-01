@@ -261,8 +261,12 @@ fun HomeScreen(
     }
     LaunchedEffect(contentTab, tabSlide) {
         if (tabSlideTabState.value == contentTab) return@LaunchedEffect
+        val revealStarted = com.example.ui.util.RuntimeTiming.start()
         tabSlide.snapTo(tabSlideStart)
         tabSlideTabState.value = contentTab
+        // Layout the new page before its glide; composition and image upload must not consume its first animation frame.
+        withFrameNanos { }
+        com.example.ui.util.RuntimeTiming.elapsed("tab_" + contentTab.lowercase().replace(" ", "_") + "_first_layout", revealStarted)
         tabSlide.animateTo(0f, tween(TvMotion.duration(200), easing = LinearOutSlowInEasing))
     }
 
@@ -888,6 +892,7 @@ private fun HomeNavigationBar(scope: HomeRenderScope, isSearchTab: Boolean): Uni
             onTabSelected = {
                 pendingTabFocus = null
                 viewModel.onHomeInteraction()
+                if (navBarTab != it) viewModel.stopHomePreviews()
                 navBarTab = it
             },
             onTabActivated = {
@@ -945,13 +950,12 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
     var activeDisplayedCategoryRows by remember(activeTab, selectedProfile?.id, isKidProfile) {
         mutableStateOf(tabRowsCache[activeTab].orEmpty())
     }
-    val firstRowPrepared = remember(activeTab, selectedProfile?.id) { mutableStateOf(false) }
+    val firstRowPrepared = remember(activeTab, selectedProfile?.id) { mutableStateOf(activeTab == "Home" && !isKidProfile && activeDisplayedCategoryRows.isNotEmpty()) }
 
     LaunchedEffect(activeTab, selectedProfile?.id, activeDisplayedCategoryRows.isNotEmpty()) {
         if (activeTab == "Home" && !isKidProfile && activeDisplayedCategoryRows.isNotEmpty()) {
-            // Attach just the next D-pad target after the first Home frame is quiet.
-            // Poster decodes then happen before, rather than during, the first scroll.
-            viewModel.awaitHomeIdle()
+            // Keep one entry rail ready before the first Down press; the splash has warmed a bounded poster window.
+            withFrameNanos { }
             firstRowPrepared.value = true
         }
     }
@@ -1640,8 +1644,7 @@ private fun HomeRowWrapper(
             val focusLevel = currentFocusLevelState.value
             // Once Home has settled, keep the first D-pad target attached while
             // moving among the billboard, categories, and first row.
-            val keepFirstRow = index == 0 && firstRowPreparedState.value &&
-                focusLevel in -1..1 && !isKidProfile && activeTab == "Home"
+            val keepFirstRow = shouldRetainHomeEntryRow(index, focusLevel, firstRowPreparedState.value, isKidProfile, activeTab)
             keepFirstRow || shouldComposeHomeRow(
                 index, firstRowTopPx, rowHeightPx, scrollOffsetProvider(), viewportHeightPx,
                 focusLevel - (rowFocusLevel - index),

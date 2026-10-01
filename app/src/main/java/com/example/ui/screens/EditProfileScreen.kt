@@ -515,7 +515,7 @@ fun EditProfileMainView(
                     lineHeight = 18.sp
                 )
                 Text(
-                    text = "Visit netflix.com/YourAccount to change viewing restrictions.",
+                    text = "Use the profile settings on your phone to change viewing restrictions.",
                     fontSize = 13.sp,
                     color = Color(0xFF999999),
                     lineHeight = 18.sp
@@ -548,13 +548,10 @@ fun EditProfileMainView(
                         }
                         .onFocusChanged { isDoneFocused = it.isFocused }
                 ) {
-                    Text(
-                        text = "Done",
-                        color = if (isDoneFocused) Color.Black else Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 10.dp)
-                    )
+                    Box(Modifier.height(48.dp).widthIn(min = 128.dp).padding(horizontal = 32.dp), contentAlignment = Alignment.Center) {
+                        Text("Done", color = if (isDoneFocused) Color.Black else Color.White,
+                            fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
+                    }
                 }
 
                 // Delete Profile Button
@@ -575,13 +572,10 @@ fun EditProfileMainView(
                             }
                             .onFocusChanged { isDeleteFocused = it.isFocused }
                     ) {
-                        Text(
-                            text = "Delete Profile",
-                            color = if (isDeleteFocused) NetflixRed else Color(0xFFCCCCCC),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                        )
+                        Box(Modifier.height(48.dp).widthIn(min = 128.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                            Text("Delete Profile", color = if (isDeleteFocused) NetflixRed else Color(0xFFCCCCCC),
+                                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 1)
+                        }
                     }
                 }
             }
@@ -737,9 +731,9 @@ fun EditProfileMenuButton(
             .onFocusChanged { isFocused = it.isFocused }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)
         ) {
             Icon(
                 imageVector = icon,
@@ -752,7 +746,9 @@ fun EditProfileMenuButton(
                 text = label,
                 color = if (isFocused) Color.Black else Color.White,
                 fontSize = 15.sp,
-                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium
+                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -1197,13 +1193,10 @@ fun UpdateProfileLanguageView(
             ),
             modifier = Modifier.onFocusChanged { isDoneFocused = it.isFocused }
         ) {
-            Text(
-                text = "Done",
-                color = if (isDoneFocused) Color.Black else Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 36.dp, vertical = 10.dp)
-            )
+            Box(Modifier.height(48.dp).widthIn(min = 128.dp).padding(horizontal = 36.dp), contentAlignment = Alignment.Center) {
+                Text("Done", color = if (isDoneFocused) Color.Black else Color.White,
+                    fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            }
         }
     }
 }

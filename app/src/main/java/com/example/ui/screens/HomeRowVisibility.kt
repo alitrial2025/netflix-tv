@@ -16,3 +16,7 @@ internal fun shouldComposeHomeRow(
     val overscanPx = rowHeightPx * overscanRows.coerceAtLeast(0)
     return top < viewportHeightPx + overscanPx && top + rowHeightPx > -overscanPx
 }
+
+/** Retain only the first Home rail across header/hero/category focus, without mounting deep rows. */
+internal fun shouldRetainHomeEntryRow(index: Int, focusLevel: Int, prepared: Boolean, isKidProfile: Boolean, activeTab: String): Boolean =
+    index == 0 && prepared && focusLevel in -2..1 && !isKidProfile && activeTab == "Home"

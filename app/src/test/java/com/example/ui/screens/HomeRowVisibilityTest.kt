@@ -48,4 +48,13 @@ class HomeRowVisibilityTest {
         assertEquals(listOf(0), rows)
         assertTrue(shouldComposeHomeRow(51, 561f, 395f, -20311f, 640f, 50, overscanRows = 0))
     }
+    @Test fun entryRailSurvivesReturningToTheHeaderWithoutRetainingDeepRows() {
+        for (level in -2..1) assertTrue(shouldRetainHomeEntryRow(0, level, true, false, "Home"))
+        assertFalse(shouldRetainHomeEntryRow(1, -2, true, false, "Home"))
+        assertFalse(shouldRetainHomeEntryRow(0, 2, true, false, "Home"))
+        assertFalse(shouldRetainHomeEntryRow(0, -2, false, false, "Home"))
+        assertFalse(shouldRetainHomeEntryRow(0, -2, true, true, "Home"))
+        assertFalse(shouldRetainHomeEntryRow(0, -2, true, false, "Series"))
+    }
+
 }

@@ -1094,7 +1094,7 @@ private fun ProfilePreview(
 }
 
 @Composable
-private fun ProfileSelectionRow(
+internal fun ProfileSelectionRow(
     profile: Profile,
     index: Int,
     isCurrentFocused: Boolean,
@@ -1174,10 +1174,6 @@ private fun ProfileSelectionRow(
                             .onPreviewKeyEvent { keyEvent ->
                                 if (keyEvent.type == KeyEventType.KeyDown) {
                                     when (keyEvent.nativeKeyEvent.keyCode) {
-                                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                                            onEditClick()
-                                            true
-                                        }
                                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
                                             try {
                                                 cardFocusRequester.requestFocus()
@@ -1264,12 +1260,6 @@ private fun ProfileSelectionRow(
                 .onPreviewKeyEvent { keyEvent ->
                     if (keyEvent.type == KeyEventType.KeyDown) {
                         when (keyEvent.nativeKeyEvent.keyCode) {
-                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                                // Polish #3: briefly press down, then release.
-                                pressed = true
-                                onProfileClick()
-                                true
-                            }
                             KeyEvent.KEYCODE_DPAD_LEFT -> {
                                 try {
                                     pencilFocusRequester.requestFocus()
