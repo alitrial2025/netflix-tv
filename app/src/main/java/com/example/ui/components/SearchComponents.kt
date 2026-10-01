@@ -115,7 +115,8 @@ fun SearchSection(
         // begin decoding. The sidebar stays interactive throughout the reveal.
         withFrameNanos { }
         withFrameNanos { }
-        kotlinx.coroutines.delay(180)
+        kotlinx.coroutines.delay(TvMotion.duration(200).toLong())
+        com.example.ui.util.HomeStartupGate.awaitBrowsingIdle()
         artworkAllowed = true
     }
 
@@ -149,18 +150,17 @@ fun SearchSection(
         )
     }
 
-    // Memoize the shuffled fallback list independently so it does not
-    // re-shuffle on every recomposition (e.g. Flow re-emit on profile switch
-    // or continued-watching updates). The order is keyed only on allMovies.
-    val shuffledFallback = remember(allMovies) { allMovies.take(16).shuffled() }
+    // Stable catalogue order reuses the warmed poster window across tab visits.
+    // Re-entering Search must not randomly replace sixteen images during the reveal.
+    val localFallback = remember(allMovies) { allMovies.take(16) }
 
     // Use TMDB API results if we are actively searching or have a genre selected.
     // If both are empty/null, fall back to the memoized locally-mixed popular movies.
-    val searchResults = remember(searchQuery, selectedGenreId, apiSearchResults, shuffledFallback) {
+    val searchResults = remember(searchQuery, selectedGenreId, apiSearchResults, localFallback) {
         if (searchQuery.isNotBlank() || selectedGenreId != null) {
             apiSearchResults
         } else {
-            shuffledFallback
+            localFallback
         }
     }
 

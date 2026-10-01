@@ -399,10 +399,9 @@ fun BillboardSection(
                 // Story description only expands when D-pad is actively focused on the billboard
                 AnimatedVisibility(
                     visible = storyVisible,
-                    enter = fadeIn(tween(TvMotion.duration(300))) +
-                        expandVertically(tween(TvMotion.duration(320), easing = LinearOutSlowInEasing), expandFrom = Alignment.Bottom),
-                    exit = fadeOut(tween(TvMotion.duration(220))) +
-                        shrinkVertically(tween(TvMotion.duration(280), easing = LinearOutSlowInEasing), shrinkTowards = Alignment.Bottom)
+                    // A size animation remeasured the hero on every frame of the vertical glide.
+                    enter = fadeIn(tween(TvMotion.duration(300))),
+                    exit = fadeOut(tween(TvMotion.duration(220)))
                 ) {
                     Column {
                         Spacer(Modifier.height(8.dp))

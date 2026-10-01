@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.ui.theme.NetflixBlack
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -136,8 +137,10 @@ fun SplashScreen(
             )
         }
 
-        // 4. Stand under standalone N logo for a smooth visual beat (600ms)
+        // Keep the N and loader visible until essential data and bounded warming settle.
+        // The ViewModel owns the 45-second deadline; this wait never starts another handshake.
         delay(600)
+        androidx.compose.runtime.snapshotFlow { currentIsWarmupFinished }.first { it }
 
         // 5. Play the dramatic Netflix "Tadum" sound & zoom effect!
         try {

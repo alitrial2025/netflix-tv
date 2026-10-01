@@ -100,4 +100,22 @@ class HomeStartupSchedulerTest {
         runCurrent()
         assertTrue(foregroundReady)
     }
+    @Test fun splashPreparationAllowsDiscoveryButFinishingItRequiresRenderedHomeAgain() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime })
+        gate.setPreparing(true)
+        var duringSplash = false
+        launch { gate.awaitIdle(); duringSplash = true }
+        runCurrent()
+        assertTrue(duringSplash)
+        gate.setPreparing(false)
+        var afterSplash = false
+        val waiting = launch { gate.awaitIdle(); afterSplash = true }
+        advanceTimeBy(5_000); runCurrent()
+        assertFalse(afterSplash)
+        gate.markHomeReady()
+        advanceTimeBy(1_000); runCurrent()
+        assertTrue(afterSplash)
+        waiting.cancel()
+    }
+
 }

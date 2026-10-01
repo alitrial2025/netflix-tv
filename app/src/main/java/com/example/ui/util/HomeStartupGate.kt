@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 /** Keeps optional startup work out of the first Home layout and remote-driven scrolling. */
 object HomeStartupGate {
     private val scheduler = HomeStartupScheduler(SystemClock::uptimeMillis)
+    fun setPreparing(preparing: Boolean) = scheduler.setPreparing(preparing)
     fun markHomeReady() = scheduler.markHomeReady()
     fun markHomeHidden() = scheduler.markHomeHidden()
     fun onInteraction() = scheduler.onInteraction()
@@ -25,12 +26,17 @@ internal class HomeStartupScheduler(
 ) {
     private data class State(
         val homeReady: Boolean = false,
+        val preparing: Boolean = false,
         val scrolling: Boolean = false,
         val lastInteractionMs: Long = 0L
     )
 
     private val lock = Any()
     private val state = MutableStateFlow(State(lastInteractionMs = nowMs()))
+
+    fun setPreparing(preparing: Boolean) = synchronized(lock) {
+        state.value = state.value.copy(preparing = preparing, lastInteractionMs = nowMs())
+    }
 
     fun markHomeReady() = synchronized(lock) {
         if (!state.value.homeReady) {
@@ -61,8 +67,8 @@ internal class HomeStartupScheduler(
     private suspend fun awaitQuiet(requireHome: Boolean) {
         while (true) {
             currentCoroutineContext().ensureActive()
-            val candidate = state.first { (!requireHome || it.homeReady) && !it.scrolling }
-            val remaining = inputQuietMs - (nowMs() - candidate.lastInteractionMs)
+            val candidate = state.first { (!requireHome || it.homeReady || it.preparing) && !it.scrolling }
+            val remaining = if (candidate.preparing) 0L else inputQuietMs - (nowMs() - candidate.lastInteractionMs)
             if (remaining > 0L) {
                 delay(remaining)
                 continue

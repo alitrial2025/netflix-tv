@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -1744,6 +1745,85 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         return matchesProfilePin(profile.pin, enteredPin)
     }
 
+    private val initialLocalStateReady = kotlinx.coroutines.CompletableDeferred<Unit>()
+    private val startupStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val _startupReady = MutableStateFlow(false)
+    val startupReady: StateFlow<Boolean> = _startupReady.asStateFlow()
+
+    fun prepareStartup() {
+        if (!startupStarted.compareAndSet(false, true)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val started = com.example.ui.util.RuntimeTiming.start()
+            com.example.ui.util.HomeStartupGate.setPreparing(true)
+            try {
+                val result = com.example.ui.util.prepareTvStartup(
+                    prepareData = {
+                        initialLocalStateReady.await()
+                        if (isUserLoggedInOrGuest()) {
+                            ensureCatalogStarted()
+                            if (hasStartupNetwork()) {
+                                if (_profiles.value.isEmpty() && _isProfilesLoading.value)
+                                    _isProfilesLoading.first { !it }
+                                _isLoading.first { !it }
+                                preloadStartupArtwork()
+                            }
+                        }
+                    },
+                    warmSession = {
+                        initialLocalStateReady.await()
+                        val uid = authenticatedUid()
+                        if (uid != null && !_userSubscription.value.isTvAllowed) {
+                            // Give an arriving cloud membership a short chance without delaying guests.
+                            kotlinx.coroutines.withTimeoutOrNull(1_500L) { _userSubscription.first { it.isTvAllowed } }
+                        }
+                        if (uid == null || authenticatedUid() != uid || !_userSubscription.value.isTvAllowed || !hasStartupNetwork()) false
+                        else directCDNResolver.ensureSessionWarm()
+                    }
+                )
+                com.example.ui.util.RuntimeTiming.elapsed(
+                    if (!result.completed) "splash_preparation_deadline" else if (result.sessionWarmed) "splash_preparation_warmed" else "splash_preparation_ready", started)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (error: Exception) { android.util.Log.w("NetflixViewModel", "Startup preparation unavailable; browsing can continue", error) }
+            finally {
+                com.example.ui.util.HomeStartupGate.setPreparing(false)
+                _startupReady.value = true
+            }
+        }
+    }
+
+    private fun hasStartupNetwork(): Boolean {
+        val manager = getApplication<android.app.Application>().getSystemService(android.net.ConnectivityManager::class.java)
+        val network = manager?.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private suspend fun preloadStartupArtwork() {
+        if (!hasStartupNetwork()) return
+        val context = getApplication<android.app.Application>()
+        val density = context.resources.displayMetrics.density
+        val screen = context.resources.configuration
+        val rows = _categoryRows.value
+        val catalog = rows.asSequence().flatMap { it.second.asSequence() }.distinctBy { "${it.type}:${it.id}" }.toList()
+        val hero = com.example.ui.screens.BillboardAlgorithm.rankBillboardMovies(catalog, "Home", false, 1).firstOrNull()
+        val urls = buildList {
+            hero?.backdropUrl?.takeIf { it.isNotBlank() }?.let { add(it to com.example.ui.util.TvArtworkKind.BACKDROP) }
+            // Warm a bounded poster window for initial Home and Search; never decode the whole catalogue.
+            rows.firstOrNull()?.second.orEmpty().take(6).forEach { movie ->
+                if (movie.posterUrl.isNotBlank()) add(movie.posterUrl to com.example.ui.util.TvArtworkKind.POSTER)
+            }
+        }.distinct()
+        for ((url, kind) in urls) {
+            val width = if (kind == com.example.ui.util.TvArtworkKind.BACKDROP)
+                (screen.screenWidthDp * density).toInt().coerceAtMost(1280) else (180 * density).toInt().coerceAtMost(342)
+            val height = if (kind == com.example.ui.util.TvArtworkKind.BACKDROP) width * 9 / 16 else width * 3 / 2
+            val request = coil.request.ImageRequest.Builder(context)
+                .data(com.example.ui.util.TvImagePolicy.artworkUrl(url, width, kind))
+                .size(width, height).allowRgb565(true).crossfade(false).build()
+            coil.Coil.imageLoader(context).execute(request)
+        }
+    }
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -1855,30 +1935,34 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         // perf: load stored profiles and subscription off the main thread.
         // Was synchronous in MutableStateFlow(...) defaults.
         viewModelScope.launch(Dispatchers.IO) {
-            val startupScope = localAccountScope()
-            val startupUid = authenticatedUid()
-            val loaded = loadStoredProfiles(startupScope)
-            val sub = loadStoredSubscription()
-            withContext(Dispatchers.Main) {
-                if (localAccountScope() == startupScope && !profileSnapshotReceived.get() &&
-                    _profiles.value.isEmpty() && loaded.isNotEmpty()) {
-                    _profiles.value = loaded
+            try {
+                val startupScope = localAccountScope()
+                val startupUid = authenticatedUid()
+                val loaded = loadStoredProfiles(startupScope)
+                val sub = loadStoredSubscription()
+                withContext(Dispatchers.Main) {
+                    if (localAccountScope() == startupScope && !profileSnapshotReceived.get() &&
+                        _profiles.value.isEmpty() && loaded.isNotEmpty()) {
+                        _profiles.value = loaded
+                    }
+                    if (authenticatedUid() == startupUid && !subscriptionCloudReceived.get() &&
+                        (sub.planId != "plan_guest" || sub.status != "NONE")) {
+                        _userSubscription.value = sub
+                    }
                 }
-                if (authenticatedUid() == startupUid && !subscriptionCloudReceived.get() &&
-                    (sub.planId != "plan_guest" || sub.status != "NONE")) {
-                    _userSubscription.value = sub
-                }
-            }
-            // Profile selection (including a saved profile's PIN) belongs to
-            // the picker; reading a cache must not select a profile itself.
+                // Profile selection (including a saved profile's PIN) belongs to
+                // the picker; reading a cache must not select a profile itself.
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (error: Exception) { android.util.Log.w("NetflixViewModel", "Local startup cache unavailable", error) }
+            finally { initialLocalStateReady.complete(Unit) }
         }
         // A new viewer needs the sign-in keyboard before catalog JSON parsing.
         // Existing sessions can still warm the catalog during their splash.
         if (isUserLoggedInOrGuest()) ensureCatalogStarted()
         listenToFirestoreProfiles()
         listenToFirestoreSubscription()
-        // Playback resolves its session on demand. Starting Chromium/session generation
-        // from a cold-start timer competes with the first Home scroll even on 2 GB TVs.
+        // The splash prepares a native session for eligible accounts. Foreground playback
+        // retains its recovery path; no Chromium warmup is started during Home entry.
     }
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query

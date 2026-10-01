@@ -223,9 +223,10 @@ class MainActivity : ComponentActivity() {
                                 // Splash holds until the ViewModel's initial data (profiles +
                                 // home rows) has loaded, so the transition into the app is
                                 // instant — like the real Netflix TV app.
-                                val isWarmupFinished by viewModel.isLoading.collectAsState()
+                                LaunchedEffect(viewModel) { viewModel.prepareStartup() }
+                                val isWarmupFinished by viewModel.startupReady.collectAsState()
                                 SplashScreen(
-                                    isWarmupFinished = !isWarmupFinished,
+                                    isWarmupFinished = isWarmupFinished,
                                     onSplashComplete = {
                                         val isLoggedIn = viewModel.isUserLoggedInOrGuest()
                                         val destination = if (isLoggedIn) "profiles" else "tvAuth"
@@ -327,7 +328,9 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onEditProfile = { profileId ->
-                                            navController.navigate("editProfile/$profileId")
+                                            if (navController.currentDestination?.route == "profiles") {
+                                                navController.navigate("editProfile/$profileId") { launchSingleTop = true }
+                                            }
                                         }
                                     )
                                 }
