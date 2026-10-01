@@ -12,7 +12,7 @@
   "signingCertificateSha256": [
     "8fe8dba9926a17c17f22a5f080bdcc5c63611d3ef9c504fd3363b4a3fa25497c"
   ],
-  "apkUrl": "https://github.com/alitrial2025/netflix-tv/raw/refs/heads/desktop-downloads-20261001/NetflixPro-Mobile-debug.apk",
+  "apkUrl": "https://github.com/alitrial2025/netflix-tv/raw/284fbfadfb45fa2501fb8104bf8de34862c2499f/NetflixPro-Mobile-debug.apk",
   "supportsUpdateGate": true,
   "publishedAt": "2026-10-01T07:27:04.983044Z",
   "releaseNotes": "Debug review build: Home scroll work reduced, provider-aware Smart Downloads, separate-audio offline HLS and clearer errors. Uses the Android debug certificate; compatible with earlier desktop debug builds, not a differently signed production installation."
