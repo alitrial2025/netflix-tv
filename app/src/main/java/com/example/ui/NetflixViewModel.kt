@@ -130,6 +130,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
             .setUsage(androidx.media3.common.C.USAGE_MEDIA)
             .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+            .setSpatializationBehavior(if (_userSubscription.value.isSpatialAudioAllowed) androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_AUTO
+                else androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_NEVER)
             .build()
         val lowMemory = com.example.ui.util.TvImagePolicy.isLowMemoryDevice(application)
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
@@ -143,6 +145,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             setAudioAttributes(audioAttributes, true)
             playWhenReady = true
             repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+            trackSelectionParameters = trackSelectionParameters.buildUpon()
+                .setMaxVideoSize(Int.MAX_VALUE, _userSubscription.value.maxVideoHeight.coerceAtLeast(480)).build()
             addListener(object : androidx.media3.common.Player.Listener {
                 override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) {
                     _sharedVideoFrameMediaId.value = null
@@ -834,8 +838,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                                 val episode = (doc.getLong("episode") ?: 1L).toInt()
                                 val episodeName = doc.getString("episodeTitle") ?: doc.getString("episodeName") ?: ""
 
-                                if (isCompleted || (durMs > 0L && posMs >= (durMs * 0.95))) {
-                                    continueWatchingRepository.deleteProgress(profileId, mediaId)
+                                val watchedAt = doc.getLong("lastWatchedTimestamp") ?: 0L
+                                if (doc.getBoolean("isRemoved") == true) {
+                                    continueWatchingRepository.applyRemoteRemoval(profileId, mediaId, watchedAt)
                                     continue
                                 }
 
@@ -862,15 +867,17 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                                     logoUrl = logoUrl
                                 )
 
-                                if (durMs > 0L && posMs > 1000L) {
-                                    continueWatchingRepository.saveProgress(
+                                if (durMs > 0L && posMs >= 0L) {
+                                    continueWatchingRepository.upsertRemoteProgressIfNewer(
                                         profileId = profileId,
                                         movie = movie,
                                         playbackPositionMs = posMs,
                                         durationMs = durMs,
                                         season = season,
                                         episode = episode,
-                                        episodeName = episodeName
+                                        episodeName = episodeName,
+                                        watchedAt = watchedAt,
+                                        completed = isCompleted || com.example.data.ContinueWatchingEventPolicy.completed(posMs, durMs)
                                     )
                                 }
                             } catch (e: Exception) {
@@ -892,16 +899,6 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         handleSnapshot(snapshot)
                     }
 
-                continueWatchingNestedListener = db.collection("users").document(targetUid)
-                    .collection("profiles").document(profileId)
-                    .collection("continue_watching")
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            android.util.Log.w("NetflixViewModel", "Error listening to nested continue_watching: ${error.message}")
-                            return@addSnapshotListener
-                        }
-                        handleSnapshot(snapshot)
-                    }
             }
         } catch (e: Exception) {
             android.util.Log.e("NetflixViewModel", "Error in listenToContinueWatchingFromFirestore: ${e.message}")
@@ -1815,14 +1812,26 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         // Wire the user-subscription clock so tests can swap a fake clock
-        // without rewiring every call site that compares against
-        // System.currentTimeMillis(). Production uses the real wall clock.
-        com.example.model.UserSubscription.clock = { System.currentTimeMillis() }
+        // without rewiring every call site. Production uses the persisted
+        // monotonic clock, with trusted server timestamps as a lower bound.
+        com.example.data.SubscriptionTime.initialize(application)
+        com.example.model.UserSubscription.clock = { com.example.data.SubscriptionTime.now() }
         viewModelScope.launch {
             _userSubscription.collectLatest { subscription ->
+                com.example.data.SubscriptionReminders.schedule(getApplication(), authenticatedUid(), subscription.expiresAt, subscription.isActive)
+                if (sharedExoPlayerDelegate.isInitialized()) applySubscriptionPlaybackLimits(subscription)
                 if (subscription.isActive) {
                     while (subscription.isActive) {
-                        delay((subscription.expiresAt - System.currentTimeMillis()).coerceIn(1L, 60_000L))
+                        if (subscription.status.equals("ACTIVE", true) && subscription.isInRenewalGrace) {
+                            val grace = subscription.copy(status = "GRACE_PERIOD")
+                            saveStoredSubscription(grace)
+                            _userSubscription.value = grace
+                            return@collectLatest
+                        }
+                        if (com.example.data.SubscriptionReminders.claimInApp(getApplication(), authenticatedUid(), subscription.expiresAt, subscription.renewalReminderDue))
+                            android.widget.Toast.makeText(getApplication(), "Renew NetflixPro on your phone today. Your renewal allowance ends tomorrow.", android.widget.Toast.LENGTH_LONG).show()
+                        val boundary = if (subscription.status.equals("ACTIVE", true)) subscription.expiresAt else subscription.accessEndsAt
+                        delay((boundary - com.example.data.SubscriptionTime.now()).coerceIn(1L, 60_000L))
                     }
                     if (_userSubscription.value == subscription) {
                         val expired = subscription.copy(status = "EXPIRED")
@@ -1835,7 +1844,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         sharedExoPlayer.stop()
                         sharedExoPlayer.clearMediaItems()
                     }
-                    if (subscription.status.equals("ACTIVE", true)) {
+                    if (subscription.status.equals("ACTIVE", true) || subscription.status.equals("GRACE_PERIOD", true)) {
                         val expired = subscription.copy(status = "EXPIRED")
                         _userSubscription.value = expired
                         saveStoredSubscription(expired)
@@ -2692,6 +2701,19 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    fun applySubscriptionPlaybackLimits(subscription: com.example.model.UserSubscription = _userSubscription.value) {
+        if (!sharedExoPlayerDelegate.isInitialized()) return
+        val player = sharedExoPlayer
+        val trailer = player.currentMediaItem?.mediaId?.endsWith(":trailer") == true
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setMaxVideoSize(Int.MAX_VALUE, if (trailer) 1080 else subscription.maxVideoHeight.coerceAtLeast(480)).build()
+        player.setAudioAttributes(androidx.media3.common.AudioAttributes.Builder()
+            .setUsage(androidx.media3.common.C.USAGE_MEDIA).setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+            .setSpatializationBehavior(if (subscription.isSpatialAudioAllowed) androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_AUTO
+                else androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_NEVER).build(), true)
+    }
+
     private fun loadStoredSubscription(): com.example.model.UserSubscription {
         val hasUser = authenticatedUid() != null
         if (!hasUser) return com.example.model.UserSubscription()
@@ -2876,6 +2898,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         }
                         if (snapshot?.metadata?.hasPendingWrites() == true) return@addSnapshotListener
                         if (snapshot != null && snapshot.exists()) {
+                            if (!snapshot.metadata.isFromCache) runCatching { snapshot.getTimestamp("updatedAt")?.toDate()?.time }.getOrNull()?.let {
+                                com.example.data.SubscriptionTime.observeServerTimestamp(it)
+                            }
                             val rawStatus = snapshot.getString("status") ?: ""
                             val rawPlanId = snapshot.getString("planId") ?: ""
                             // Audit fix: don't coerce a missing plan to
@@ -3047,6 +3072,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         forceFirestoreSync: Boolean = false
     ) {
         val profileId = _selectedProfile.value?.id ?: "default"
+        val watchedAt = com.example.data.ContinueWatchingEventPolicy.newTimestamp()
+        val watchOwner = authenticatedUid()
         // Clamp positionMs to a sane range. A buggy stream manifest can
         // report positionMs > durationMs * 2, which makes `isCompleted`
         // true and forces the row out of Continue Watching before the user
@@ -3058,9 +3085,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             else -> positionMs
         }
         viewModelScope.launch(Dispatchers.IO) {
+            if (authenticatedUid() != watchOwner) return@launch
             try {
                 continueWatchingRepository.saveProgress(profileId, movie, safePosition, durationMs, season, episode, episodeName,
-                    force = forceFirestoreSync)
+                    force = forceFirestoreSync, watchedAt = watchedAt)
             } catch (e: Exception) {
                 // Repository already swallows, but defensively double-catch
                 // so a DB failure never crashes the player.
@@ -3068,11 +3096,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             }
 
             val now = System.currentTimeMillis()
-            val isCompleted = (durationMs > 0 && (safePosition >= durationMs - 30_000L || safePosition >= (durationMs * 0.95)))
+            val isCompleted = com.example.data.ContinueWatchingEventPolicy.completed(safePosition, durationMs)
             if (forceFirestoreSync || isCompleted || (now - lastFirestoreSyncTimestamp >= 15_000L)) {
                 lastFirestoreSyncTimestamp = now
-                syncWatchProgressToFirestore(profileId, movie, safePosition, durationMs, season, episode, episodeName)
-                syncWatchHistoryToFirestore(profileId, movie, safePosition, durationMs, season, episode, episodeName, isCompleted)
+                syncWatchProgressToFirestore(profileId, movie, safePosition, durationMs, season, episode, episodeName, watchedAt, watchOwner)
+                if (authenticatedUid() == watchOwner)
+                    syncWatchHistoryToFirestore(profileId, movie, safePosition, durationMs, season, episode, episodeName, isCompleted)
             }
 
             // Update Android TV system-wide "Play Next" row.
@@ -3162,297 +3191,68 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun syncWatchProgressToFirestore(
-        profileId: String,
-        movie: Movie,
-        positionMs: Long,
-        durationMs: Long,
-        season: Int,
-        episode: Int,
-        episodeName: String
+        profileId: String, movie: Movie, positionMs: Long, durationMs: Long,
+        season: Int, episode: Int, episodeName: String, watchedAt: Long, watchOwner: String?
     ) {
-        try {
-            if (FirebaseApp.getApps(getApplication()).isNotEmpty()) {
-                val db = FirebaseFirestore.getInstance()
-                val targetUid = authenticatedUid() ?: return
-                val docId = "${profileId}_${movie.id}"
+        val uid = watchOwner ?: return
+        if (authenticatedUid() != uid) return
+        val completed = com.example.data.ContinueWatchingEventPolicy.completed(positionMs, durationMs)
+        val data = mapOf<String, Any>(
+            "profileId" to profileId, "mediaId" to movie.id, "movieId" to movie.id,
+            "positionSeconds" to positionMs / 1000L, "totalSeconds" to durationMs / 1000L,
+            "durationSeconds" to durationMs / 1000L, "playbackPositionMs" to positionMs,
+            "positionMs" to positionMs, "durationMs" to durationMs,
+            "lastWatchedTimestamp" to watchedAt, "updatedAt" to FieldValue.serverTimestamp(),
+            "isCompleted" to completed, "isRemoved" to (completed && !movie.isSeriesContent()),
+            "episodeId" to if (movie.isSeriesContent()) "s${season}_e$episode" else "",
+            "episodeTitle" to episodeName, "episodeName" to episodeName,
+            "season" to season, "episode" to episode,
+            "title" to movie.title, "description" to movie.description,
+            "posterUrl" to movie.posterUrl, "backdropUrl" to movie.backdropUrl,
+            "rating" to movie.rating, "year" to movie.year, "type" to movie.type,
+            "duration" to movie.duration, "logoUrl" to (movie.logoUrl ?: ""),
+            "syncedFromDevice" to "Android TV"
+        )
+        commitContinueWatchingEvent(uid, profileId, movie.id, data)
+    }
 
-                val isNearEnd = durationMs > 0 && (positionMs >= (durationMs * 0.95) || (durationMs - positionMs) <= 30000L)
-                val isCompleted = isNearEnd && !movie.type.equals("Series", ignoreCase = true)
-
-                val flatDocRef = db.collection("users").document(targetUid).collection(Collections.CONTINUE_WATCHING_FLAT).document(docId)
-                val profileNestedDocRef1 = db.collection("users").document(targetUid).collection(Collections.PROFILES).document(profileId).collection(Collections.CONTINUE_WATCHING_FLAT).document(movie.id)
-                val profileNestedDocRef2 = db.collection("users").document(targetUid).collection(Collections.PROFILES).document(profileId).collection(Collections.CONTINUE_WATCHING).document(movie.id)
-
-                // Audit fix: combine the three writes (or deletes) into a single
-                // batched commit. The previous implementation fired three
-                // independent round-trips and dropped all of them on the first
-                // network error, leaving the same progress doc out-of-sync across
-                // paths. A single batched commit is atomic on success and uses
-                // one network round-trip instead of three.
-                val batch = db.batch()
-
-                if (isCompleted) {
-                    batch.delete(flatDocRef)
-                    batch.delete(profileNestedDocRef1)
-                    batch.delete(profileNestedDocRef2)
-                    // Offline-first outbox: persist a single batch row
-                    // describing the three deletes so the worker can replay
-                    // them if the direct commit below fails (or the app is
-                    // force-killed between commit and ack). The direct
-                    // commit still runs first; the row is marked done on
-                    // success.
-                    val deleteBatchPayload = SyncScheduler.encodeBatchPayload(
-                        listOf(
-                            SyncScheduler.batchDelete(
-                                collection = "users/$targetUid/${Collections.CONTINUE_WATCHING_FLAT}",
-                                documentId = docId
-                            ),
-                            SyncScheduler.batchDelete(
-                                collection = "users/$targetUid/${Collections.PROFILES}/$profileId/${Collections.CONTINUE_WATCHING_FLAT}",
-                                documentId = movie.id
-                            ),
-                            SyncScheduler.batchDelete(
-                                collection = "users/$targetUid/${Collections.PROFILES}/$profileId/${Collections.CONTINUE_WATCHING}",
-                                documentId = movie.id
-                            )
-                        )
-                    )
-                    val deleteRowId = SyncScheduler.enqueueWrite(
-                        context = getApplication(),
-                        dao = pendingWriteDao,
-                        collection = "users",
-                        documentId = targetUid,
-                        operation = com.example.data.PendingWrite.OP_BATCH,
-                        payload = deleteBatchPayload
-                    )
-                    try {
-                        batch.commit().await()
-                        pendingWriteDao.markDone(deleteRowId, System.currentTimeMillis())
-                    } catch (directErr: Exception) {
-                        android.util.Log.w(
-                            "NetflixViewModel",
-                            "Direct delete watch-progress sync failed, will retry via outbox row=$deleteRowId: ${directErr.message}"
-                        )
-                    }
-                    return
-                }
-
-                // Policy gate: positionMs is MAX_WINS. The client must
-                // read the remote value first, take the max, then write.
-                // Without this read-then-max step, a naive last-write-wins
-                // would lose progress when a user has been watching on
-                // another device (see SyncStrategy.CONTINUE_WATCHING
-                // docs for the full scenario).
-                val remoteFlat = try {
-                    flatDocRef.get().await()
-                } catch (_: Exception) { null }
-                val remoteNested = try {
-                    profileNestedDocRef1.get().await()
-                } catch (_: Exception) { null }
-                val remotePos = listOfNotNull(remoteFlat, remoteNested)
-                    .filter { doc -> !movie.isSeriesContent() || com.example.data.PlaybackProgressPolicy.sameEpisode(
-                        season, episode, doc.getLong("season"), doc.getLong("episode"), doc.getString("episodeId")
-                    ) }
-                    .mapNotNull { doc ->
-                        // accept the multiple field names the schema
-                        // has historically used
-                        doc.getLong("positionMs")
-                            ?: doc.getLong("playbackPositionMs")
-                            ?: doc.getLong("positionSeconds")?.let { it * 1000L }
-                    }
-                    .maxOrNull() ?: 0L
-                val resolvedPositionMs = com.example.data.PlaybackProgressPolicy.resolvePosition(positionMs, durationMs, remotePos)
-                val resolvedDurationMs = (ConflictResolver.resolve(
-                    collection = Collections.CONTINUE_WATCHING,
-                    field = "durationMs",
-                    localValue = durationMs,
-                    // SERVER_WINS — the server's canonical duration wins,
-                    // but we don't have it client-side so pass our local
-                    // value (the server will overwrite if needed).
-                    remoteValue = durationMs
-                ) as? Long) ?: durationMs
-                android.util.Log.d(
-                    "Sync",
-                    "syncWatchProgress: movieId=${movie.id} profileId=$profileId " +
-                        "localPos=$positionMs remotePos=$remotePos " +
-                        "resolvedPos=$resolvedPositionMs"
-                )
-
-                val positionSeconds = (resolvedPositionMs / 1000L).toInt()
-                val durationSeconds = (resolvedDurationMs / 1000L).toInt()
-                val progressPercent = if (resolvedDurationMs > 0) ((resolvedPositionMs.toFloat() / resolvedDurationMs.toFloat()) * 100f).coerceIn(0f, 100f) else 0f
-
-                val data = hashMapOf<String, Any>(
-                    "profileId" to profileId,
-                    "mediaId" to movie.id,
-                    "movieId" to movie.id,
-                    "id" to movie.id,
-                    "positionSeconds" to positionSeconds,
-                    "totalSeconds" to durationSeconds,
-                    "durationSeconds" to durationSeconds,
-                    "playbackPositionMs" to resolvedPositionMs,
-                    "positionMs" to resolvedPositionMs,
-                    "durationMs" to resolvedDurationMs,
-                    "progressPercent" to progressPercent,
-                    "lastWatchedTimestamp" to System.currentTimeMillis(),
-                    "updatedAt" to FieldValue.serverTimestamp(),
-                    "isCompleted" to false,
-                    "episodeId" to "s${season}_e${episode}",
-                    "episodeTitle" to episodeName,
-                    "episodeName" to episodeName,
-                    "season" to season,
-                    "episode" to episode,
-                    "title" to movie.title,
-                    "name" to movie.title,
-                    "mediaTitle" to movie.title,
-                    "description" to movie.description,
-                    "backdropUrl" to movie.backdropUrl,
-                    "posterUrl" to movie.posterUrl,
-                    "rating" to movie.rating,
-                    "year" to movie.year,
-                    "type" to movie.type,
-                    "duration" to movie.duration,
-                    "logoUrl" to (movie.logoUrl ?: ""),
-                    "syncedFromDevice" to "Android TV"
-                )
-
-                // Filter the write map against the policy. None of the
-                // continue_watching fields are SERVER_ONLY, but the
-                // SERVER_WINS fields (durationMs, season, episode,
-                // lastUpdatedAt) get a debug log so a misuse is visible.
-                val filtered = ConflictResolver.filterWritable(Collections.CONTINUE_WATCHING, data)
-                batch.set(flatDocRef, filtered, SetOptions.merge())
-                batch.set(profileNestedDocRef1, filtered, SetOptions.merge())
-                batch.set(profileNestedDocRef2, filtered, SetOptions.merge())
-                // Offline-first outbox: build a batch descriptor that
-                // replays the same three writes on the worker side if
-                // needed. FieldValue.serverTimestamp() is preserved as a
-                // {"__serverTimestamp": true} sentinel in the JSON payload
-                // — the worker unwraps it back to FieldValue on commit.
-                val outboxData = filtered.mapValues { (_, v) ->
-                    if (v is FieldValue) mapOf("__serverTimestamp" to true) else v
-                }
-                val batchPayload = SyncScheduler.encodeBatchPayload(
-                    listOf(
-                        SyncScheduler.batchUpdate(
-                            collection = "users/$targetUid/${Collections.CONTINUE_WATCHING_FLAT}",
-                            documentId = docId,
-                            data = outboxData
-                        ),
-                        SyncScheduler.batchUpdate(
-                            collection = "users/$targetUid/${Collections.PROFILES}/$profileId/${Collections.CONTINUE_WATCHING_FLAT}",
-                            documentId = movie.id,
-                            data = outboxData
-                        ),
-                        SyncScheduler.batchUpdate(
-                            collection = "users/$targetUid/${Collections.PROFILES}/$profileId/${Collections.CONTINUE_WATCHING}",
-                            documentId = movie.id,
-                            data = outboxData
-                        )
-                    )
-                )
-                val batchRowId = SyncScheduler.enqueueWrite(
-                    context = getApplication(),
-                    dao = pendingWriteDao,
-                    collection = "users",
-                    documentId = targetUid,
-                    operation = com.example.data.PendingWrite.OP_BATCH,
-                    payload = batchPayload
-                )
-                try {
-                    batch.commit().await()
-                    pendingWriteDao.markDone(batchRowId, System.currentTimeMillis())
-                } catch (directErr: Exception) {
-                    android.util.Log.w(
-                        "NetflixViewModel",
-                        "Direct watch-progress sync failed, will retry via outbox row=$batchRowId: ${directErr.message}"
-                    )
-                }
+    /** Tombstones retain the removal time so an offline device cannot resurrect an older save. */
+    fun deletePlaybackProgress(movieId: String) {
+        val uid = authenticatedUid()
+        val profileId = _selectedProfile.value?.id ?: "default"
+        val watchedAt = com.example.data.ContinueWatchingEventPolicy.newTimestamp()
+        viewModelScope.launch(Dispatchers.IO) {
+            continueWatchingRepository.applyRemoteRemoval(profileId, movieId, watchedAt)
+            try { com.example.tv.TvHomeChannelManager.removeWatchNextProgram(getApplication(), movieId) } catch (_: Exception) {}
+            if (uid != null && authenticatedUid() == uid) {
+                commitContinueWatchingEvent(uid, profileId, movieId, mapOf(
+                    "profileId" to profileId, "mediaId" to movieId,
+                    "isRemoved" to true, "lastWatchedTimestamp" to watchedAt,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
             }
-        } catch (e: Exception) {
-            android.util.Log.e("NetflixViewModel", "Error syncing watch progress to Firestore: ${e.message}")
         }
     }
 
-    fun deletePlaybackProgress(movieId: String) {
-        val profileId = _selectedProfile.value?.id ?: "default"
-        viewModelScope.launch(Dispatchers.IO) {
-            continueWatchingRepository.deleteProgress(profileId, movieId)
+    private suspend fun commitContinueWatchingEvent(uid: String, profileId: String, mediaId: String, data: Map<String, Any>) {
+        if (authenticatedUid() != uid) return
+        val paths = listOf(
+            "users/$uid/continue_watching" to "${profileId}_$mediaId",
+            "users/$uid/profiles/$profileId/continue_watching" to mediaId,
+            "users/$uid/profiles/$profileId/continueWatching" to mediaId
+        )
+        try {
+            val payloadData = data.mapValues { (_, value) -> if (value is FieldValue) mapOf("__serverTimestamp" to true) else value }
+            val payload = SyncScheduler.encodeBatchPayload(paths.map { (path, id) -> SyncScheduler.batchUpdate(path, id, payloadData) })
+            val rowId = SyncScheduler.enqueueWrite(getApplication(), pendingWriteDao, "users", uid, com.example.data.PendingWrite.OP_BATCH, payload)
             try {
-                com.example.tv.TvHomeChannelManager.removeWatchNextProgram(getApplication(), movieId)
-            } catch (_: Exception) {}
-            try {
-                if (FirebaseApp.getApps(getApplication()).isNotEmpty()) {
-                    val db = FirebaseFirestore.getInstance()
-                    val targetUid = authenticatedUid() ?: return@launch
-                    val docId = "${profileId}_${movieId}"
-                    // Audit fix: combine the three deletes into a single batched
-                    // commit. The previous implementation fired three independent
-                    // round-trips (one per path) and dropped all of them on a
-                    // single network error, leaving the same progress doc stuck
-                    // on two of the three paths. Batches are atomic on success.
-                    // Policy gate: deletes bypass per-field policy (a delete
-                    // is a row-level operation), but we log the policy lookup
-                    // so the audit trail captures the action.
-                    android.util.Log.d(
-                        "Sync",
-                        "policy=DELETE_OP collection=continueWatching movieId=$movieId"
-                    )
-                    val batch = db.batch()
-                    val flatRef = db.collection("users").document(targetUid)
-                        .collection(Collections.CONTINUE_WATCHING_FLAT).document(docId)
-                    val nestedRef1 = db.collection("users").document(targetUid)
-                        .collection(Collections.PROFILES).document(profileId)
-                        .collection(Collections.CONTINUE_WATCHING_FLAT).document(movieId)
-                    val nestedRef2 = db.collection("users").document(targetUid)
-                        .collection(Collections.PROFILES).document(profileId)
-                        .collection(Collections.CONTINUE_WATCHING).document(movieId)
-                    batch.delete(flatRef)
-                    batch.delete(nestedRef1)
-                    batch.delete(nestedRef2)
-                    // Offline-first outbox: enqueue a batch row describing
-                    // the three deletes. The direct commit runs first; the
-                    // row is marked done on success. If the commit fails
-                    // (or the device dies mid-call), the
-                    // PendingWriteRetryWorker replays the same deletes.
-                    val deleteBatchPayload = SyncScheduler.encodeBatchPayload(
-                        listOf(
-                            SyncScheduler.batchDelete(
-                                collection = "users/$targetUid/${Collections.CONTINUE_WATCHING_FLAT}",
-                                documentId = docId
-                            ),
-                            SyncScheduler.batchDelete(
-                                collection = "users/$targetUid/${Collections.PROFILES}/$profileId/${Collections.CONTINUE_WATCHING_FLAT}",
-                                documentId = movieId
-                            ),
-                            SyncScheduler.batchDelete(
-                                collection = "users/$targetUid/${Collections.PROFILES}/$profileId/${Collections.CONTINUE_WATCHING}",
-                                documentId = movieId
-                            )
-                        )
-                    )
-                    val rowId = SyncScheduler.enqueueWrite(
-                        context = getApplication(),
-                        dao = pendingWriteDao,
-                        collection = "users",
-                        documentId = targetUid,
-                        operation = com.example.data.PendingWrite.OP_BATCH,
-                        payload = deleteBatchPayload
-                    )
-                    try {
-                        batch.commit().await()
-                        pendingWriteDao.markDone(rowId, System.currentTimeMillis())
-                    } catch (directErr: Exception) {
-                        android.util.Log.w(
-                            "NetflixViewModel",
-                            "Direct delete-playback sync failed, will retry via outbox row=$rowId: ${directErr.message}"
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("NetflixViewModel", "Error deleting playback progress from Firestore: ${e.message}")
-            }
-        }
+                val db = FirebaseFirestore.getInstance()
+                com.example.data.ContinueWatchingCloudCommit.write(db, paths.map { (path, id) -> db.collection(path).document(id) to data })
+                pendingWriteDao.markDone(rowId, System.currentTimeMillis())
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { /* The persistent outbox retries only while this owner is signed in. */ }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (error: Exception) { android.util.Log.w("NetflixViewModel", "Watch event could not be queued", error) }
     }
 
     suspend fun getPlaybackProgress(movieId: String): Long {
@@ -3508,10 +3308,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         }
                         listOf(flat, nested1, nested2)
                             .map { it.await() }
-                            .firstOrNull { it != null && it.exists() }
+                            .filterNotNull().filter { it.exists() }.maxByOrNull { it.getLong("lastWatchedTimestamp") ?: 0L }
                     }
 
-                    if (doc != null && doc.exists() && doc.getBoolean("isCompleted") != true) {
+                    if (doc != null && doc.exists() && doc.getBoolean("isCompleted") != true && doc.getBoolean("isRemoved") != true) {
                         val posSec = (doc.getLong("positionSeconds") ?: 0L)
                         val posMs = doc.getLong("playbackPositionMs") ?: doc.getLong("positionMs") ?: (posSec * 1000L)
                         val durSec = (doc.getLong("totalSeconds") ?: doc.getLong("durationSeconds") ?: 0L)
@@ -3553,7 +3353,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         )
 
                         if (durMs > 0L && posMs > 1000L) {
-                            continueWatchingRepository.saveProgress(profileId, entity.toMovie(), posMs, durMs, season, episode, episodeName)
+                            continueWatchingRepository.upsertRemoteProgressIfNewer(profileId, entity.toMovie(), posMs, durMs, season, episode, episodeName, timestamp)
                         }
                         return@withContext entity
                     }

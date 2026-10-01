@@ -33,7 +33,8 @@ class PlaybackProgressPolicyTest {
     }
 
     @Test fun cloudPositionCannotExceedTheActualDuration() {
-        assertEquals(60_000L, PlaybackProgressPolicy.resolvePosition(12_000L, 60_000L, 120_000L))
+        assertEquals(12_000L, PlaybackProgressPolicy.resolvePosition(12_000L, 60_000L, 120_000L))
+        assertEquals(60_000L, PlaybackProgressPolicy.resolvePosition(120_000L, 60_000L, 0L))
         assertEquals(0L, PlaybackProgressPolicy.resolvePosition(-1L, 60_000L, -1L))
     }
 }

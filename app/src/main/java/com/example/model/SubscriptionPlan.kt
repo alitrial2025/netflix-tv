@@ -140,14 +140,29 @@ data class SubscriptionPlan(
     /** Tier enum — the canonical plan classification. UI can still use
      *  [name] for display. */
     val tier: SubscriptionTier = SubscriptionTier.fromPlanId(id)
-)
+) {
+    val durationDays: Int get() = 30
+    val maxVideoHeight: Int get() = when (id) {
+        "plan_mobile" -> 480; "plan_basic" -> 720; "plan_standard" -> 1080
+        "plan_premium" -> 2160; else -> 0
+    }
+    val maxDownloads: Int get() = when (id) {
+        "plan_mobile" -> 3; "plan_basic" -> 5; "plan_standard" -> 25
+        "plan_premium" -> 999; else -> 0
+    }
+    val smartNextEpisode: Boolean get() = id == "plan_standard" || id == "plan_premium"
+    val downloadsForYou: Boolean get() = id == "plan_premium"
+    val clips: Boolean get() = id == "plan_premium"
+    val games: Boolean get() = id == "plan_standard" || id == "plan_premium"
+}
+
 
 object SubscriptionPlans {
     val PLANS = listOf(
         SubscriptionPlan(
             id = "plan_mobile",
             name = "Mobile",
-            priceKes = 200,
+            priceKes = 150,
             priceUsd = "$2.00",
             quality = "Good",
             resolution = "480p (SD)",
@@ -160,11 +175,11 @@ object SubscriptionPlans {
         SubscriptionPlan(
             id = "plan_basic",
             name = "Basic",
-            priceKes = 600,
+            priceKes = 550,
             priceUsd = "$6.00",
             quality = "Good",
             resolution = "720p (HD)",
-            supportedDevices = "TV, computer, mobile phone, tablet",
+            supportedDevices = "Android TV, mobile phone, tablet",
             screens = 1,
             downloadDevices = 1,
             spatialAudio = false,
@@ -173,11 +188,11 @@ object SubscriptionPlans {
         SubscriptionPlan(
             id = "plan_standard",
             name = "Standard",
-            priceKes = 1000,
+            priceKes = 950,
             priceUsd = "$10.00",
             quality = "Great",
             resolution = "1080p (Full HD)",
-            supportedDevices = "TV, computer, mobile phone, tablet",
+            supportedDevices = "Android TV, mobile phone, tablet",
             screens = 2,
             downloadDevices = 2,
             spatialAudio = false,
@@ -186,11 +201,11 @@ object SubscriptionPlans {
         SubscriptionPlan(
             id = "plan_premium",
             name = "Premium",
-            priceKes = 1400,
+            priceKes = 1350,
             priceUsd = "$14.00",
             quality = "Best",
-            resolution = "4K (Ultra HD) + HDR",
-            supportedDevices = "TV, computer, mobile phone, tablet",
+            resolution = "Up to 4K + HDR",
+            supportedDevices = "Android TV, mobile phone, tablet",
             screens = 4,
             downloadDevices = 6,
             spatialAudio = true,
@@ -256,22 +271,21 @@ data class UserSubscription(
      */
     val isActive: Boolean
         get() {
-            if (isGuest) return false
+            if (isGuest || SubscriptionPlans.PLANS.none { it.id == planId }) return false
             val now = nowMillis()
             val resolved = SubscriptionStatus.fromString(status)
-            return resolved == SubscriptionStatus.ACTIVE && expiresAt > now
+            return com.example.data.RenewalPolicy.grantsAccess(status, expiresAt, now)
         }
 
     /** True while the subscription is in a billing-retry window — user
      *  still has access but a banner should be shown ("Please update
      *  your payment method"). */
     val isInGracePeriod: Boolean
-        get() {
-            val resolved = SubscriptionStatus.fromString(status)
-            if (resolved != SubscriptionStatus.GRACE_PERIOD) return false
-            val now = nowMillis()
-            return gracePeriodEndsAt == null || gracePeriodEndsAt > now
-        }
+        get() = isInRenewalGrace
+
+    val accessEndsAt: Long get() = com.example.data.RenewalPolicy.accessEndsAt(expiresAt)
+    val isInRenewalGrace: Boolean get() = isActive && expiresAt <= nowMillis()
+    val renewalReminderDue: Boolean get() = isActive && com.example.data.RenewalPolicy.reminderDue(expiresAt, nowMillis())
 
     /** True while the user is on a free trial. */
     val isInTrial: Boolean
@@ -312,25 +326,21 @@ data class UserSubscription(
         }
 
     val maxDownloads: Int
-        get() = if (!isActive) 0 else when (tier) {
-            SubscriptionTier.GUEST -> 0
-            SubscriptionTier.MOBILE -> 0
-            SubscriptionTier.BASIC -> 5
-            SubscriptionTier.STANDARD -> 25
-            SubscriptionTier.PREMIUM -> 999
-        }
+        get() = if (!isActive) 0 else SubscriptionPlans.PLANS.firstOrNull { it.id == planId }?.maxDownloads ?: 0
 
-    /**
-     * Days until the current period ends.
-     *
-     * Audit fix: the previous implementation divided by `86_400_000` (24h)
-     * but the result is `Long.toInt()`-truncated, so any remaining time
-     * less than a full 24h would round to 0 — then `coerceAtLeast(1)`
-     * would mask the bug by silently claiming "1 day remaining" when
-     * the truth was "0.5 hours remaining". Now we use ceiling division
-     * so 1ms-remaining still returns 1 day, but the value reflects the
-     * true remaining time when it's a full day or more.
-     */
+    val maxVideoHeight: Int
+        get() = if (!isActive) 0 else SubscriptionPlans.PLANS.firstOrNull { it.id == planId }?.maxVideoHeight ?: 0
+
+    val isSmartNextEpisodeAllowed: Boolean
+        get() = isActive && SubscriptionPlans.PLANS.firstOrNull { it.id == planId }?.smartNextEpisode == true
+
+    val isDownloadsForYouAllowed: Boolean
+        get() = isActive && SubscriptionPlans.PLANS.firstOrNull { it.id == planId }?.downloadsForYou == true
+
+    val isSpatialAudioAllowed: Boolean
+        get() = isActive && SubscriptionPlans.PLANS.firstOrNull { it.id == planId }?.spatialAudio == true
+
+
     val daysRemaining: Int
         get() {
             if (!isActive) return 0
