@@ -1,0 +1,15 @@
+{
+  "version": "2.0.1",
+  "domains": ["net52.cc", "netmirror.app", "mobidetect.art"],
+  "tokenHint": {
+    "mode": "ek",
+    "suffix": "myes",
+    "masterSuffix": "m",
+    "hash1": "235ca31540ab8d90fcef4a00de8a247c"
+  },
+  "quryParam": "ffr455",
+  "vsiteSubdomain": "userver",
+  "verifyEndpoint": "/mobile/verify2.php",
+  "updatedAt": "2026-10-01T09:50:00Z",
+  "notes": "CDN switched from ::su::myes to ::ek::myes tokens. Provider master formula uses ::ek::m."
+}

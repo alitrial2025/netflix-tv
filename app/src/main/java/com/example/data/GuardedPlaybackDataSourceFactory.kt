@@ -22,7 +22,7 @@ internal class GuardedPlaybackDataSourceFactory(private val upstream: DataSource
             val isManifest = dataSpec.uri.path?.endsWith(".m3u8", true) == true
             val providerHost = dataSpec.uri.host.orEmpty()
             val usesPlaybackProvider = providerHost.contains("freecdn", true) ||
-                providerHost in listOf("net52.cc", "netmirror.app", "netmirror.gg", "mobidetects.com", "mobidetect.art") ||
+                providerHost in listOf("net52.cc", "netmirror.app", "netmirror.gg", "mobidetect.art") ||
                 dataSpec.uri.path?.startsWith("/files/") == true ||
                 (dataSpec.uri.scheme == "file" && dataSpec.uri.lastPathSegment?.startsWith("master_") == true)
             if (isManifest) {

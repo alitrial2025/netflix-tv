@@ -1,0 +1,423 @@
+{
+  "timestamp": "2026-10-01T09:50:18.284Z",
+  "target": {
+    "title": "Smallville",
+    "year": 2001,
+    "tmdbId": "4607",
+    "type": "tv",
+    "season": 4,
+    "episode": 8
+  },
+  "summary": {
+    "totalTests": 31,
+    "passed": 22,
+    "warnings": 3,
+    "failed": 6,
+    "failedStages": [
+      "domain_probe",
+      "master_token_test",
+      "rate_limit",
+      "cdn_token_probe",
+      "cdn_token_probe",
+      "cdn_token_probe"
+    ]
+  },
+  "masterTokenAcceptance": [
+    {
+      "mode": "ek_m (current TV hardcoded)",
+      "accepted": true,
+      "providerIssuedModes": [
+        "::ek::myes"
+      ]
+    },
+    {
+      "mode": "su_m (su mode with m suffix)",
+      "accepted": false,
+      "providerIssuedModes": []
+    }
+  ],
+  "cdnTokenAcceptance": [
+    {
+      "mode": "provider_original",
+      "shape": "ek::myes",
+      "accepted": true,
+      "httpStatus": 200,
+      "bytes": 8141
+    },
+    {
+      "mode": "su_myes (reconstruct)",
+      "shape": "su::myes",
+      "accepted": false,
+      "httpStatus": 200,
+      "bytes": 44
+    },
+    {
+      "mode": "su_only",
+      "shape": "su",
+      "accepted": false,
+      "httpStatus": 200,
+      "bytes": 44
+    },
+    {
+      "mode": "ek_myes",
+      "shape": "ek::myes",
+      "accepted": true,
+      "httpStatus": 200,
+      "bytes": 8141
+    },
+    {
+      "mode": "ek_only",
+      "shape": "ek",
+      "accepted": true,
+      "httpStatus": 200,
+      "bytes": 8141
+    },
+    {
+      "mode": "ek_m (TV master formula)",
+      "shape": "ek::m",
+      "accepted": true,
+      "httpStatus": 200,
+      "bytes": 8141
+    },
+    {
+      "mode": "sumyes (no separator)",
+      "shape": "sumyes",
+      "accepted": false,
+      "httpStatus": 200,
+      "bytes": 44
+    }
+  ],
+  "detailedResults": [
+    {
+      "stage": "domain_probe",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:49:25.513Z",
+      "domain": "net52.cc",
+      "httpStatus": 200,
+      "hasAddhash": true,
+      "bodyKind": "html",
+      "elapsedMs": 775,
+      "message": "net52.cc → HTTP 200, addhash=true, 775ms"
+    },
+    {
+      "stage": "domain_probe",
+      "status": "WARN",
+      "timestamp": "2026-10-01T09:49:26.128Z",
+      "domain": "netmirror.app",
+      "httpStatus": 301,
+      "hasAddhash": false,
+      "bodyKind": "http_error_301",
+      "elapsedMs": 614,
+      "message": "netmirror.app → HTTP 301, addhash=false, 614ms"
+    },
+    {
+      "stage": "domain_probe",
+      "status": "WARN",
+      "timestamp": "2026-10-01T09:49:26.787Z",
+      "domain": "netmirror.gg",
+      "httpStatus": 404,
+      "hasAddhash": false,
+      "bodyKind": "http_error_404",
+      "elapsedMs": 658,
+      "message": "netmirror.gg → HTTP 404, addhash=false, 658ms"
+    },
+    {
+      "stage": "domain_probe",
+      "status": "FAIL",
+      "timestamp": "2026-10-01T09:49:26.860Z",
+      "domain": "mobidetects.com",
+      "error": "getaddrinfo ENOTFOUND mobidetects.com",
+      "message": "mobidetects.com → getaddrinfo ENOTFOUND mobidetects.com"
+    },
+    {
+      "stage": "domain_probe",
+      "status": "WARN",
+      "timestamp": "2026-10-01T09:49:28.163Z",
+      "domain": "mobidetect.art",
+      "httpStatus": 404,
+      "hasAddhash": false,
+      "bodyKind": "http_error_404",
+      "elapsedMs": 1303,
+      "message": "mobidetect.art → HTTP 404, addhash=false, 1303ms"
+    },
+    {
+      "stage": "handshake_addhash",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:49:28.430Z",
+      "domain": "net52.cc",
+      "httpStatus": 200,
+      "addhashParts": 4,
+      "elapsedMs": 266,
+      "message": "addhash: 4 parts (need ≥3), HTTP 200"
+    },
+    {
+      "stage": "handshake_params",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:49:28.431Z",
+      "quryParam": "ffr455",
+      "vsiteSubdomain": "userver",
+      "verifyEndpoint": "/mobile/verify2.php",
+      "message": "Dynamic params: Qury=ffr455, Vsite=userver, verify=/mobile/verify2.php"
+    },
+    {
+      "stage": "handshake_trigger",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:49:28.878Z",
+      "message": "Triggered userver.net52.cc"
+    },
+    {
+      "stage": "handshake_verify",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:06.028Z",
+      "attempt": 25,
+      "elapsedMs": 35947,
+      "message": "t_hash_t received on attempt 25 (35947ms)"
+    },
+    {
+      "stage": "search_match",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:06.431Z",
+      "id": "70155584",
+      "title": "Smallville",
+      "year": "",
+      "ott": "nf",
+      "path": "/search.php",
+      "message": "NF found: \"Smallville\" () ID=70155584"
+    },
+    {
+      "stage": "search_match",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:06.733Z",
+      "id": "70155584",
+      "title": "Smallville",
+      "year": "",
+      "ott": "nf",
+      "path": "/mobile/search.php",
+      "message": "NF found: \"Smallville\" () ID=70155584"
+    },
+    {
+      "stage": "post_detail",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:06.992Z",
+      "seasonCount": 10,
+      "message": "post.php returned 10 seasons"
+    },
+    {
+      "stage": "season_find",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:06.992Z",
+      "seasonId": "70037632",
+      "message": "Season 4 ID: 70037632"
+    },
+    {
+      "stage": "episodes_page",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:07.255Z",
+      "page": 1,
+      "count": 10,
+      "nextPageShow": 1,
+      "message": "Page 1: 10 episodes, nextPage=1"
+    },
+    {
+      "stage": "episode_match",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:07.255Z",
+      "episodeContentId": "82171151",
+      "rawEp": "E8",
+      "message": "S4E8 content ID: 82171151"
+    },
+    {
+      "stage": "playlist_php",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:07.506Z",
+      "sourceCount": 2,
+      "trackCount": 3,
+      "message": "playlist.php → 2 sources, 3 subtitle tracks"
+    },
+    {
+      "stage": "source_analysis",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:07.507Z",
+      "file": "/mobile/hls/82171151.m3u8",
+      "hasToken": true,
+      "tokenIsUnknown": false,
+      "isWaitingVideo": false,
+      "tokenMode": "ek",
+      "tokenSuffix": "m",
+      "tokenShape": "::ek::m",
+      "message": "Source: /mobile/hls/82171151.m3u8 | token=::ek::m | waiting=false"
+    },
+    {
+      "stage": "source_analysis",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:07.507Z",
+      "file": "/mobile/hls/82171151.m3u8",
+      "hasToken": true,
+      "tokenIsUnknown": false,
+      "isWaitingVideo": false,
+      "tokenMode": "ek",
+      "tokenSuffix": "m",
+      "tokenShape": "::ek::m",
+      "message": "Source: /mobile/hls/82171151.m3u8 | token=::ek::m | waiting=false"
+    },
+    {
+      "stage": "master_token_test",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:08.072Z",
+      "name": "ek_m (current TV hardcoded)",
+      "tokenMode": "ek::m",
+      "httpStatus": 200,
+      "bodyKind": "hls",
+      "hasManifest": true,
+      "hasVariants": true,
+      "isWaitingVideo": false,
+      "hasUnknownToken": false,
+      "isVideoIdMissing": false,
+      "providerIssuedModes": [
+        "::ek::myes"
+      ],
+      "bodyBytes": 482,
+      "message": "ek_m (current TV hardcoded): HTTP 200 | manifest=true | variants=true | waiting=false | CDN modes=::ek::myes | 482B"
+    },
+    {
+      "stage": "master_token_test",
+      "status": "FAIL",
+      "timestamp": "2026-10-01T09:50:08.834Z",
+      "name": "su_m (su mode with m suffix)",
+      "tokenMode": "su::m",
+      "httpStatus": 200,
+      "bodyKind": "rate_limited",
+      "hasManifest": true,
+      "hasVariants": true,
+      "isWaitingVideo": true,
+      "hasUnknownToken": true,
+      "isVideoIdMissing": false,
+      "providerIssuedModes": [],
+      "bodyBytes": 314,
+      "message": "su_m (su mode with m suffix): HTTP 200 | manifest=true | variants=true | waiting=true | CDN modes=none | 314B"
+    },
+    {
+      "stage": "rate_limit",
+      "status": "FAIL",
+      "timestamp": "2026-10-01T09:50:08.834Z",
+      "message": "Rate limited! Stopping master token tests."
+    },
+    {
+      "stage": "cdn_token_probe",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:09.674Z",
+      "name": "provider_original",
+      "tokenShape": "ek::myes",
+      "httpStatus": 200,
+      "bodyKind": "hls",
+      "isHls": true,
+      "isRejected": false,
+      "bodyBytes": 8141,
+      "message": "CDN provider_original (::ek::myes): HTTP 200 | HLS=true | rejected=false | 8141B"
+    },
+    {
+      "stage": "cdn_token_probe",
+      "status": "FAIL",
+      "timestamp": "2026-10-01T09:50:10.693Z",
+      "name": "su_myes (reconstruct)",
+      "tokenShape": "su::myes",
+      "httpStatus": 200,
+      "bodyKind": "session_rejected",
+      "isHls": false,
+      "isRejected": true,
+      "bodyBytes": 44,
+      "message": "CDN su_myes (reconstruct) (::su::myes): HTTP 200 | HLS=false | rejected=true | 44B"
+    },
+    {
+      "stage": "cdn_token_probe",
+      "status": "FAIL",
+      "timestamp": "2026-10-01T09:50:11.749Z",
+      "name": "su_only",
+      "tokenShape": "su",
+      "httpStatus": 200,
+      "bodyKind": "session_rejected",
+      "isHls": false,
+      "isRejected": true,
+      "bodyBytes": 44,
+      "message": "CDN su_only (::su): HTTP 200 | HLS=false | rejected=true | 44B"
+    },
+    {
+      "stage": "cdn_token_probe",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:12.886Z",
+      "name": "ek_myes",
+      "tokenShape": "ek::myes",
+      "httpStatus": 200,
+      "bodyKind": "hls",
+      "isHls": true,
+      "isRejected": false,
+      "bodyBytes": 8141,
+      "message": "CDN ek_myes (::ek::myes): HTTP 200 | HLS=true | rejected=false | 8141B"
+    },
+    {
+      "stage": "cdn_token_probe",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:13.918Z",
+      "name": "ek_only",
+      "tokenShape": "ek",
+      "httpStatus": 200,
+      "bodyKind": "hls",
+      "isHls": true,
+      "isRejected": false,
+      "bodyBytes": 8141,
+      "message": "CDN ek_only (::ek): HTTP 200 | HLS=true | rejected=false | 8141B"
+    },
+    {
+      "stage": "cdn_token_probe",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:15.029Z",
+      "name": "ek_m (TV master formula)",
+      "tokenShape": "ek::m",
+      "httpStatus": 200,
+      "bodyKind": "hls",
+      "isHls": true,
+      "isRejected": false,
+      "bodyBytes": 8141,
+      "message": "CDN ek_m (TV master formula) (::ek::m): HTTP 200 | HLS=true | rejected=false | 8141B"
+    },
+    {
+      "stage": "cdn_token_probe",
+      "status": "FAIL",
+      "timestamp": "2026-10-01T09:50:16.162Z",
+      "name": "sumyes (no separator)",
+      "tokenShape": "sumyes",
+      "httpStatus": 200,
+      "bodyKind": "session_rejected",
+      "isHls": false,
+      "isRejected": true,
+      "bodyBytes": 44,
+      "message": "CDN sumyes (no separator) (::sumyes): HTTP 200 | HLS=false | rejected=true | 44B"
+    },
+    {
+      "stage": "media_manifest",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:17.308Z",
+      "segmentCount": 256,
+      "hasEndList": true,
+      "message": "Media manifest: 256 segments, endlist=true"
+    },
+    {
+      "stage": "segment_probe",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:17.825Z",
+      "segmentKind": "mpeg_ts",
+      "bytes": 262144,
+      "httpStatus": 206,
+      "message": "Segment: mpeg_ts | 262144B | HTTP 206"
+    },
+    {
+      "stage": "segment_probe",
+      "status": "OK",
+      "timestamp": "2026-10-01T09:50:18.280Z",
+      "segmentKind": "mpeg_ts",
+      "bytes": 262144,
+      "httpStatus": 206,
+      "message": "Segment: mpeg_ts | 262144B | HTTP 206"
+    }
+  ]
+}
