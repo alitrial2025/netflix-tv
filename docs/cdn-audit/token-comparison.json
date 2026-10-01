@@ -1,0 +1,44 @@
+[
+  {
+    "stage": "provider_original",
+    "host": "s23.nm-cdn9.top",
+    "path": "/files/82171151/720p/720p.m3u8",
+    "queryKeys": [
+      "in"
+    ],
+    "elapsedMs": 748,
+    "status": 200,
+    "bytes": 8141,
+    "connectMs": 17,
+    "firstByteMs": 728,
+    "redirects": 0,
+    "kind": "hls",
+    "proxyBlocked": false,
+    "label": "provider_original",
+    "tokenShape": [
+      "su",
+      "myes"
+    ]
+  },
+  {
+    "stage": "legacy_tv_rewrite",
+    "host": "s23.nm-cdn9.top",
+    "path": "/files/82171151/720p/720p.m3u8",
+    "queryKeys": [
+      "in"
+    ],
+    "elapsedMs": 609,
+    "status": 200,
+    "bytes": 44,
+    "connectMs": 2,
+    "firstByteMs": 593,
+    "redirects": 0,
+    "kind": "cdn_route_rejected",
+    "proxyBlocked": false,
+    "label": "legacy_tv_rewrite",
+    "tokenShape": [
+      "ek",
+      "su"
+    ]
+  }
+]

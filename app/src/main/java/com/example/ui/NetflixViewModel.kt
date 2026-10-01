@@ -2494,9 +2494,11 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 .also { it.users++ }
         }
         var acquired = false
+        val gateStartedAt = com.example.ui.util.RuntimeTiming.start()
         try {
             gate.mutex.lock()
             acquired = true
+            com.example.ui.util.RuntimeTiming.elapsed("stream_title_gate_wait", gateStartedAt)
             return block()
         } finally {
             if (acquired) gate.mutex.unlock()

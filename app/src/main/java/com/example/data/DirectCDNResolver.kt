@@ -22,6 +22,7 @@ import kotlinx.coroutines.CompletableDeferred
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -93,7 +94,7 @@ class AppCookieJar : CookieJar {
 }
 
 /** Resolves playback with bounded, cancellable session renewal and expiring token caches. */
-class DirectCDNResolver(private val context: Context) {
+class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClient? = null) {
 
     private val FREECDN_HASH1 = "235ca31540ab8d90fcef4a00de8a247c"
     private val FREECDN_SUFFIX = "myes"
@@ -104,7 +105,7 @@ class DirectCDNResolver(private val context: Context) {
 
     private val cookieJar = AppCookieJar()
 
-    private val client = OkHttpClient.Builder()
+    private val client = clientOverride ?: OkHttpClient.Builder()
         .cookieJar(cookieJar)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
@@ -114,6 +115,12 @@ class DirectCDNResolver(private val context: Context) {
 
     private val SEC_CH_UA = "\"Not(A:Brand\";v=\"99\", \"Android WebView\";v=\"133\", \"Chromium\";v=\"133\""
     private val X_REQUESTED_WITH = "app.netmirror.netmirrornew"
+
+    private val metadataClient = client.newBuilder()
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(3, TimeUnit.SECONDS)
+        .callTimeout(3, TimeUnit.SECONDS)
+        .build()
 
     private val fastProbeClient = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
@@ -168,13 +175,14 @@ class DirectCDNResolver(private val context: Context) {
 
     private class SessionRejectedException(val cookie: String? = null) :
         java.io.IOException("Playback session expired. Please retry.")
+    private class CdnRouteRejectedException : java.io.IOException("Media route expired or unavailable")
     private class SessionChangedException : java.io.IOException("Playback session changed")
     private class AuthenticatedEndpointUnavailableException :
         java.io.IOException("Playback service returned an unexpected page")
 
     private fun rethrowControlFailure(error: Exception) {
         if (error is CancellationException || error is SessionRejectedException ||
-            error is SessionChangedException || error is PlaybackRateLimitedException ||
+            error is SessionChangedException || error is CdnRouteRejectedException || error is PlaybackRateLimitedException ||
             error is AuthenticatedEndpointUnavailableException) throw error
     }
 
@@ -192,7 +200,9 @@ class DirectCDNResolver(private val context: Context) {
             request.url.encodedPath, response.request.url.encodedPath, response.code, response.body
         )
         if (usesSession && (StreamSessionPolicy.isSessionRejected(response.code, response.body) || authPage)) {
-            throw SessionRejectedException(cookie)
+            if (cookie?.contains("t_hash_t=") == true) throw SessionRejectedException(cookie)
+            // A rejected CDN signature is not evidence that the ten-hour login cookie expired.
+            throw CdnRouteRejectedException()
         }
         if (cookie?.contains("t_hash_t=") == true && StreamSessionPolicy.isUnexpectedAuthenticatedHtml(
                 request.url.encodedPath, response.code, response.body
@@ -828,7 +838,8 @@ class DirectCDNResolver(private val context: Context) {
         val hash2: String,
         val fetchedAt: Long,
         val hash1: String = "235ca31540ab8d90fcef4a00de8a247c",
-        val suffix: String = "ek"
+        val suffix: String = "",
+        val mode: String = "ek"
     )
 
     private fun loadNonce(): Nonce? {
@@ -840,7 +851,8 @@ class DirectCDNResolver(private val context: Context) {
                 json.getString("hash2"),
                 json.getLong("fetchedAt"),
                 json.optString("hash1", FREECDN_HASH1),
-                json.optString("suffix", "ek")
+                json.optString("suffix", "").takeUnless { !json.has("mode") && it == "ek" }.orEmpty(),
+                json.optString("mode", "ek")
             )
         } catch (e: Exception) { rethrowControlFailure(e); null }
     }
@@ -852,6 +864,7 @@ class DirectCDNResolver(private val context: Context) {
             put("fetchedAt", n.fetchedAt)
             put("hash1", n.hash1)
             put("suffix", n.suffix)
+            put("mode", n.mode)
         }
         getPrefs().edit().putString(NONCE_KEY, json.toString()).apply()
     }
@@ -863,12 +876,15 @@ class DirectCDNResolver(private val context: Context) {
         )
     }
 
-    private fun buildFreecdnInToken(ts: String, hash2: String, hash1: String = FREECDN_HASH1, suffix: String = "ek"): String {
-        return if (suffix.isBlank() || suffix == "ek") {
-            "$hash1::$hash2::$ts::ek"
-        } else {
-            "$hash1::$hash2::$ts::ek::$suffix"
-        }
+    private fun buildFreecdnInToken(ts: String, hash2: String, hash1: String = FREECDN_HASH1, suffix: String = "", mode: String = "ek"): String =
+        CdnRoutePolicy.Token(hash1, hash2, ts, mode, suffix).value
+
+    private fun routeNonce(url: String, fetchedAt: Long): Nonce? = CdnRoutePolicy.token(url)?.let {
+        Nonce(it.timestamp, it.hash2, fetchedAt, it.hash1, it.suffix, it.mode)
+    }
+
+    private fun manifestNonce(body: String): Nonce? = CdnRoutePolicy.tokenInManifest(body)?.let {
+        Nonce(it.timestamp, it.hash2, System.currentTimeMillis(), it.hash1, it.suffix, it.mode)
     }
 
     private fun masterTokenFor(contentId: String): String {
@@ -906,15 +922,8 @@ class DirectCDNResolver(private val context: Context) {
             if (res.isSuccessful && !body.contains("Video ID Missing")) throw SessionRejectedException(session.cookieHeader)
             throw java.io.IOException("Playback manifest unavailable (HTTP ${res.code})")
         }
-        // Extract (ts, hash2, hash1, suffix) from any freecdn URL in the response
-        val regex = Regex("""in=([a-f0-9]{32})::([a-f0-9]{32})::(\d+)(?:::ek)?(?:::([a-z]+))?""")
-        val match = regex.find(body)
-            ?: throw Exception("Could not extract nonce from net52 response")
-        val hash1 = match.groupValues[1]
-        val hash2 = match.groupValues[2]
-        val ts = match.groupValues[3]
-        val suffix = match.groupValues.getOrNull(4)?.takeIf { it.isNotBlank() } ?: "ek"
-        val nonce = Nonce(ts, hash2, System.currentTimeMillis(), hash1, suffix)
+        val nonce = manifestNonce(body)
+            ?: throw java.io.IOException("Could not extract nonce from provider response")
         saveNonce(nonce)
         Log.d("DirectCDN", "✅ Nonce refreshed")
         nonce
@@ -946,7 +955,7 @@ class DirectCDNResolver(private val context: Context) {
                 val host = entry.getString("host")
                 val freecdnUrl = entry.optString("freecdnUrl", "")
                 val fetchedAt = entry.optLong("fetchedAt", 0L)
-                val isFresh = (System.currentTimeMillis() - fetchedAt) < ROUTE_TTL_MS
+                val isFresh = CdnRoutePolicy.isFresh(freecdnUrl, fetchedAt, System.currentTimeMillis())
                 if (isFresh && !host.contains("220884") && !freecdnUrl.contains("220884")) {
                     out[key] = RouteEntry(
                         host = host,
@@ -1438,9 +1447,8 @@ class DirectCDNResolver(private val context: Context) {
     }
 
     /**
-     * Discover the freecdn host for a contentId via ONE net52 master call.
-     * This is the ONE net52 call we make per (contentId, forever) — after
-     * the first time, we use the cached host forever.
+     * Discover an exact provider route per content/episode. Reuse it directly
+     * until its original token expires; one bounded rediscovery handles CDN changes.
      */
     private suspend fun discoverHost(
         contentId: String,
@@ -1455,16 +1463,7 @@ class DirectCDNResolver(private val context: Context) {
             return@withContext cached
         }
 
-        // Multi-Episode Show Host Prediction (Zero-Net52 Episode Resolution):
-        if (showId.isNotBlank()) {
-            val cachedShowHost = showHostCache[showId] ?: loadRoutingTable()[showId]?.host
-            if (cachedShowHost != null && !cachedShowHost.contains("220884")) {
-                Log.d("DirectCDN", "⚡ Predictive show host hit for show $showId: $cachedShowHost (contentId=$contentId)")
-                val entry = RouteEntry(cachedShowHost, "https://$cachedShowHost/files/$contentId/720p/720p.m3u8", System.currentTimeMillis())
-                saveRoutingEntry(contentId, entry)
-                return@withContext entry
-            }
-        }
+        // Episodes can use different hosts and layouts. Only cache a route the provider returned.
 
         Log.d("DirectCDN", "🔍 Discovering host for $contentId [${ott.uppercase()}]...")
         val session = ensureSession()
@@ -1509,7 +1508,11 @@ class DirectCDNResolver(private val context: Context) {
 
                 if (bodyText.isNotEmpty()) {
                     val parsed = if (bodyText.trim().startsWith("[")) JSONArray(bodyText).optJSONObject(0) else JSONObject(bodyText)
+                    if (parsed?.has("sources") == true) contentSubtitlesCache[contentId] = emptyList()
                     val tracks = parsed?.optJSONArray("tracks") ?: parsed?.optJSONArray("captions") ?: parsed?.optJSONArray("subtitles")
+                    if (tracks != null) {
+                        contentSubtitlesCache[contentId] = emptyList()
+                    }
                     if (tracks != null && tracks.length() > 0) {
                         val parsedTracks = mutableListOf<Caption>()
                         for (ti in 0 until tracks.length()) {
@@ -1542,20 +1545,12 @@ class DirectCDNResolver(private val context: Context) {
                         }
                         if (fileUrl.isNotEmpty()) {
                             val hostMatch = Regex("""https://([^/]+)""").find(fileUrl)
-                            if (hostMatch != null && hostMatch.groupValues[1].contains("freecdn") && !hostMatch.groupValues[1].contains("220884")) {
+                            if (hostMatch != null && CdnRoutePolicy.isCdnSource(fileUrl, domain)) {
                                 val host = hostMatch.groupValues[1]
                                 val entry = RouteEntry(host, fileUrl, System.currentTimeMillis())
                                 saveRoutingEntry(contentId, entry)
                                 if (showId.isNotBlank()) showHostCache[showId] = host
-                                val nonceRegex = Regex("""in=([a-f0-9]{32})::([a-f0-9]{32})::(\d+)(?:::ek)?(?:::([a-z]+))?""")
-                                nonceRegex.find(fileUrl)?.let { m ->
-                                    val h1 = m.groupValues[1]
-                                    val h2 = m.groupValues[2]
-                                    val t = m.groupValues[3]
-                                    val suf = m.groupValues.getOrNull(4)?.takeIf { it.isNotBlank() } ?: "ek"
-                                    val n = Nonce(t, h2, System.currentTimeMillis(), h1, suf)
-                                    saveNonce(n)
-                                }
+                                routeNonce(fileUrl, entry.fetchedAt)?.let(::saveNonce)
                                 Log.d("DirectCDN", "✅ Discovered host from playlist.php for $contentId: $host")
                                 return@withContext entry
                             }
@@ -1585,26 +1580,14 @@ class DirectCDNResolver(private val context: Context) {
                                     if (!hlsBody.contains("220884")) {
                                         putTransientCache(masterManifestCache, contentId, hlsBody, 12)
                                     }
-                                    val videoRegex = Regex("""(https://(s\d+\.[a-z0-9\-.]+)/files/([^/]+)/(?:720p|1080p|\d+p)/[^\r\n]+)""")
-                                    val genericRegex = Regex("""(https://(s\d+\.[a-z0-9\-.]+)/files/([^/]+)/[^\r\n]+)""")
-                                    val mMatch = videoRegex.find(hlsBody) ?: genericRegex.find(hlsBody)
-                                    if (mMatch != null && !mMatch.groupValues[1].contains("220884")) {
-                                        val freecdnUrl = mMatch.groupValues[1].replace("\"", "").replace("'", "").trim()
-                                        val host = mMatch.groupValues[2]
+                                    val freecdnUrl = CdnRoutePolicy.videoRoute(hlsBody)
+                                    if (freecdnUrl != null && !StreamSessionPolicy.isWaitingVideo(freecdnUrl)) {
+                                        val host = freecdnUrl.toHttpUrlOrNull()?.host ?: throw java.io.IOException("Invalid provider CDN host")
                                         val entry = RouteEntry(host, freecdnUrl, System.currentTimeMillis())
                                         saveRoutingEntry(contentId, entry)
                                         if (showId.isNotBlank()) showHostCache[showId] = host
 
-                                        val nonceRegex = Regex("""in=([a-f0-9]{32})::([a-f0-9]{32})::(\d+)(?:::ek)?(?:::([a-z]+))?""")
-                                        val nm = nonceRegex.find(freecdnUrl) ?: nonceRegex.find(hlsBody)
-                                        if (nm != null) {
-                                            val h1 = nm.groupValues[1]
-                                            val h2 = nm.groupValues[2]
-                                            val t = nm.groupValues[3]
-                                            val suf = nm.groupValues.getOrNull(4)?.takeIf { it.isNotBlank() } ?: "ek"
-                                            val n = Nonce(t, h2, System.currentTimeMillis(), h1, suf)
-                                            saveNonce(n)
-                                        }
+                                        (routeNonce(freecdnUrl, entry.fetchedAt) ?: manifestNonce(hlsBody))?.let(::saveNonce)
                                         Log.d("DirectCDN", "✅ Discovered host from playlist HLS response for $contentId: $host")
                                         return@withContext entry
                                     }
@@ -1632,7 +1615,7 @@ class DirectCDNResolver(private val context: Context) {
         val body = res.body
         val code = res.code
 
-        Log.d("DirectCDN", "discoverHost HTTP $code response for $contentId: ${body.take(300)}")
+        Log.d("DirectCDN", "discoverHost HTTP $code response for $contentId (${body.length} bytes)")
         if (body.contains("Video ID Missing") || !body.contains("#EXTM3U") || body.contains("in=unknown")) {
             if (res.isSuccessful && !body.contains("Video ID Missing")) throw SessionRejectedException(cookie)
             throw java.io.IOException("Playback manifest unavailable (HTTP $code)")
@@ -1642,36 +1625,17 @@ class DirectCDNResolver(private val context: Context) {
             putTransientCache(masterManifestCache, contentId, body, 12)
         }
 
-        var host: String? = null
-        var freecdnUrl: String? = null
-
-        val videoRegex = Regex("""(https://(s\d+\.[a-z0-9\-.]+)/files/$contentId/(?:720p|1080p|\d+p)/[^\r\n]+)""")
-        val genericRegex = Regex("""(https://(s\d+\.[a-z0-9\-.]+)/files/$contentId/[^\r\n]+)""")
-        val match = videoRegex.find(body) ?: genericRegex.find(body)
-
-        if (match != null) {
-            freecdnUrl = match.groupValues[1].replace("\"", "").replace("'", "").trim()
-            host = match.groupValues[2]
-        }
-
-        if (host == null || host.contains("220884") || freecdnUrl == null || freecdnUrl.contains("220884")) {
-            throw Exception("No valid freecdn video URL for $contentId in net52 response (dummy 220884 detected)")
-        }
+        val freecdnUrl = CdnRoutePolicy.videoRoute(body)
+            ?: throw java.io.IOException("No valid provider video route")
+        val host = freecdnUrl.toHttpUrlOrNull()?.host
+            ?: throw java.io.IOException("Invalid provider CDN host")
+        if (StreamSessionPolicy.isWaitingVideo(freecdnUrl)) throw PlaybackRateLimitedException()
 
         val entry = RouteEntry(host, freecdnUrl, System.currentTimeMillis())
         saveRoutingEntry(contentId, entry)
         if (showId.isNotBlank()) showHostCache[showId] = host
 
-        val nonceRegex = Regex("""in=([a-f0-9]{32})::([a-f0-9]{32})::(\d+)(?:::ek)?(?:::([a-z]+))?""")
-        val nm = nonceRegex.find(freecdnUrl) ?: nonceRegex.find(body)
-        if (nm != null) {
-            val h1 = nm.groupValues[1]
-            val h2 = nm.groupValues[2]
-            val t = nm.groupValues[3]
-            val suf = nm.groupValues.getOrNull(4)?.takeIf { it.isNotBlank() } ?: "ek"
-            val n = Nonce(t, h2, System.currentTimeMillis(), h1, suf)
-            saveNonce(n)
-        }
+        (routeNonce(freecdnUrl, entry.fetchedAt) ?: manifestNonce(body))?.let(::saveNonce)
         Log.d("DirectCDN", "✅ Discovered host for $contentId: $host")
         entry
     }
@@ -1744,7 +1708,7 @@ class DirectCDNResolver(private val context: Context) {
         maxCandidates: Int = Int.MAX_VALUE
     ): List<Caption> = withContext(Dispatchers.IO) {
         val cached = contentSubtitlesCache[contentId]
-        if (!cached.isNullOrEmpty()) return@withContext cached
+        if (cached != null) return@withContext cached
 
         try {
             val session = ensureSession()
@@ -1783,12 +1747,18 @@ class DirectCDNResolver(private val context: Context) {
                         .header("Referer", "https://$domain/mobile/home?app=1")
                         .header("Cookie", cookie)
                         .build()
-                    val res = client.fetch(req)
+                    val res = metadataClient.fetch(req)
                     val bodyText = res.body
 
                     if (bodyText.isBlank()) continue
                     val parsed = if (bodyText.trim().startsWith("[")) JSONArray(bodyText).optJSONObject(0) else JSONObject(bodyText)
-                    val tracks = parsed?.optJSONArray("tracks") ?: parsed?.optJSONArray("captions") ?: parsed?.optJSONArray("subtitles") ?: continue
+                    val tracks = parsed?.optJSONArray("tracks") ?: parsed?.optJSONArray("captions") ?: parsed?.optJSONArray("subtitles")
+                    if (parsed != null && (parsed.has("sources") || tracks != null)) {
+                        // A valid empty caption list is a result, not permission to repeat every endpoint.
+                        contentSubtitlesCache[contentId] = emptyList()
+                        if (tracks == null || tracks.length() == 0) return@withContext emptyList()
+                    }
+                    if (tracks == null) continue
                     val captions = mutableListOf<Caption>()
                     for (i in 0 until tracks.length()) {
                         val t = tracks.optJSONObject(i) ?: continue
@@ -1920,28 +1890,29 @@ class DirectCDNResolver(private val context: Context) {
         host: String,
         contentId: String,
         nonce: Nonce,
-        quality: String = "720p",
+        providerUrl: String,
         isRetry: Boolean = false,
         ott: String = "nf",
         title: String = "",
         showId: String = "",
         purpose: StreamPurpose = StreamPurpose.PLAYBACK
     ): DirectCDNStream = withContext(Dispatchers.IO) {
-        val inToken = buildFreecdnInToken(nonce.ts, nonce.hash2, nonce.hash1, nonce.suffix)
-        val videoUrl = "https://$host/files/$contentId/$quality/$quality.m3u8?in=$inToken"
+        val inToken = providerUrl.toHttpUrlOrNull()?.queryParameter("in")?.takeIf { it.isNotBlank() && !it.startsWith("unknown") }
+            ?: buildFreecdnInToken(nonce.ts, nonce.hash2, nonce.hash1, nonce.suffix, nonce.mode)
+        val videoUrl = CdnRoutePolicy.playbackUrl(providerUrl, host, inToken)
         Log.d("DirectCDN", "📡 Fetching manifest for $contentId")
         val req = Request.Builder()
             .url(videoUrl)
             .header("User-Agent", MOBILE_UA)
-            .header("Origin", "https://net52.cc")
-            .header("Referer", "https://net52.cc/")
+            .header("Origin", "https://$activeDomain")
+            .header("Referer", "https://$activeDomain/")
             .header("X-Requested-With", "app.netmirror.netmirrornew")
             .build()
         val res = client.fetch(req)
         val body = res.body
 
         if (!body.contains("#EXTM3U")) {
-            Log.w("DirectCDN", "⚠️ FreeCDN manifest rejected (HTTP ${res.code}, body: ${body.take(100)}). Invalidating route & nonce...")
+            Log.w("DirectCDN", "⚠️ FreeCDN manifest rejected (HTTP ${res.code}, bytes: ${body.length}). Invalidating route & nonce...")
             // Invalidate route and nonce so we don't reuse a bad or stale host
             masterManifestCache.remove(contentId)
             val currentRoutes = loadRoutingTable().toMutableMap()
@@ -1958,21 +1929,22 @@ class DirectCDNResolver(private val context: Context) {
 
             if (!isRetry) {
                 val freshRoute = discoverHost(contentId, "", "", ott)
-                val freshNonce = refreshNonceFromNet52(contentId, ott)
-                return@withContext fetchManifest(freshRoute.host, contentId, freshNonce, quality, isRetry = true, ott = ott, title = title, showId = showId, purpose = purpose)
+                val freshNonce = routeNonce(freshRoute.freecdnUrl, freshRoute.fetchedAt)?.takeIf(::nonceIsFresh) ?: refreshNonceFromNet52(contentId, ott)
+                return@withContext fetchManifest(freshRoute.host, contentId, freshNonce, freshRoute.freecdnUrl, isRetry = true, ott = ott, title = title, showId = showId, purpose = purpose)
             }
-            throw Exception("DirectCDN manifest invalid (${body.length}B, HTTP ${res.code}): ${body.take(200)}")
+            throw Exception("DirectCDN manifest invalid (${body.length}B, HTTP ${res.code})")
         }
         val headers = mapOf(
             "User-Agent" to MOBILE_UA,
-            "Origin" to "https://net52.cc",
-            "Referer" to "https://net52.cc/",
+            "Origin" to "https://$activeDomain",
+            "Referer" to "https://$activeDomain/",
             "X-Requested-With" to "app.netmirror.netmirrornew"
         )
-        val parsedCaptions = parseCaptionsFromManifest(body, "https://$host/files/$contentId/")
-        val cachedTracks = contentSubtitlesCache[contentId] ?: emptyList()
+        val parsedCaptions = parseCaptionsFromManifest(body, videoUrl.substringBeforeLast("/") + "/")
+        val cachedCaptionLookup = contentSubtitlesCache[contentId]
+        val cachedTracks = cachedCaptionLookup ?: emptyList()
         val previewOnly = purpose != StreamPurpose.PLAYBACK
-        val playlistCaptions = if (cachedTracks.isEmpty() && (!previewOnly || parsedCaptions.isEmpty())) {
+        val playlistCaptions = if (cachedCaptionLookup == null && (!previewOnly || parsedCaptions.isEmpty())) {
             fetchPlaylistSubtitles(contentId, title, showId, ott, maxCandidates = if (previewOnly) 1 else Int.MAX_VALUE)
         } else emptyList()
 
@@ -1991,7 +1963,7 @@ class DirectCDNResolver(private val context: Context) {
         }
 
         // Construct master multivariant playlist with all real audio tracks from net52
-        var masterBody = masterManifestCache[contentId]
+        var masterBody = masterManifestCache[contentId]?.takeIf { CdnRoutePolicy.manifestTokensAreFresh(it, System.currentTimeMillis()) }
         if (masterBody.isNullOrBlank() || !masterBody.contains("#EXT-X-MEDIA:TYPE=AUDIO")) {
             try {
                 val session = ensureSession()
@@ -2013,7 +1985,7 @@ class DirectCDNResolver(private val context: Context) {
                     .header("Referer", "https://$domain/")
                     .header("Cookie", cookie)
                     .build()
-                val res = client.fetch(req)
+                val res = metadataClient.fetch(req)
                 val bodyText = res.body
 
                 if (bodyText.contains("#EXTM3U") && bodyText.contains("#EXT-X-MEDIA:TYPE=AUDIO")) {
@@ -2056,7 +2028,7 @@ class DirectCDNResolver(private val context: Context) {
                 val prefix = mr.groupValues[1]
                 val uri = mr.groupValues[2]
                 val suffix = mr.groupValues[3]
-                val fixedUri = makeAbsoluteCdnUrl(uri, host, contentId, effectiveToken)
+                val fixedUri = makeAbsoluteCdnUrl(uri, host, contentId, effectiveToken, videoUrl)
                 "$prefix$fixedUri$suffix"
             }
 
@@ -2097,7 +2069,7 @@ class DirectCDNResolver(private val context: Context) {
                         var variantLine = lines[i].trim()
                         if (variantLine.isEmpty()) throw java.io.IOException("Missing video variant")
                         PlaybackServiceGate.checkResponse(200, variantLine, null, videoUrl)
-                        variantLine = makeAbsoluteCdnUrl(variantLine, host, contentId, effectiveToken)
+                        variantLine = makeAbsoluteCdnUrl(variantLine, host, contentId, effectiveToken, videoUrl)
                         sb.append(variantLine).append("\n")
                     }
                 } else {
@@ -2166,20 +2138,22 @@ class DirectCDNResolver(private val context: Context) {
                 .url(audioUrl)
                 .head()
                 .header("User-Agent", MOBILE_UA)
-                .header("Origin", "https://net52.cc")
-                .header("Referer", "https://net52.cc/")
+                .header("Origin", "https://$activeDomain")
+                .header("Referer", "https://$activeDomain/")
                 .header("X-Requested-With", "app.netmirror.netmirrornew")
                 .build()
-            val res = client.fetch(req)
+            val res = metadataClient.fetch(req)
             val ok = res.isSuccessful
 
             ok
+        } catch (_: CdnRouteRejectedException) {
+            false
         } catch (error: Exception) { rethrowControlFailure(error);
             false
         }
     }
 
-    private fun makeAbsoluteCdnUrl(raw: String, host: String, contentId: String, token: String): String {
+    private fun makeAbsoluteCdnUrl(raw: String, host: String, contentId: String, token: String, mediaBaseUrl: String): String {
         var url = raw.trim()
 
         // Fix 3 slashes or missing host: https:///
@@ -2207,7 +2181,7 @@ class DirectCDNResolver(private val context: Context) {
                 url.startsWith("/720p/") || url.startsWith("/1080p/") || url.startsWith("/480p/") -> "https://$host/files/$contentId$url"
                 url.startsWith("720p/") || url.startsWith("1080p/") || url.startsWith("480p/") -> "https://$host/files/$contentId/$url"
                 url.startsWith("/") -> "https://$host$url"
-                else -> "https://$host/files/$contentId/$url"
+                else -> mediaBaseUrl.toHttpUrlOrNull()?.resolve(url)?.toString() ?: throw java.io.IOException("Invalid relative media route")
             }
         }
 
@@ -2216,16 +2190,10 @@ class DirectCDNResolver(private val context: Context) {
             url = url.replace("https:///", "https://$host/")
         }
 
-        // Attach or fix token
-        if (url.contains("in=unknown")) {
-            url = url.replace(Regex("""in=unknown(?:::ek)?"""), "in=$token")
-        } else if (!url.contains("in=")) {
-            url = if (url.contains("?")) "$url&in=$token" else "$url?in=$token"
-        } else {
-            url = url.replace(Regex("""in=[a-f0-9]{32}::[a-f0-9]{32}::\d+(?:::ek)?(?:::[a-z]+)?"""), "in=$token")
-        }
-
-        return url
+        // A provider-issued audio/variant URI may have its own independent signature.
+        val existing = url.toHttpUrlOrNull()?.queryParameter("in")
+        return if (!existing.isNullOrBlank() && !existing.startsWith("unknown")) url
+        else CdnRoutePolicy.playbackUrl(url, url.toHttpUrlOrNull()?.host ?: host, token)
     }
 
     // ---- Public API ----
@@ -2258,6 +2226,11 @@ class DirectCDNResolver(private val context: Context) {
                     "Resolved \"${movie.title}\" -> ${result.sourceId}"
                 )
                 return result
+            } catch (routeRejected: CdnRouteRejectedException) {
+                // Refresh one route with the existing session. Authenticated provider rejection
+                // still follows the ordinary renewal path on the retry.
+                invalidateStream(movie.id, movie.catalogMediaKind(), season, episode)
+                if (attempt == 1) throw routeRejected
             } catch (expired: SessionRejectedException) {
                 synchronized(sessionStateLock) {
                     if (generation == sessionGeneration.get()) invalidateSessionByCookie(expired.cookie)
@@ -2348,10 +2321,14 @@ class DirectCDNResolver(private val context: Context) {
         com.example.ui.util.AppDiagnosticsLogger.event("Stream", "🌐 Route resolved host: ${route.host} (contentId=$contentId)")
 
         // 4. Ensure nonce is fresh (1 call per 10h)
-        val nonce = ensureFreshNonce(contentId, ott)
+        val nonce = routeNonce(route.freecdnUrl, route.fetchedAt)?.takeIf(::nonceIsFresh)
+            ?: if (!route.freecdnUrl.toHttpUrlOrNull()?.queryParameter("in").isNullOrBlank()) {
+                // An unfamiliar opaque provider signature can still be used as issued.
+                Nonce((route.fetchedAt / 1000).toString(), "", route.fetchedAt)
+            } else ensureFreshNonce(contentId, ott)
 
         // 5. Fetch manifest from freecdn directly
-        val manifest = fetchManifest(route.host, contentId, nonce, ott = ott, title = effectiveTitle, showId = showId, purpose = purpose)
+        val manifest = fetchManifest(route.host, contentId, nonce, route.freecdnUrl, ott = ott, title = effectiveTitle, showId = showId, purpose = purpose)
 
         val result = NetMirrorStream(
             url = manifest.url,
@@ -2448,7 +2425,7 @@ class DirectCDNResolver(private val context: Context) {
         return try {
             val url = "https://api.themoviedb.org/3/$type/$tmdbId?api_key=$apiKey"
             val req = Request.Builder().url(url).build()
-            val res = client.fetch(req)
+            val res = metadataClient.fetch(req)
             val body = res.body
 
             val json = JSONObject(body)

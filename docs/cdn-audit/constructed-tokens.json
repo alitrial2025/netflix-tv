@@ -1,0 +1,158 @@
+{
+  "timestamp": "2026-10-01T06:26:44.001Z",
+  "contentId": "82171151",
+  "scope": "Byte-identical reconstruction of issued fields is token reuse. Independent CDN signature issuance is not demonstrated.",
+  "comparisons": [
+    {
+      "name": "original_provider_signature",
+      "byteIdenticalToIssuedSignature": true,
+      "tokenShape": [
+        "su",
+        "myes"
+      ],
+      "elapsedMs": 1335,
+      "success": true,
+      "segmentCount": 2,
+      "separateAudioValidated": false,
+      "evidence": "hls_and_media_container_bytes",
+      "decodedSampleFrame": true,
+      "androidFirstFrameMeasured": false,
+      "events": [
+        {
+          "stage": "master_manifest",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 632,
+          "status": 200,
+          "bytes": 8141,
+          "connectMs": 1,
+          "firstByteMs": 602,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_000.jpg",
+          "queryKeys": [],
+          "elapsedMs": 218,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 193,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_001.jpg",
+          "queryKeys": [],
+          "elapsedMs": 384,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 275,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        }
+      ]
+    },
+    {
+      "name": "constructed_from_issued_fields",
+      "byteIdenticalToIssuedSignature": true,
+      "tokenShape": [
+        "su",
+        "myes"
+      ],
+      "elapsedMs": 1177,
+      "success": true,
+      "segmentCount": 2,
+      "separateAudioValidated": false,
+      "evidence": "hls_and_media_container_bytes",
+      "decodedSampleFrame": true,
+      "androidFirstFrameMeasured": false,
+      "events": [
+        {
+          "stage": "master_manifest",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 630,
+          "status": 200,
+          "bytes": 8141,
+          "connectMs": 1,
+          "firstByteMs": 606,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_000.jpg",
+          "queryKeys": [],
+          "elapsedMs": 208,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 187,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/6194_001.jpg",
+          "queryKeys": [],
+          "elapsedMs": 230,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 2,
+          "firstByteMs": 178,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        }
+      ]
+    },
+    {
+      "name": "public_client_master_formula_at_cdn",
+      "byteIdenticalToIssuedSignature": false,
+      "tokenShape": [
+        "ek",
+        "m"
+      ],
+      "elapsedMs": 609,
+      "success": false,
+      "error": "cdn_route_rejected",
+      "events": [
+        {
+          "stage": "public_client_master_formula_at_cdn",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171151/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 609,
+          "status": 200,
+          "bytes": 44,
+          "connectMs": 18,
+          "firstByteMs": 595,
+          "redirects": 0,
+          "kind": "cdn_route_rejected",
+          "proxyBlocked": false
+        }
+      ]
+    }
+  ]
+}
