@@ -1943,6 +1943,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             warmupIsImmediate = immediate
             warmupHasStartedAttempt = false
             val requestedAt = com.example.ui.util.RuntimeTiming.start()
+            // Optional website hints run independently of the playback/warmup deadline.
+            viewModelScope.launch(Dispatchers.IO) { directCDNResolver.checkRemoteConfig() }
             warmupJob = viewModelScope.launch(Dispatchers.IO) {
                 val ownJob = currentCoroutineContext()[kotlinx.coroutines.Job]
                 try {

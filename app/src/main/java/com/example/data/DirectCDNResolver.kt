@@ -105,7 +105,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     private val LAST_QURY_KEY = "last_qury_param"
     private val LAST_TOKEN_MODE_KEY = "last_token_mode"
     private val LAST_TOKEN_SUFFIX_KEY = "last_token_suffix"
-    private val REMOTE_CONFIG_URL = "https://netflixpro.vercel.app/updates/tv.json"
+    private val REMOTE_CONFIG_URL = "https://netflixpro.vercel.app/updates/streaming.json"
     private val REMOTE_CONFIG_KEY = "remote_config_cache"
     private val REMOTE_CONFIG_TTL_MS = 6 * 60 * 60 * 1000L // 6 hours
 
@@ -128,7 +128,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         .callTimeout(3, TimeUnit.SECONDS)
         .build()
 
-    private val fastProbeClient = OkHttpClient.Builder()
+    private val fastProbeClient = (clientOverride ?: OkHttpClient()).newBuilder()
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(3, TimeUnit.SECONDS)
         .callTimeout(3, TimeUnit.SECONDS)
@@ -158,7 +158,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     fun playbackCooldownMillis(): Long = PlaybackServiceGate.remainingMs()
     fun recordPlaybackRateLimit(retryAfterMs: Long? = null) { PlaybackServiceGate.recordLimit(retryAfterMs) }
     fun checkPlaybackCooldown() { PlaybackServiceGate.check() }
-    private val nonceMutex = Mutex()
+    private val remoteConfigMutex = Mutex()
     val playbackSourceRevision: Long get() = PlaybackServiceGate.sourceRevision
     @Volatile private var cachedSourceRevision = PlaybackServiceGate.sourceRevision
     private class PreviewResolutionContext : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
@@ -790,7 +790,8 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                     ?: Regex("""(?:window\.)?Qury\s*=\s*["']([^"']+)["']""").find(homeBody)
                     ?: Regex("""\?([a-zA-Z0-9_]{3,10})=\s*\+\s*encodeURIComponent""").find(homeBody)
                 // Fall back to last-known param instead of stale hardcoded "hee5"
-                val quryDefault = getPrefs().getString(LAST_QURY_KEY, "hee5") ?: "hee5"
+                val quryDefault = getPrefs().getString(LAST_QURY_KEY, null)
+                    ?: getPrefs().getString("remote_qury_param", "hee5") ?: "hee5"
                 val quryParam = quryMatch?.groupValues?.get(1) ?: quryDefault
 
                 val vsiteMatch = Regex("""var\s+Vsite2?\s*=\s*["']([^"']+)["']""").find(homeBody)
@@ -912,8 +913,8 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
             put("suffix", n.suffix)
             put("mode", n.mode)
         }
-        // Persist the provider-issued token mode so masterTokenFor() and
-        // nonce validation stay current even across cold starts.
+        // Keep diagnostics for provider-issued modes without treating them
+        // as a global version or as the provider-master request mode.
         val editor = getPrefs().edit().putString(NONCE_KEY, json.toString())
         if (n.mode.isNotEmpty() && n.hash2.isNotEmpty()) {
             editor.putString(LAST_TOKEN_MODE_KEY, n.mode)
@@ -940,40 +941,15 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         Nonce(it.timestamp, it.hash2, System.currentTimeMillis(), it.hash1, it.suffix, it.mode)
     }
 
-    private suspend fun nonceForRoute(route: RouteEntry, contentId: String, ott: String): Nonce {
-        val lastKnownMode = getPrefs().getString(LAST_TOKEN_MODE_KEY, null)
-
-        // 1. Route URL itself carries the provider-issued token.
-        //    But it may be from an older discovery when the CDN used a different
-        //    mode — e.g. Smallville cached with ::su::myes while Mr Robot was
-        //    re-discovered fresh with ::ek::myes. Validate the mode.
-        val routeExtracted = routeNonce(route.freecdnUrl, route.fetchedAt)
-        if (routeExtracted != null && nonceIsFresh(routeExtracted)) {
-            if (lastKnownMode == null || lastKnownMode == routeExtracted.mode) {
-                return routeExtracted
-            }
-            Log.w("DirectCDN", "⚠️ Route token mode (${routeExtracted.mode}) != current ($lastKnownMode) for content $contentId. Skipping stale route nonce...")
-            // Fall through — don't use this stale-mode token
+    private fun nonceForRoute(route: RouteEntry): Nonce {
+        // A mode belongs to this signature, not every title or audio rendition.
+        routeNonce(route.freecdnUrl, route.fetchedAt)?.let {
+            if (!nonceIsFresh(it)) throw CdnRouteRejectedException()
+            return it
         }
-
-        // 2. Opaque signatures (non-empty "in" that isn't our master formula)
-        //    must be used exactly as the provider issued them.
-        val routeInParam = route.freecdnUrl.toHttpUrlOrNull()?.queryParameter("in")
-        if (!routeInParam.isNullOrBlank() && routeExtracted == null) {
-            return Nonce((route.fetchedAt / 1000).toString(), "", route.fetchedAt)
-        }
-
-        // 3. Check cached nonce, but validate its mode too.
-        val cached = loadNonce()
-        if (cached != null && nonceIsFresh(cached)) {
-            if (lastKnownMode == null || lastKnownMode == cached.mode) {
-                return cached
-            }
-            Log.w("DirectCDN", "⚠️ Cached nonce mode (${cached.mode}) != current ($lastKnownMode). Forcing refresh...")
-        }
-
-        // 4. All cached sources stale or wrong mode — refresh from provider.
-        return ensureFreshNonce(contentId, ott)
+        // Opaque and unsigned provider routes stay unchanged. Never attach a
+        // nonce learned from another title or start a speculative handshake.
+        return Nonce((route.fetchedAt / 1000).toString(), "", route.fetchedAt)
     }
 
     private fun masterTokenFor(contentId: String): String {
@@ -981,119 +957,42 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         val md = MessageDigest.getInstance("MD5")
         val h2 = md.digest((t + contentId).toByteArray())
             .joinToString("") { "%02x".format(it) }
-        // Mode is dynamic: use last-known mode from provider-issued tokens.
-        // The "m" suffix is a master-endpoint marker and stays constant.
-        val mode = getPrefs().getString(LAST_TOKEN_MODE_KEY, "ek") ?: "ek"
-        return "$FREECDN_HASH1::$h2::$t::$mode::m"
-    }
-
-    /**
-     * Refresh the (ts, hash2) nonce from net52 by doing ONE master call.
-     * Called once per 10-hour window. Returns the (ts, hash2) of a known
-     * contentId (any one will do — the nonce is per-second, not per-contentId).
-     */
-    private suspend fun refreshNonceFromNet52(sampleContentId: String, ott: String = "nf"): Nonce = withContext(Dispatchers.IO) {
-        Log.d("DirectCDN", "🔄 Refreshing nonce from net52 (using contentId $sampleContentId [${ott.uppercase()}])...")
-        val session = ensureSession()
-        val domain = session.domain
-        val prefix = ottPathPrefix(ott)
-        val hlsPrefix = if (prefix == "/mobile") "/mobile" else prefix
-        val token = masterTokenFor(sampleContentId)
-        val url = "https://$domain$hlsPrefix/hls/$sampleContentId.m3u8?in=$token&hd=off&lang=eng&hp=yes"
-        val cookie = session.cookieHeader + if (ott != "nf") "; ott=$ott" else ""
-        val reqBuilder = Request.Builder()
-            .url(url)
-            .header("User-Agent", MOBILE_UA)
-            .header("X-Requested-With", "XMLHttpRequest")
-            .header("Referer", "https://$domain/")
-            .header("Cookie", cookie)
-        val res = client.fetch(reqBuilder.build())
-        val body = res.body
-
-        if (!body.contains("#EXTM3U") || body.contains("in=unknown")) {
-            if (res.isSuccessful && !body.contains("Video ID Missing")) throw SessionRejectedException(session.cookieHeader)
-            throw java.io.IOException("Playback manifest unavailable (HTTP ${res.code})")
-        }
-        val nonce = manifestNonce(body)
-            ?: throw java.io.IOException("Could not extract nonce from provider response")
-        saveNonce(nonce)
-        Log.d("DirectCDN", "✅ Nonce refreshed")
-        nonce
-    }
-
-    private suspend fun ensureFreshNonce(sampleContentId: String, ott: String = "nf"): Nonce = nonceMutex.withLock {
-        val cached = loadNonce()
-        if (cached != null && nonceIsFresh(cached)) {
-            Log.d("DirectCDN", "💾 Nonce fresh")
-            return@withLock cached
-        }
-        masterManifestCache.clear()
-        val fresh = refreshNonceFromNet52(sampleContentId, ott)
-        if (!nonceIsFresh(fresh)) throw SessionRejectedException()
-        fresh
+        // Master request mode and CDN signature mode are separate protocols.
+        val mode = getPrefs().getString("remote_master_mode", "ek") ?: "ek"
+        val hash1 = getPrefs().getString("remote_master_hash1", FREECDN_HASH1) ?: FREECDN_HASH1
+        return "$hash1::$h2::$t::$mode::m"
     }
 
     // ---- Remote config (zero-update resilience) ----
 
-    /**
-     * Fetches dynamic configuration from the marketing-site endpoint.
-     * If the token mode changed, invalidates stale cached nonces/routes.
-     * Safe to call on every resolve — rate-limited to once per 6 hours.
-     */
+    /** Optional master-request hints. Never revoke provider-issued routes based on a hint. */
     suspend fun checkRemoteConfig() = withContext(Dispatchers.IO) {
-        try {
+        remoteConfigMutex.withLock {
             val prefs = getPrefs()
-            val lastCheck = prefs.getLong("remote_config_checked_at", 0L)
-            if (System.currentTimeMillis() - lastCheck < REMOTE_CONFIG_TTL_MS) return@withContext
-
-            val req = Request.Builder()
-                .url(REMOTE_CONFIG_URL)
-                .header("User-Agent", MOBILE_UA)
-                .build()
-            val res = fastProbeClient.fetch(req)
-            if (!res.isSuccessful) return@withContext
-            val config = JSONObject(res.body)
-
-            val editor = prefs.edit()
-            editor.putLong("remote_config_checked_at", System.currentTimeMillis())
-            editor.putString(REMOTE_CONFIG_KEY, config.toString())
-
-            // Apply token mode hint if present
-            val hint = config.optJSONObject("tokenHint")
-            if (hint != null) {
-                val remoteMode = hint.optString("mode", "")
-                val remoteSuffix = hint.optString("suffix", "")
-                val cachedNonce = loadNonce()
-                if (remoteMode.isNotEmpty()) {
-                    val currentMode = prefs.getString(LAST_TOKEN_MODE_KEY, "")
-                    if (currentMode != null && currentMode.isNotEmpty() && currentMode != remoteMode) {
-                        Log.w("DirectCDN", "🔄 Remote config: token mode changed $currentMode→$remoteMode. Clearing stale caches...")
-                        editor.remove(NONCE_KEY).remove(ROUTING_KEY)
-                        masterManifestCache.clear()
-                        showHostCache.clear()
-                    }
-                    editor.putString(LAST_TOKEN_MODE_KEY, remoteMode)
-                    if (remoteSuffix.isNotEmpty()) editor.putString(LAST_TOKEN_SUFFIX_KEY, remoteSuffix)
+            val now = System.currentTimeMillis()
+            val elapsed = now - prefs.getLong("remote_config_checked_at", 0L)
+            if (elapsed >= 0 && elapsed < REMOTE_CONFIG_TTL_MS) return@withLock
+            // Back off failures too; an unavailable website must not be hammered on every Play.
+            prefs.edit().putLong("remote_config_checked_at", now).apply()
+            try {
+                val res = fastProbeClient.fetchText(Request.Builder().url(REMOTE_CONFIG_URL)
+                    .header("User-Agent", MOBILE_UA).build())
+                if (!res.isSuccessful) return@withLock
+                val config = JSONObject(res.body)
+                val editor = prefs.edit().putString(REMOTE_CONFIG_KEY, config.toString())
+                config.optJSONObject("tokenHint")?.let { hint ->
+                    hint.optString("masterMode").takeIf { it.matches(Regex("[a-zA-Z0-9_-]{1,32}")) }
+                        ?.let { editor.putString("remote_master_mode", it) }
+                    hint.optString("hash1").takeIf { it.matches(Regex("[a-fA-F0-9]{32}")) }
+                        ?.let { editor.putString("remote_master_hash1", it) }
                 }
-                val remoteHash1 = hint.optString("hash1", "")
-                if (remoteHash1.isNotEmpty() && remoteHash1 != FREECDN_HASH1) {
-                    Log.w("DirectCDN", "⚠️ Remote config: FREECDN_HASH1 changed. Clearing all caches...")
-                    editor.remove(NONCE_KEY).remove(ROUTING_KEY)
-                    masterManifestCache.clear()
-                }
+                config.optString("quryParam").takeIf { it.matches(Regex("[a-zA-Z0-9_-]{1,64}")) }
+                    ?.let { editor.putString("remote_qury_param", it) }
+                editor.apply()
+            } catch (e: Exception) {
+                rethrowControlFailure(e)
+                Log.d("DirectCDN", "Optional streaming config unavailable")
             }
-
-            // Apply dynamic Qury param if present
-            val remoteQury = config.optString("quryParam", "")
-            if (remoteQury.isNotEmpty()) {
-                editor.putString(LAST_QURY_KEY, remoteQury)
-            }
-
-            editor.apply()
-            Log.d("DirectCDN", "✅ Remote config applied")
-        } catch (e: Exception) {
-            rethrowControlFailure(e)
-            Log.d("DirectCDN", "Remote config check skipped: ${e.message}")
         }
     }
 
@@ -1124,7 +1023,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         } catch (e: Exception) { rethrowControlFailure(e); emptyMap() }
     }
 
-    private fun saveRoutingEntry(contentId: String, entry: RouteEntry) {
+    private fun saveRoutingEntry(contentId: String, entry: RouteEntry) = synchronized(sessionStateLock) {
         if (entry.host.contains("220884") || entry.freecdnUrl.contains("220884")) {
             Log.w("DirectCDN", "Refusing to save dummy 220884 routing entry for $contentId")
             return
@@ -1613,19 +1512,9 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     ): RouteEntry = withContext(Dispatchers.IO) {
         val cached = loadRoutingTable()[contentId]
         if (cached != null && !cached.host.contains("220884") && !cached.freecdnUrl.contains("220884")) {
-            // Validate the cached route's token mode against what the CDN currently accepts.
-            // If mode changed (e.g. su→ek), using this stale route would cause a CDN rejection
-            // followed by a slow retry. Better to re-discover immediately.
-            val routeToken = CdnRoutePolicy.token(cached.freecdnUrl)
-            val lastKnownMode = getPrefs().getString(LAST_TOKEN_MODE_KEY, null)
-            if (routeToken != null && lastKnownMode != null && routeToken.mode != lastKnownMode) {
-                Log.w("DirectCDN", "⚠️ Cached route for $contentId has mode=${routeToken.mode} but current is $lastKnownMode. Re-discovering...")
-                // Don't return cached — fall through to fresh discovery
-            } else {
-                Log.d("DirectCDN", "💾 Host cached for $contentId: ${cached.host}")
-                if (showId.isNotBlank()) showHostCache[showId] = cached.host
-                return@withContext cached
-            }
+            Log.d("DirectCDN", "Host cached for $contentId: ${cached.host}")
+            if (showId.isNotBlank()) showHostCache[showId] = cached.host
+            return@withContext cached
         }
 
         // Episodes can use different hosts and layouts. Only cache a route the provider returned.
@@ -1784,7 +1673,6 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
 
         Log.d("DirectCDN", "discoverHost HTTP $code response for $contentId (${body.length} bytes)")
         if (body.contains("Video ID Missing") || !body.contains("#EXTM3U") || body.contains("in=unknown")) {
-            if (res.isSuccessful && !body.contains("Video ID Missing")) throw SessionRejectedException(cookie)
             throw java.io.IOException("Playback manifest unavailable (HTTP $code)")
         }
 
@@ -2064,9 +1952,12 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         showId: String = "",
         purpose: StreamPurpose = StreamPurpose.PLAYBACK
     ): DirectCDNStream = withContext(Dispatchers.IO) {
-        val inToken = providerUrl.toHttpUrlOrNull()?.queryParameter("in")?.takeIf { it.isNotBlank() && !it.startsWith("unknown") }
-            ?: buildFreecdnInToken(nonce.ts, nonce.hash2, nonce.hash1, nonce.suffix, nonce.mode)
-        val videoUrl = CdnRoutePolicy.playbackUrl(providerUrl, host, inToken)
+        val parsedUrl = providerUrl.toHttpUrlOrNull()
+            ?: throw java.io.IOException("Invalid provider media route")
+        if (!parsedUrl.isHttps || parsedUrl.host != host) throw java.io.IOException("Invalid provider media route")
+        val inToken = parsedUrl.queryParameter("in").orEmpty()
+        if (inToken.startsWith("unknown")) throw CdnRouteRejectedException()
+        val videoUrl = providerUrl
         Log.d("DirectCDN", "📡 Fetching manifest for $contentId")
         val req = Request.Builder()
             .url(videoUrl)
@@ -2089,28 +1980,23 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
             Log.w("DirectCDN", "⚠️ FreeCDN manifest rejected (HTTP ${res.code}, bytes: ${body.length}). Invalidating route & nonce...")
             // Invalidate route and nonce so we don't reuse a bad or stale host
             masterManifestCache.remove(contentId)
-            val currentRoutes = loadRoutingTable().toMutableMap()
-            currentRoutes.remove(contentId)
-            val json = JSONObject()
-            currentRoutes.forEach { (k, v) ->
-                json.put(k, JSONObject().apply {
-                    put("host", v.host)
-                    put("freecdnUrl", v.freecdnUrl)
-                    put("fetchedAt", v.fetchedAt)
-                })
+            synchronized(sessionStateLock) {
+                val currentRoutes = loadRoutingTable().toMutableMap()
+                currentRoutes.remove(contentId)
+                val json = JSONObject()
+                currentRoutes.forEach { (k, v) ->
+                    json.put(k, JSONObject().apply {
+                        put("host", v.host)
+                        put("freecdnUrl", v.freecdnUrl)
+                        put("fetchedAt", v.fetchedAt)
+                    })
+                }
+                getPrefs().edit().putString(ROUTING_KEY, json.toString()).apply()
             }
-            // Also clear stale mode so the retry's masterTokenFor and
-            // ensureFreshNonce pick up the current provider mode.
-            getPrefs().edit()
-                .putString(ROUTING_KEY, json.toString())
-                .remove(NONCE_KEY)
-                .remove(LAST_TOKEN_MODE_KEY)
-                .remove(LAST_TOKEN_SUFFIX_KEY)
-                .apply()
 
             if (!isRetry) {
                 val freshRoute = discoverHost(contentId, title, showId, ott)
-                val freshNonce = nonceForRoute(freshRoute, contentId, ott)
+                val freshNonce = nonceForRoute(freshRoute)
                 return@withContext fetchManifest(freshRoute.host, contentId, freshNonce, freshRoute.freecdnUrl, isRetry = true, ott = ott, title = title, showId = showId, purpose = purpose)
             }
             throw Exception("DirectCDN manifest invalid (${body.length}B, HTTP ${res.code})")
@@ -2173,6 +2059,8 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                 val bodyText = res.body
 
                 if (bodyText.trimStart().startsWith("#EXTM3U")) {
+                    if (!CdnRoutePolicy.manifestTokensAreFresh(bodyText, System.currentTimeMillis()))
+                        throw CdnRouteRejectedException()
                     masterBody = bodyText
                     putTransientCache(masterManifestCache, contentId, bodyText, 12)
                     Log.d("DirectCDN", "✅ Fetched provider master HLS metadata for $contentId")
@@ -2376,7 +2264,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
 
         // A provider-issued audio/variant URI may have its own independent signature.
         val existing = url.toHttpUrlOrNull()?.queryParameter("in")
-        return if (!existing.isNullOrBlank() && !existing.startsWith("unknown")) url
+        return if (token.isBlank() || (!existing.isNullOrBlank() && !existing.startsWith("unknown"))) url
         else CdnRoutePolicy.playbackUrl(url, url.toHttpUrlOrNull()?.host ?: host, token)
     }
 
@@ -2435,8 +2323,6 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     }
 
     private suspend fun resolveStreamOnce(movie: Movie, season: Int, episode: Int, purpose: StreamPurpose): NetMirrorStream = withContext(Dispatchers.IO) {
-        // Check for remote config updates (rate-limited to once per 6h)
-        checkRemoteConfig()
         checkPlaybackCooldown()
         if (cachedSourceRevision != PlaybackServiceGate.sourceRevision) {
             streamCache.clear()
@@ -2507,7 +2393,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         com.example.ui.util.AppDiagnosticsLogger.event("Stream", "🌐 Route resolved host: ${route.host} (contentId=$contentId)")
 
         // 4. Ensure nonce is fresh (1 call per 10h)
-        val nonce = nonceForRoute(route, contentId, ott)
+        val nonce = nonceForRoute(route)
 
         // 5. Fetch manifest from freecdn directly
         val manifest = fetchManifest(route.host, contentId, nonce, route.freecdnUrl, ott = ott, title = effectiveTitle, showId = showId, purpose = purpose)
@@ -2534,15 +2420,20 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
 
     fun invalidateStream(tmdbId: String, type: String, season: Int = 0, episode: Int = 0) {
         synchronized(sessionStateLock) {
+            val search = contentIdCache["${type}_$tmdbId"]
+            val contentId = if (type == "tv" && season > 0 && episode > 0) {
+                search?.let { episodeListCache[it.id]?.find { ep -> ep.first == season && ep.second == episode }?.third }
+            } else search?.id
             evictCachedStream(tmdbId, type, season, episode)
-            // A manual retry must rebuild token-bearing manifests as well as the final URL.
-            masterManifestCache.clear()
-            contentSubtitlesCache.clear()
-            showHostCache.clear()
-            episodeListCache.clear()
-            contentIdCache.remove("tv_$tmdbId")
-            contentIdCache.remove("movie_$tmdbId")
-            getPrefs().edit().remove(NONCE_KEY).remove(ROUTING_KEY).apply()
+            // A failed title must not evict every other title's valid CDN route.
+            contentId?.let {
+                masterManifestCache.remove(it)
+                contentSubtitlesCache.remove(it)
+                val routes = try { JSONObject(getPrefs().getString(ROUTING_KEY, "{}") ?: "{}") }
+                    catch (_: org.json.JSONException) { JSONObject() }
+                routes.remove(it)
+                getPrefs().edit().putString(ROUTING_KEY, routes.toString()).apply()
+            }
         }
     }
 

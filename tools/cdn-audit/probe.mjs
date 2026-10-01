@@ -21,10 +21,17 @@ const paths = (ott, endpoint) => [...new Set([`${prefix(ott)}/${endpoint}`, `/mo
 const normalize = title => title.toLowerCase().replace(/[^a-z0-9]/g, '');
 const number = value => Number(String(value ?? '').match(/\d+/)?.[0]);
 const masterToken = id => { const ts = String(Math.floor(Date.now() / 1000)); return `${HASH}::${createHash('md5').update(ts + id).digest('hex')}::${ts}::ek::m`; };
+export function signatureExpiry(url, fetchedAt = Date.now()) {
+  const raw = new URL(url).searchParams.get('in'); const fields = raw?.split('::');
+  if (!fields || fields.length < 4 || !/^\d+$/.test(fields[2])) return undefined;
+  const issued = Number(fields[2]) * 1000;
+  if (!Number.isSafeInteger(issued) || issued <= 0 || issued - fetchedAt > 3600000) return 0;
+  return Math.min(issued, fetchedAt) + 10 * 3600000;
+}
 export function classify(body, status) {
   const text = String(body);
   if (status === 429 || /\/files\/220884(?:[/?\s]|$)|rate[_ -]?limit|too many requests/i.test(text)) return 'rate_limited';
-  if ([401, 403].includes(status) || /in=unknown|session expired|token expired|invalid token|login required|only valid users allowed/i.test(text)) return 'session_rejected';
+  if ([401, 403].includes(status) || (text.trimStart().startsWith('#EXTM3U') && /in=unknown/i.test(text)) || /session expired|token expired|invalid token|login required|only valid users allowed/i.test(text)) return 'session_rejected';
   if (status < 200 || status >= 300) return 'http_error';
   if (text.trimStart().startsWith('<')) return 'html';
   if (text.trimStart().startsWith('#EXTM3U')) return 'hls';
@@ -62,7 +69,7 @@ async function decodeSample(path) {
   });
 }
 export class Probe {
-  constructor(options) { this.options = options; this.base = options.baseUrl; this.events = []; this.seq = 0; this.session = null; this.lookup = new Map(); this.episodes = new Map(); this.routes = new Map(); this.handshakes = 0; }
+  constructor(options) { this.options = options; this.base = options.baseUrl; this.events = []; this.seq = 0; this.session = null; this.lookup = new Map(); this.episodes = new Map(); this.routes = new Map(); this.handshakes = 0; this.mediaMetadata = new Map(); this.currentShow = null; this.currentId = null; this.routeFetchedAt = new Map(); }
   async init() {
     this.privateDir = resolve(this.options.privateDir || await mkdtemp(join(tmpdir(), 'netflixpro-cdn-')));
     await mkdir(this.privateDir, { recursive: true, mode: 0o700 }); await chmod(this.privateDir, 0o700);
@@ -74,12 +81,17 @@ export class Probe {
       }
     }
   }
-  async request(stage, url, { cookie, form, binary = false, timeoutMs = this.options.requestTimeoutMs || 8000 } = {}) {
+  async request(stage, url, { cookie, form, binary = false, extraHeaders = {}, timeoutMs = this.options.requestTimeoutMs || 8000 } = {}) {
+    if (this.options.deadlineAt) {
+      const remaining = this.options.deadlineAt - Date.now();
+      if (remaining <= 0) throw new Error('audit_budget_exceeded');
+      timeoutMs = Math.min(timeoutMs, remaining);
+    }
     const started = performance.now(); const id = ++this.seq; const bodyFile = join(this.privateDir, `${id}-body`); const headFile = join(this.privateDir, `${id}-headers`);
     // Put sensitive headers and URLs in a0600 config, not process arguments.
     const config = join(this.privateDir, `${id}-curl.conf`);
     const quote = value => `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '').replace(/\n/g, '')}"`;
-    const headers = { 'User-Agent': UA, 'Referer': this.base + '/', 'Origin': this.base, 'X-Requested-With': (binary || new URL(url).origin !== this.base) ? 'app.netmirror.netmirrornew' : 'XMLHttpRequest' };
+    const headers = { 'User-Agent': UA, 'Referer': this.base + '/', 'Origin': this.base, 'X-Requested-With': (binary || new URL(url).origin !== this.base) ? 'app.netmirror.netmirrornew' : 'XMLHttpRequest', ...extraHeaders };
     if (cookie) headers.Cookie = cookie;
     let settings = `url = ${quote(url)}\n` + Object.entries(headers).map(([k, v]) => `header = ${quote(`${k}: ${v}`)}`).join('\n') + '\n';
     if (form) settings += `data = ${quote(form)}\nheader = "Content-Type: application/x-www-form-urlencoded; charset=UTF-8"\n`;
@@ -106,8 +118,9 @@ export class Probe {
     return lines.filter(x => x && (!x.startsWith('#') || x.startsWith('#HttpOnly_'))).map(x => x.replace(/^#HttpOnly_/, '').split('\t')).find(x => x[5] === name && (host === x[0].replace(/^\./, '') || host.endsWith(x[0])) && (!Number(x[4]) || Number(x[4]) * 1000 > Date.now()))?.[6] || '';
   }
   async ensureSession() {
-    if (this.session && Date.now() - this.session.fetchedAt < TTL) return this.session;
+    if (this.session && Date.now() - this.session.fetchedAt >= 0 && Date.now() - this.session.fetchedAt < TTL) return this.session;
     this.handshakes++;
+    await writeFile(this.jar, '', { mode: 0o600 });
     const home = await this.request('handshake_home', this.base + '/mobile/home?app=1');
     if (home.status !== 200) throw new Error('home_unavailable');
     this.base = new URL(home.url).origin;
@@ -171,7 +184,12 @@ export class Probe {
     return match.id || match.Id;
   }
   async discover(show, contentId, title) {
-    if (this.routes.has(contentId)) return this.routes.get(contentId);
+    if (this.routes.has(contentId)) {
+      const cached = this.routes.get(contentId); const issuedAt = this.routeFetchedAt.get(contentId) || 0;
+      if (Date.now() - issuedAt < TTL && (signatureExpiry(cached, issuedAt) ?? issuedAt + TTL) - Date.now() > 60000) return cached;
+      this.routes.delete(contentId); this.mediaMetadata.delete(cached);
+    }
+    this.routeFetchedAt.set(contentId, Date.now());
     for (const endpoint of paths(show.ott, 'playlist.php')) {
       const url = new URL(endpoint, this.base); url.search = new URLSearchParams({ id: contentId, t: title, tm: Math.floor(Date.now() / 1000) });
       const r = await this.request('playlist_discovery', url.href, { cookie: this.auth(show.ott, show.id, contentId) });
@@ -184,41 +202,71 @@ export class Probe {
     this.routes.set(contentId, route); return route;
   }
   async verifyMedia(url) {
-    const audio = []; let playlist;
+    this.lastAttemptedMediaUrl = url;
+    const audio = []; let playlist; let originalMaster; let videoInit;
     for (let depth = 0; depth < 4; depth++) {
-      const r = await this.request(depth === 0 ? 'master_manifest' : 'video_manifest', url, { cookie: new URL(url).origin === this.base ? this.auth('nf') : undefined });
+      this.lastAttemptedMediaUrl = url;
+      const cached = depth === 0 && this.options.appProfile === 'tv' ? this.mediaMetadata.get(url) : null;
+      const r = cached || await this.request(depth === 0 ? 'master_manifest' : 'video_manifest', url, {
+        cookie: new URL(url).origin === this.base ? this.auth(this.currentShow?.ott || 'nf', this.currentShow?.id, this.currentId) : undefined
+      });
       if (r.kind !== 'hls') throw new Error('manifest_not_hls');
+      if ((signatureExpiry(url) ?? Infinity) - Date.now() <= 60000) throw new Error('expired_media_signature');
       playlist = r.body; url = r.url;
+      if (depth === 0 && playlist.includes('#EXT-X-STREAM-INF')) originalMaster = { body: playlist, url, kind: 'hls' };
       if (/\/files\/220884(?:[/?\s]|$)/.test(playlist)) throw new Error('rate_limited');
-      for (const line of playlist.split('\n').filter(s => s.startsWith('#EXT-X-MEDIA:TYPE=AUDIO'))) { const uri = line.match(/URI="([^"]+)"/)?.[1]; if (uri && (line.includes('DEFAULT=YES') || audio.length === 0)) audio.push(new URL(uri, url).href); }
+      const declared = playlist.split(/\r?\n/).filter(s => s.startsWith('#EXT-X-MEDIA:') && /TYPE=AUDIO/.test(s));
       if (!playlist.includes('#EXT-X-STREAM-INF')) break;
-      const entries = playlistEntries(playlist, url); if (!entries.length) throw new Error('empty_master'); url = entries.find(s => /720/.test(s)) || entries[0];
+      const entries = playlistEntries(playlist, url); if (!entries.length) throw new Error('empty_master');
+      const selected = entries.find(s => /720/.test(s)) || entries[0];
+      const lines = playlist.split(/\r?\n/); const index = lines.findIndex(s => !s.startsWith('#') && s.trim() && new URL(s.trim(), url).href === selected);
+      const group = lines[index - 1]?.match(/AUDIO="([^"]+)"/)?.[1];
+      const candidates = declared.filter(s => !group || s.match(/GROUP-ID="([^"]+)"/)?.[1] === group);
+      const line = candidates.find(s => s.includes('DEFAULT=YES')) || candidates.find(s => s.includes('AUTOSELECT=YES')) || candidates[0];
+      const uri = line?.match(/URI="([^"]+)"/)?.[1];
+      if (uri) audio.splice(0, audio.length, new URL(uri, url).href);
+      url = selected;
     }
     if (!playlist.includes('#EXTINF:')) throw new Error('media_playlist_missing');
     const entries = playlistEntries(playlist, url); const encrypted = playlist.match(/#EXT-X-KEY:[^\n]*METHOD=([^,\n]+)/)?.[1];
     if (encrypted && encrypted !== 'NONE') throw new Error('encrypted_segments_require_player');
     const init = playlist.match(/#EXT-X-MAP:[^\n]*URI="([^"]+)"/)?.[1];
-    if (init) { const r = await this.request('video_init', new URL(init, url).href, { binary: true }); if (r.kind !== 'iso_bmff') throw new Error('invalid_video_init'); }
+    if (init) { const r = await this.request('video_init', new URL(init, url).href, { binary: true }); if (r.kind !== 'iso_bmff') throw new Error('invalid_video_init'); videoInit = r.bytes; }
     let decodedSampleFrame = false;
     for (const segment of entries.slice(0, this.options.segmentCount || 2)) {
       const r = await this.request('video_segment', segment, { binary: true }); if (![200, 206].includes(r.status) || !['mpeg_ts', 'iso_bmff'].includes(r.kind)) throw new Error('invalid_video_segment');
-      if (this.options.decodeSample && !decodedSampleFrame) decodedSampleFrame = await decodeSample(r.privateBodyFile);
+      if (this.options.decodeSample && !decodedSampleFrame) {
+        const samplePath = join(this.privateDir, 'decode-sample.bin');
+        await writeFile(samplePath, videoInit ? Buffer.concat([videoInit, r.bytes]) : r.bytes, { mode: 0o600 });
+        decodedSampleFrame = await decodeSample(samplePath);
+      }
     }
     if (this.options.decodeSample && !decodedSampleFrame) throw new Error('sample_decoder_failed');
     if (audio.length) {
       const r = await this.request('audio_manifest', audio[0]); if (r.kind !== 'hls') throw new Error('invalid_audio_manifest');
+      const audioInit = r.body.match(/#EXT-X-MAP:[^\n]*URI="([^"]+)"/)?.[1];
+      if (audioInit) { const init = await this.request('audio_init', new URL(audioInit, r.url).href, { binary: true }); if (init.kind !== 'iso_bmff') throw new Error('invalid_audio_init'); }
       const segment = playlistEntries(r.body, r.url)[0]; if (!segment) throw new Error('audio_segment_missing');
       const a = await this.request('audio_segment', segment, { binary: true });
       if (![200, 206].includes(a.status) || !['mpeg_ts', 'iso_bmff'].includes(a.kind) && !((a.bytes[0] === 0xff && (a.bytes[1] & 0xf0) === 0xf0) || a.bytes.toString('ascii', 0, 3) === 'ID3')) throw new Error('invalid_audio_segment');
     }
     await writeFile(join(this.privateDir, 'last-result.json'), JSON.stringify({ url, audio, playlist }, null, 2), { mode: 0o600 });
     this.lastMediaUrl = url;
+    if (originalMaster) this.mediaMetadata.set(url, originalMaster);
     return { segmentCount: Math.min(entries.length, this.options.segmentCount || 2), separateAudioValidated: audio.length > 0, evidence: 'hls_and_media_container_bytes', decodedSampleFrame, androidFirstFrameMeasured: false };
   }
   async runTitle(target, phase) {
     const start = performance.now(); const before = this.events.length; const generations = this.handshakes; let evidence; let error; let sessionReadyMs = 0;
     try {
-      await this.ensureSession(); sessionReadyMs = Math.round(performance.now() - start); const show = await this.search(target.title, target.year); const id = await this.episode(show, target.season, target.episode); const url = await this.discover(show, id, target.title); evidence = await this.verifyMedia(url); this.routes.set(id, this.lastMediaUrl);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+      await this.ensureSession(); sessionReadyMs = Math.round(performance.now() - start); const show = await this.search(target.title, target.year); const id = await this.episode(show, target.season, target.episode); this.currentShow = show; this.currentId = id; const url = await this.discover(show, id, target.title); evidence = await this.verifyMedia(url); if (this.options.appProfile !== 'mobile') this.routes.set(id, this.lastMediaUrl);
+          break;
+        } catch (failure) {
+          if (failure.message !== 'session_rejected' || attempt === 1) throw failure;
+          this.session = null; this.lookup.clear(); this.episodes.clear(); this.routes.clear(); this.mediaMetadata.clear();
+        }
+      }
     } catch (e) { error = safeError(e); }
     return { ...target, phase, totalMs: Math.round(performance.now() - start), handshakes: this.handshakes - generations, sessionReadyMs, success: !error, ...(error ? { error } : { ...evidence }), events: this.events.slice(before) };
   }
