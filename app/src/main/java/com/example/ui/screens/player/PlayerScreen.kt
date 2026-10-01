@@ -1189,6 +1189,9 @@ fun PlayerScreen(
 
         val currentMediaId = try { exoPlayer.currentMediaItem?.mediaId } catch (_: IllegalStateException) { null } catch (_: Exception) { null }
         val isTargetMediaReady = currentMediaId == initialTargetMediaId && !isLoading && hasVideoFrame
+        val loadingPercentage = com.example.ui.components.rememberPlayerLoadingPercentage(exoPlayer,
+            resolving = isLoading || currentMediaId != initialTargetMediaId, buffering = isBuffering,
+            startupBufferMs = 900, rebufferMs = 1_500)
         val showLoadingOverlay = playbackError == null && (isLoading || isBuffering || !isTargetMediaReady)
         AnimatedVisibility(
             visible = showLoadingOverlay,
@@ -1197,9 +1200,8 @@ fun PlayerScreen(
         ) {
             PlayerLoadingOverlay(
                 isLoading = isLoading,
-                isBuffering = isBuffering,
-                exoPlayer = exoPlayer,
-                isTargetMediaReady = isTargetMediaReady
+                isTargetMediaReady = isTargetMediaReady,
+                percentage = loadingPercentage
             )
         }
         if (playbackError != null) {

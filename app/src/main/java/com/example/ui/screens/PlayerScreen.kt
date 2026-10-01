@@ -1162,6 +1162,9 @@ fun PlayerScreen(
         // bugfix: guard the player read for a released-player IllegalStateException.
         val currentMediaId = try { exoPlayer.currentMediaItem?.mediaId } catch (_: IllegalStateException) { null } catch (_: Exception) { null }
         val isTargetMediaReady = ((currentMediaId == "${movie.id}_${currentSeason}_${currentEpisode}") || (currentMediaId == "${movie.id}_preview")) && !isLoading
+        val loadingPercentage = com.example.ui.components.rememberPlayerLoadingPercentage(exoPlayer,
+            resolving = isLoading || !isTargetMediaReady, buffering = isBuffering,
+            startupBufferMs = 900, rebufferMs = 1_500)
         val showLoadingOverlay = playbackError == null && (isLoading || isBuffering || !isTargetMediaReady)
         AnimatedVisibility(
             visible = showLoadingOverlay,
@@ -1170,9 +1173,8 @@ fun PlayerScreen(
         ) {
             PlayerLoadingOverlay(
                 isLoading = isLoading,
-                isBuffering = isBuffering,
-                exoPlayer = exoPlayer,
-                isTargetMediaReady = isTargetMediaReady
+                isTargetMediaReady = isTargetMediaReady,
+                percentage = loadingPercentage
             )
         }
         if (playbackError != null) {
@@ -2743,37 +2745,9 @@ private fun SubtitleOverlay(
 @Composable
 private fun PlayerLoadingOverlay(
     isLoading: Boolean,
-    isBuffering: Boolean,
-    exoPlayer: ExoPlayer,
-    isTargetMediaReady: Boolean
+    isTargetMediaReady: Boolean,
+    percentage: Int?
 ) {
-    var loadingPercentage by remember { mutableIntStateOf(1) }
-
-    LaunchedEffect(isLoading, isBuffering) {
-        if (isLoading) {
-            loadingPercentage = 1
-            while (isLoading) {
-                delay(60)
-                if (loadingPercentage < 98) {
-                    loadingPercentage += (1..3).random()
-                }
-            }
-            loadingPercentage = 100
-        } else if (isBuffering) {
-            while (isBuffering) {
-                // bugfix: guard the bufferedPercentage read.
-                val pct = try {
-                    exoPlayer.bufferedPercentage
-                } catch (_: IllegalStateException) {
-                    break
-                } catch (_: Exception) {
-                    break
-                }
-                loadingPercentage = if (pct > 0) pct else (loadingPercentage + 1).coerceAtMost(99)
-                delay(100)
-            }
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -2783,7 +2757,7 @@ private fun PlayerLoadingOverlay(
     ) {
         NetflixSpinner(
             size = 90.dp,
-            percentage = loadingPercentage
+            percentage = percentage
         )
     }
 }
