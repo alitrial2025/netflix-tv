@@ -130,7 +130,7 @@ object BillboardAlgorithm {
         }
 
         return filtered
-            .filter { it.backdropUrl.isNotBlank() }
+            .filter { !it.isComingSoon && com.example.discovery.ReleasePolicy.isPlayableDate(it.releaseDate) && it.backdropUrl.isNotBlank() }
             .map { movie -> movie to calculateBillboardScore(movie, tab) }
             .filter { it.second > 0 }
             .sortedByDescending { it.second }

@@ -33,6 +33,12 @@ data class TmdbItemDto(
 )
 
 interface TmdbApiService {
+    @GET("discover/movie")
+    suspend fun discoverReleaseMovies(@retrofit2.http.QueryMap parameters: Map<String, String>): TmdbResponse
+
+    @GET("discover/tv")
+    suspend fun discoverReleaseTv(@retrofit2.http.QueryMap parameters: Map<String, String>): TmdbResponse
+
     @GET("movie/{id}")
     suspend fun getMovieArtworkTitle(@Path("id") id: Long, @Query("api_key") apiKey: String): TmdbItemDto
 

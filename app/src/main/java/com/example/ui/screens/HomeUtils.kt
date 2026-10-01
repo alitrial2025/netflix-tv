@@ -719,29 +719,17 @@ fun findSimilarMovies(seedMovie: Movie, catalog: List<Movie>, limit: Int = 10): 
 }
 
 /**
- * Builds a "Coming Soon" rail by reusing movies already flagged as
- * [Movie.isComingSoon] and, if fewer than 4 are present, padding the list with
- * shuffled picks from [allCatalogMovies] tagged with synthetic release-date badges.
+ * Builds a "Coming Soon" rail using announced dates in the next three calendar months.
+ * Empty or unavailable announcement data stays empty.
  *
  * @param allCatalogMovies the source pool of movies.
- * @param seed deterministic seed for the random shuffle; pass a stable value to get
- *  the same padding across recompositions / profile switches.
- * @return at most 10 movies with `isComingSoon = true`.
+ * @param seed retained for compatibility with existing callers.
+ * @return at most 20 movies with `isComingSoon = true` and a valid upcoming date.
  */
-fun buildComingSoonList(allCatalogMovies: List<Movie>, seed: Int = 42): List<Movie> {
-    val rng = kotlin.random.Random(seed)
-    val existing = allCatalogMovies.filter { it.isComingSoon }
-    if (existing.size >= 4) return existing
+fun buildComingSoonList(allCatalogMovies: List<Movie>, seed: Int = 42): List<Movie> =
+    allCatalogMovies.filter { it.isComingSoon && com.example.discovery.ReleasePolicy.isUpcoming(it.releaseDate) }
+        .sortedBy { it.releaseDate }.take(20)
 
-    val releaseDates = listOf("Coming Nov 15", "Coming Dec 2", "Coming Friday", "Season 2 Coming Soon", "Coming Oct 30", "Coming Dec 20", "Coming Soon", "Jan 12")
-    val candidates = allCatalogMovies.shuffled(rng).take(10)
-    return candidates.mapIndexed { index, movie ->
-        movie.copy(
-            isComingSoon = true,
-            releaseDateBadge = releaseDates[index % releaseDates.size]
-        )
-    }
-}
 
 /**
  * Builds the list of `(row title, row movies)` pairs displayed on the home screen
@@ -779,13 +767,18 @@ fun buildAlgorithmicRowsForTab(
     profileName: String,
     isKidProfile: Boolean,
     randomSeed: Int,
-    myListAddedAt: Map<String, Long> = emptyMap()
+    myListAddedAt: Map<String, Long> = emptyMap(),
+    comingSoonMovies: List<Movie> = emptyList(),
+    watchHistoryMovies: List<Movie> = emptyList()
 ): List<Pair<String, List<Movie>>> {
     // Reuse normalized metadata across the theme scans in this one generation.
     // The cache dies with the build, so it cannot retain an old catalogue/profile.
     val themeText = HashMap<String, String>(allCatalogMovies.size)
+    val themeGenres = HashMap<List<String>,Set<Int>>()
     fun Movie.matchesThemes(vararg keywords: String): Boolean {
-        val text = themeText.getOrPut(id) { "$title $description $type $rating".lowercase() }
+        val genres = themeGenres.getOrPut(keywords.toList()) { com.example.discovery.RecommendationEngine.preferredGenres(keywords.toList()) }
+        if (genreIds.isNotEmpty() && genres.isNotEmpty()) return genreIds.any { com.example.discovery.RecommendationEngine.normalizeGenre(it) in genres }
+        val text = themeText.getOrPut("$type:$id") { "$title $description $type $rating".lowercase() }
         return keywords.any { text.contains(it, ignoreCase = true) }
     }
     val rng = kotlin.random.Random(randomSeed)
@@ -802,7 +795,7 @@ fun buildAlgorithmicRowsForTab(
     }
 
     if (isKidProfile) {
-        val safeCatalog = allCatalogMovies.filter { com.example.model.isKidSafeMovie(it) }.ifEmpty { allCatalogMovies }
+        val safeCatalog = allCatalogMovies.filter { com.example.model.isKidSafeMovie(it) }
         val safeSeries = safeCatalog.filter { it.type.equals("Series", ignoreCase = true) || it.type.equals("TV", ignoreCase = true) || it.duration.contains("Season", ignoreCase = true) }.ifEmpty { safeCatalog }
         val safeFilms = safeCatalog.filter { it.type.equals("Movie", ignoreCase = true) || it.type.equals("Animation", ignoreCase = true) || !it.duration.contains("Season", ignoreCase = true) }.ifEmpty { safeCatalog }
         val safeAnimations = safeCatalog.filter { it.type == "Animation" || it.matchesThemes("cartoon", "anime", "animated", "magic") }.ifEmpty { safeCatalog }
@@ -820,7 +813,9 @@ fun buildAlgorithmicRowsForTab(
                     rows.add("Top 10 Kids TV Shows Today" to top10Series)
                 }
                 // 3. Because You Watched
-                val lastSeries = continueSeries.firstOrNull() ?: safeSeries.firstOrNull()
+                val lastSeries = continueSeries.firstOrNull() ?: watchHistoryMovies.firstOrNull {
+                    com.example.model.isKidSafeMovie(it) && it.type == "Series"
+                }
                 if (lastSeries != null) {
                     val similar = findSimilarMovies(lastSeries, safeSeries, 10)
                     if (similar.isNotEmpty()) {
@@ -855,7 +850,9 @@ fun buildAlgorithmicRowsForTab(
                     rows.add("Top 10 Kids Movies Today" to top10Films)
                 }
                 // 3. Because You Watched
-                val lastFilm = continueFilms.firstOrNull() ?: safeFilms.firstOrNull()
+                val lastFilm = continueFilms.firstOrNull() ?: watchHistoryMovies.firstOrNull {
+                    com.example.model.isKidSafeMovie(it) && it.type != "Series"
+                }
                 if (lastFilm != null) {
                     val similar = findSimilarMovies(lastFilm, safeFilms, 10)
                     if (similar.isNotEmpty()) {
@@ -888,7 +885,7 @@ fun buildAlgorithmicRowsForTab(
                     rows.add("My List ($profileName)" to sortedMyListMovies)
                 }
                 // 3. Recommended for $profileName
-                rows.add("Recommended for $profileName" to safeCatalog.shuffled(rng).take(10))
+                rows.add("Recommended for $profileName" to safeCatalog.take(10))
                 // 4. Popular on Kids Netflix
                 rows.add("Popular on Kids Netflix" to safeCatalog.take(10))
                 // 5. Favorite Kids Animated Movies
@@ -907,7 +904,7 @@ fun buildAlgorithmicRowsForTab(
                 if (top10.isNotEmpty()) rows.add("Top 10 for Kids Today" to top10)
 
                 // 3. Because You Watched
-                val recentKidMovie = continueWatchingMovies.firstOrNull() ?: sortedMyListMovies.firstOrNull() ?: safeCatalog.firstOrNull()
+                val recentKidMovie = continueWatchingMovies.firstOrNull() ?: watchHistoryMovies.firstOrNull { com.example.model.isKidSafeMovie(it) }
                 if (recentKidMovie != null) {
                     val similar = findSimilarMovies(recentKidMovie, safeCatalog, 10)
                     if (similar.isNotEmpty()) {
@@ -955,17 +952,17 @@ fun buildAlgorithmicRowsForTab(
             // 2. Top 10 TV Shows Today
             val top10Series = allSeriesList.take(10)
             if (top10Series.isNotEmpty()) {
-                rows.add("Top 10 TV Shows in Your Country Today" to top10Series)
+                rows.add("Top TV Picks for $profileName" to top10Series)
             }
 
             // 2b. Worth the Wait / Coming Soon Shows
-            val comingSoonSeries = buildComingSoonList(allSeriesList, randomSeed)
+            val comingSoonSeries = buildComingSoonList(comingSoonMovies.filter { it.type == "Series" }, randomSeed)
             if (comingSoonSeries.isNotEmpty()) {
                 rows.add("Worth the Wait / Coming Soon Shows" to comingSoonSeries)
             }
 
             // 3. Because You Watched [Recent Series]
-            val lastSeries = continueSeries.firstOrNull() ?: allSeriesList.firstOrNull()
+            val lastSeries = continueSeries.firstOrNull() ?: watchHistoryMovies.firstOrNull { it.type == "Series" }
             if (lastSeries != null) {
                 val similar = findSimilarMovies(lastSeries, allSeriesList, 10)
                 if (similar.isNotEmpty()) {
@@ -1011,17 +1008,17 @@ fun buildAlgorithmicRowsForTab(
             // 2. Top 10 Movies Today
             val top10Films = allMoviesList.take(10)
             if (top10Films.isNotEmpty()) {
-                rows.add("Top 10 Movies in Your Country Today" to top10Films)
+                rows.add("Top Movie Picks for $profileName" to top10Films)
             }
 
             // 2b. Worth the Wait / Coming Soon Movies
-            val comingSoonFilms = buildComingSoonList(allMoviesList, randomSeed + 1)
+            val comingSoonFilms = buildComingSoonList(comingSoonMovies.filter { it.type != "Series" }, randomSeed + 1)
             if (comingSoonFilms.isNotEmpty()) {
                 rows.add("Worth the Wait / Coming Soon Movies" to comingSoonFilms)
             }
 
             // 3. Because You Watched [Recent Movie]
-            val lastFilm = continueFilms.firstOrNull() ?: allMoviesList.firstOrNull()
+            val lastFilm = continueFilms.firstOrNull() ?: watchHistoryMovies.firstOrNull { it.type != "Series" }
             if (lastFilm != null) {
                 val similar = findSimilarMovies(lastFilm, allMoviesList, 10)
                 if (similar.isNotEmpty()) {
@@ -1069,7 +1066,7 @@ fun buildAlgorithmicRowsForTab(
             }
 
             // 3. Top Picks Based on Your Watch History
-            val watchedSeed = continueWatchingMovies.firstOrNull() ?: sortedMyListMovies.firstOrNull() ?: allCatalogMovies.firstOrNull()
+            val watchedSeed = continueWatchingMovies.firstOrNull() ?: watchHistoryMovies.firstOrNull()
             if (watchedSeed != null) {
                 val similar = findSimilarMovies(watchedSeed, allCatalogMovies, 10)
                 if (similar.isNotEmpty()) {
@@ -1093,7 +1090,7 @@ fun buildAlgorithmicRowsForTab(
             rows.add("Critically Acclaimed Titles for $profileName" to allCatalogMovies.take(10))
 
             // 8. New Releases Tailored for You
-            rows.add("New Releases Matching Your Taste" to allCatalogMovies.takeLast(10).reversed())
+            rows.add("New Releases Matching Your Taste" to allCatalogMovies.filter { com.example.discovery.ReleasePolicy.isNew(it.releaseDate) }.take(10))
 
             // 9. Quick Weekend Binges for $profileName
             rows.add("Quick Weekend Binges for $profileName" to allSeriesList.take(10))
@@ -1111,17 +1108,17 @@ fun buildAlgorithmicRowsForTab(
             // 2. Top 10 Movies & TV Shows Today
             val top10All = allCatalogMovies.take(10)
             if (top10All.isNotEmpty()) {
-                rows.add("Top 10 Movies & TV Shows in Your Country Today" to top10All)
+                rows.add("Top Picks for $profileName" to top10All)
             }
 
             // 2b. Worth the Wait / Coming Soon
-            val comingSoonAll = buildComingSoonList(allCatalogMovies, randomSeed + 2)
+            val comingSoonAll = buildComingSoonList(comingSoonMovies, randomSeed + 2)
             if (comingSoonAll.isNotEmpty()) {
                 rows.add("Worth the Wait / Coming Soon" to comingSoonAll)
             }
 
             // 3. Because You Watched [Recent Movie/Series]
-            val lastWatched = continueWatchingMovies.firstOrNull() ?: sortedMyListMovies.firstOrNull() ?: allCatalogMovies.firstOrNull()
+            val lastWatched = continueWatchingMovies.firstOrNull() ?: watchHistoryMovies.firstOrNull()
             if (lastWatched != null) {
                 val similar = findSimilarMovies(lastWatched, allCatalogMovies, 10)
                 if (similar.isNotEmpty()) {
@@ -1153,7 +1150,7 @@ fun buildAlgorithmicRowsForTab(
             rows.add("Feel-Good Comedies & Lighthearted Favorites" to comediesAll.take(10))
 
             // 10. Hidden Gems & International Sensations
-            rows.add("Hidden Gems & International Sensations" to allCatalogMovies.takeLast(10).reversed())
+            rows.add("Hidden Gems & International Sensations" to allCatalogMovies.filter { com.example.discovery.ReleasePolicy.isNew(it.releaseDate) }.take(10))
 
             // 11. Watch in One Weekend: Miniseries & Quick Watches
             rows.add("Watch in One Weekend: Miniseries & Quick Watches" to allSeriesList.shuffled(rng).take(10))
@@ -1162,7 +1159,6 @@ fun buildAlgorithmicRowsForTab(
 
     return rows
 }
-
 
 
 

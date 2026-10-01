@@ -7,6 +7,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.DirectCDNResolver
 import com.example.data.TmdbRepository
+import com.example.discovery.recommendationTitle
+import com.example.discovery.toDiscoveryMovie
 import com.example.model.Movie
 import com.example.model.Profile
 import com.example.model.catalogMediaKind
@@ -251,6 +253,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
     override fun onCleared() {
         super.onCleared()
+        if (releaseRefreshJob != null) sharedReleaseReminders.close()
         sharedPlaybackView?.player = null
         sharedPlaybackView = null
         // perf: release active player too — the activePlayer may differ from sharedExoPlayer
@@ -643,6 +646,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         }
         _likedMovieIds.value = current
         prefs.edit().putStringSet("liked_movie_ids_profile_$currentProfileId", current).apply()
+        requestRecommendationRefresh()
     }
 
     fun isMovieLiked(movieId: String): Boolean {
@@ -652,20 +656,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     private val _remindedMovieIds = MutableStateFlow<Set<String>>(emptySet())
     val remindedMovieIds: StateFlow<Set<String>> = _remindedMovieIds.asStateFlow()
 
-    fun toggleReminder(movieId: String) {
-        val currentProfileId = _selectedProfile.value?.id ?: "default"
-        val current = _remindedMovieIds.value.toMutableSet()
-        if (current.contains(movieId)) {
-            current.remove(movieId)
-        } else {
-            current.add(movieId)
-        }
-        _remindedMovieIds.value = current
-        prefs.edit().putStringSet("reminded_movie_ids_profile_$currentProfileId", current).apply()
+    fun toggleReminder(movie: Movie) {
+        sharedReleaseReminders.toggle(movie.recommendationTitle().key)
     }
 
-    fun isMovieReminded(movieId: String): Boolean {
-        return _remindedMovieIds.value.contains(movieId)
+    fun isMovieReminded(movie: Movie): Boolean {
+        return _remindedMovieIds.value.contains(movie.recommendationTitle().key)
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -910,6 +906,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         watchHistoryFirestoreListener?.remove()
         watchHistoryFirestoreListener = null
         _watchHistoryMovies.value = emptyList()
+        _tasteSignals.value = emptyList()
         val uid = authenticatedUid() ?: return
         try {
             watchHistoryFirestoreListener = FirebaseFirestore.getInstance()
@@ -926,6 +923,15 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         android.util.Log.w("NetflixViewModel", "Watch history listener failed", error)
                         return@addSnapshotListener
                     }
+                    _tasteSignals.value = snapshot?.documents.orEmpty().mapNotNull { doc ->
+                        val mediaId = doc.getString("mediaId") ?: doc.id
+                        val kind = if (doc.getString("type") == "Series" || doc.getString("type") == "TV_SHOW") "tv" else "movie"
+                        com.example.discovery.TasteSignal("$kind:$mediaId",
+                            (doc.get("genreIds") as? List<*>)?.mapNotNull { (it as? Number)?.toInt() }?.toSet().orEmpty(),
+                            doc.getLong("lastWatchedTimestamp") ?: 0L,
+                            (doc.getLong("positionSeconds") ?: 0L).toInt(), (doc.getLong("totalSeconds") ?: 0L).toInt(), kind == "movie")
+                    }
+                    requestRecommendationRefresh()
                     _watchHistoryMovies.value = snapshot?.documents.orEmpty().mapNotNull { doc ->
                         try {
                             val mediaId = doc.getString("mediaId")?.takeIf { it.isNotBlank() } ?: doc.id
@@ -960,7 +966,11 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         // Keep a selected profile current, but fetching must never choose one
         // or bypass the picker/PIN flow. An empty server result also clears it.
         val selectedId = _selectedProfile.value?.id
+        val previous = _selectedProfile.value
         _selectedProfile.value = selectedId?.let { id -> newProfiles.firstOrNull { it.id == id } }
+        val updated = _selectedProfile.value
+        if (updated != null && (previous?.favoriteGenres != updated.favoriteGenres || previous.isKid != updated.isKid))
+            requestRecommendationRefresh()
         if (selectedId != null && _selectedProfile.value == null) {
             prefs.edit().remove("last_selected_profile_id").apply()
         }
@@ -1206,6 +1216,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                             _myListMovieIds.value = emptySet()
                             _myListAddedAt.value = emptyMap()
                             _watchHistoryMovies.value = emptyList()
+                            _tasteSignals.value = emptyList()
                             _likedMovieIds.value = emptySet()
                             _remindedMovieIds.value = emptySet()
                             val editor = prefs.edit()
@@ -1296,6 +1307,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun signOutFromTv() {
+        if (releaseRefreshJob != null) sharedReleaseReminders.close()
         profileListenerGeneration.incrementAndGet()
         profileSnapshotGeneration.incrementAndGet()
         profileSnapshotJob?.cancel()
@@ -1380,6 +1392,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         _myListMovieIds.value = emptySet()
         _myListAddedAt.value = emptyMap()
         _watchHistoryMovies.value = emptyList()
+        _tasteSignals.value = emptyList()
         _likedMovieIds.value = emptySet()
         _remindedMovieIds.value = emptySet()
         try {
@@ -1745,6 +1758,63 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         return matchesProfilePin(profile.pin, enteredPin)
     }
 
+    private val sharedReleaseReminders by lazy { com.example.discovery.SharedReleaseReminders(getApplication()) }
+    private val liveDiscovery by lazy { com.example.discovery.createReleaseDiscovery(getApplication()) }
+    private val _releaseTitles = MutableStateFlow<List<Movie>>(emptyList())
+    private val _tasteSignals = MutableStateFlow<List<com.example.discovery.TasteSignal>>(emptyList())
+    private val communityDiscovery = com.example.discovery.CommunityDiscovery()
+    private val qualifiedPlayback = com.example.discovery.QualifiedPlayback()
+    private var releaseRefreshJob: kotlinx.coroutines.Job? = null
+    private var recommendationRefreshJob: kotlinx.coroutines.Job? = null
+
+    private fun releaseRows(): List<Pair<String, List<Movie>>> = buildList {
+        val upcoming = liveDiscovery.feed.value.upcoming.map { it.toDiscoveryMovie(true) }
+        val recent = liveDiscovery.feed.value.recent.map { it.toDiscoveryMovie(false) }
+        if (recent.isNotEmpty()) add("New & Hot" to recent)
+        if (upcoming.isNotEmpty()) add("Worth the Wait / Coming Soon" to upcoming)
+    }
+    private fun requestRecommendationRefresh() {
+        recommendationRefreshJob?.cancel()
+        recommendationRefreshJob = viewModelScope.launch {
+            delay(500)
+            awaitHomeIdle()
+            _selectedProfile.value?.let { applyProfilePersonalization(it, preserveCurrentMovie = true) }
+        }
+    }
+    private fun startReleaseDiscovery() {
+        if (releaseRefreshJob != null) return
+        communityDiscovery.start(viewModelScope)
+        viewModelScope.launch { sharedReleaseReminders.keys.collect { keys ->
+            _remindedMovieIds.value = keys
+        } }
+        viewModelScope.launch { communityDiscovery.counts.collect { requestRecommendationRefresh() } }
+        viewModelScope.launch(Dispatchers.Default) {
+            liveDiscovery.feed.collect { feed ->
+                _releaseTitles.value = (feed.recent.map { it.toDiscoveryMovie(false) } + feed.upcoming.map { it.toDiscoveryMovie(true) })
+                    .distinctBy { "${it.type}:${it.id}" }
+                if (_selectedProfile.value != null) requestRecommendationRefresh()
+                else _categoryRows.value = originalCategoryRows + releaseRows()
+            }
+        }
+        releaseRefreshJob = viewModelScope.launch(Dispatchers.IO) {
+            var previousDay = com.example.discovery.ReleasePolicy.day()
+            while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                val today = com.example.discovery.ReleasePolicy.day()
+                if (today != previousDay) {
+                    previousDay = today
+                    requestRecommendationRefresh()
+                }
+                liveDiscovery.refresh(online = hasStartupNetwork())
+                delay(60_000)
+            }
+        }
+    }
+    fun recordDiscoveryPlayback(movie: Movie, positionMs: Long, playing: Boolean) {
+        val key = movie.recommendationTitle().key
+        if (qualifiedPlayback.sample(key, (positionMs / 1000).toInt(), playing, android.os.SystemClock.elapsedRealtime()))
+            viewModelScope.launch(Dispatchers.IO) { communityDiscovery.record(key) }
+    }
+
     private val initialLocalStateReady = kotlinx.coroutines.CompletableDeferred<Unit>()
     private val startupStarted = java.util.concurrent.atomic.AtomicBoolean(false)
     private val _startupReady = MutableStateFlow(false)
@@ -2105,7 +2175,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
 
     fun ensureCatalogStarted() {
-        if (catalogStarted.compareAndSet(false, true)) loadData()
+        if (catalogStarted.compareAndSet(false, true)) { loadData(); startReleaseDiscovery() }
     }
 
     fun loadData() {
@@ -2146,7 +2216,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     _selectedProfile.value?.let { currentProf ->
                         applyProfilePersonalization(currentProf, preserveCurrentMovie = true)
                     } ?: run {
-                        _categoryRows.value = earlyRows
+                        _categoryRows.value = earlyRows + releaseRows()
                         if (_currentMovie.value == null) {
                             val firstMovie = earlyRows.first().second.firstOrNull()
                             _currentMovie.value = firstMovie
@@ -2216,7 +2286,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     _selectedProfile.value?.let { currentProf ->
                         applyProfilePersonalization(currentProf, preserveCurrentMovie = true)
                     } ?: run {
-                        _categoryRows.value = fullRows
+                        _categoryRows.value = fullRows + releaseRows()
                         if (_currentMovie.value == null) {
                             val firstMovie = fullRows.first().second.firstOrNull()
                             _currentMovie.value = firstMovie
@@ -2373,7 +2443,11 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
         // Sync profile-specific Reminded titles
         val savedReminded = prefs.getStringSet("reminded_movie_ids_profile_${resolved.id}", emptySet()) ?: emptySet()
-        _remindedMovieIds.value = savedReminded
+        val typedReminded = savedReminded.mapNotNull { id ->
+            (_releaseTitles.value.firstOrNull { it.id == id } ?: allMoviesMap[id])?.recommendationTitle()?.key
+        }.toSet()
+        _remindedMovieIds.value = typedReminded
+        sharedReleaseReminders.select(resolved.id, typedReminded)
 
         // Sync profile subtitle language
         val subLang = prefs.getString("subtitle_language_profile_${resolved.id}", resolved.language) ?: resolved.language
@@ -2386,7 +2460,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             if (_selectedProfile.value?.id != profile.id) return@launch
             val generation = personalizationGeneration.incrementAndGet()
-            val baseRows = originalCategoryRows
+            val baseRows = originalCategoryRows + releaseRows()
             suspend fun publish(rows: List<Pair<String, List<Movie>>>, defaultMovie: Movie?) {
                 withContext(Dispatchers.Main) {
                     // A later profile/catalogue request may finish before this one.
@@ -2408,10 +2482,19 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 if (profile.isKid) {
                     // Kids Profile Mode: Strictly 12 and under filter (PG, G, TV-Y, TV-Y7, TV-G, TV-PG, 12)
                     val allMovies = (baseRows.flatMap { it.second } + allMoviesMap.values).distinctBy { it.id }
-                    val kidSafeMovies = allMovies.filter { com.example.model.isKidSafeMovie(it) }
+                    val safePool = allMovies.filter { com.example.model.isKidSafeMovie(it) &&
+                        com.example.discovery.ReleasePolicy.isPlayableDate(it.releaseDate) }
+                    val byKey = safePool.associateBy { it.recommendationTitle().key }
+                    val rankedSafeMovies = com.example.discovery.RecommendationEngine.rank(safePool.map { it.recommendationTitle() }, profile.id,
+                        preferred = com.example.discovery.RecommendationEngine.preferredGenres(profile.favoriteGenres),
+                        history = _tasteSignals.value, community = communityDiscovery.counts.value, limit = safePool.size)
+                        .mapNotNull { byKey[it] }
+                    val rankedKeys = rankedSafeMovies.map { it.recommendationTitle().key }.toHashSet()
+                    // Completed family films remain browsable for rewatching, outside primary picks.
+                    val kidSafeMovies = rankedSafeMovies + safePool.filter { it.recommendationTitle().key !in rankedKeys }
 
                     val kidsRows = mutableListOf<Pair<String, List<Movie>>>()
-                    val kidsTop10 = kidSafeMovies.take(10)
+                    val kidsTop10 = rankedSafeMovies.take(10)
                     if (kidsTop10.isNotEmpty()) {
                         kidsRows.add("Top 10 for Kids Today" to kidsTop10)
                     }
@@ -2423,41 +2506,30 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     if (kidsSeries.isNotEmpty()) kidsRows.add("Kids TV Shows & Cartoons" to kidsSeries)
                     if (kidSafeMovies.size > 5) kidsRows.add("Fun & Laughs for Family Night" to kidSafeMovies.reversed())
 
-                    val firstKidMovie = kidSafeMovies.firstOrNull() ?: baseRows.firstOrNull()?.second?.firstOrNull()
-                    publish(if (kidsRows.isNotEmpty()) kidsRows else baseRows, firstKidMovie)
-                } else if (profile.favoriteGenres.isNotEmpty()) {
-                    // Personalize rows based on selected favorite genres
-                    val personalized = mutableListOf<Pair<String, List<Movie>>>()
-
-                    // Add Top Picks for user
-                    val allMovies = baseRows.flatMap { it.second }.distinctBy { it.id }
-                    val topPicks = allMovies.shuffled().take(12)
-                    if (topPicks.isNotEmpty()) {
-                        personalized.add("Top Picks for ${profile.name}" to topPicks)
-                    }
-
-                    // Add genre-specific rows
-                    profile.favoriteGenres.forEach { genreName ->
-                        val genreFiltered = allMovies.filter { movie ->
-                            movie.title.contains(genreName, ignoreCase = true) ||
-                            movie.description.contains(genreName, ignoreCase = true)
-                        }
-                        if (genreFiltered.isNotEmpty()) {
-                            personalized.add("Because you love $genreName" to genreFiltered)
-                        }
-                    }
-
-                    // Add original general rows
-                    baseRows.forEach { row ->
-                        if (!personalized.any { it.first == row.first }) {
-                            personalized.add(row)
-                        }
-                    }
-                    val movie = topPicks.firstOrNull() ?: baseRows.firstOrNull()?.second?.firstOrNull()
-                    publish(personalized, movie)
+                    publish(kidsRows, kidSafeMovies.firstOrNull())
                 } else {
-                    val first = baseRows.firstOrNull()?.second?.firstOrNull()
-                    publish(baseRows, first)
+                    val allMovies = baseRows.flatMap { it.second }.distinctBy { "${it.type}:${it.id}" }
+                    val rank = com.example.discovery.RecommendationEngine.rank(allMovies.map { it.recommendationTitle() }, profile.id,
+                        preferred = com.example.discovery.RecommendationEngine.preferredGenres(profile.favoriteGenres),
+                        history = _tasteSignals.value,
+                        ratings = allMovies.filter { it.id in _likedMovieIds.value }.associate { it.recommendationTitle().key to "LIKE" },
+                        community = communityDiscovery.counts.value, limit = allMovies.size)
+                    val byKey = allMovies.associateBy { it.recommendationTitle().key }
+                    val ranked = rank.mapNotNull { byKey[it] }
+                    val order = rank.withIndex().associate { it.value to it.index }
+                    val personalized = mutableListOf<Pair<String,List<Movie>>>()
+                    if (ranked.isNotEmpty()) personalized.add("Top Picks for ${profile.name}" to ranked.take(20))
+                    profile.favoriteGenres.forEach { genre ->
+                        val genreIds = com.example.discovery.RecommendationEngine.preferredGenres(listOf(genre))
+                        val matches = ranked.filter { movie -> movie.genreIds.any { com.example.discovery.RecommendationEngine.normalizeGenre(it) in genreIds } }
+                        if (matches.isNotEmpty()) personalized.add("Because you love $genre" to matches.take(20))
+                    }
+                    baseRows.forEach { row ->
+                        val movies = if (row.first.contains("Coming Soon")) row.second.sortedBy { it.releaseDate }
+                            else row.second.sortedBy { order[it.recommendationTitle().key] ?: Int.MAX_VALUE }
+                        personalized.add(row.first to movies)
+                    }
+                    publish(personalized, ranked.firstOrNull())
                 }
             }
         }
@@ -3156,6 +3228,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         forceFirestoreSync: Boolean = false
     ) {
         val profileId = _selectedProfile.value?.id ?: "default"
+        recordDiscoveryPlayback(movie, positionMs, activePlayer?.isPlaying == true ||
+            (sharedExoPlayerDelegate.isInitialized() && sharedExoPlayer.isPlaying))
         val watchedAt = com.example.data.ContinueWatchingEventPolicy.newTimestamp()
         val watchOwner = authenticatedUid()
         // Clamp positionMs to a sane range. A buggy stream manifest can
@@ -3260,6 +3334,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 "season" to season,
                 "episode" to episode,
                 "title" to movie.title,
+                "genreIds" to movie.genreIds,
                 "posterUrl" to movie.posterUrl,
                 "backdropUrl" to movie.backdropUrl,
                 "type" to movie.type,

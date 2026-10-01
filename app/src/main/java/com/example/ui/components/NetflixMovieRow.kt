@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import com.example.discovery.recommendationTitle
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -499,6 +501,8 @@ fun NetflixMovieRow(
                             if (!isHiddenUnderHero) {
                                 MovieCardItem(
                                     movie = movie,
+                                    isReminded = movie.recommendationTitle().key in remindedMovieIds,
+                                    isComingSoonRow = isComingSoonRowCached,
                                     isPortrait = isPortrait,
                                     cardWidth = baseWidth,
                                     height = cardHeight,
@@ -556,6 +560,8 @@ fun NetflixMovieRow(
                         ) {
                             MovieCardItem(
                                 movie = movie,
+                                isReminded = movie.recommendationTitle().key in remindedMovieIds,
+                                isComingSoonRow = isComingSoonRowCached,
                                 isPortrait = false,
                                 cardWidth = expandedWidth,
                                 height = cardHeight,

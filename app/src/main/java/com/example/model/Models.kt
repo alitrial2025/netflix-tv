@@ -117,7 +117,12 @@ data class Movie(
     // -1L, which can collide with sentinel math elsewhere.
     val addedAt: Long = 0L,
     /** Optional external identity; artwork can resolve this through TMDB when absent. */
-    val imdbId: String? = null
+    val imdbId: String? = null,
+    val releaseDate: String? = null,
+    val genreIds: List<Int> = emptyList(),
+    val voteAverage: Double = 0.0,
+    val voteCount: Int = 0,
+    val popularity: Double = 0.0
 )
 
 data class Episode(
