@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Existing application collections retain their supplied account ownership permissions.
+    function accountOwner(uid) { return request.auth != null && request.auth.uid == uid; }
+    match /users/{uid} {
+      allow read, write: if accountOwner(uid);
+    }
+    // Quotas and immutable votes must not inherit a recursive write grant.
+    match /users/{uid}/{collection}/{document=**} {
+      allow read, write: if accountOwner(uid) &&
+        !(collection in ['profiles', 'discovery_votes', 'discovery_days']);
+    }
+    match /users/{uid}/profiles/{profile} {
+      allow read, write: if accountOwner(uid);
+    }
+    // Reminder tombstones are governed only by the validated reminder match below.
+    match /users/{uid}/profiles/{profile}/{collection}/{document=**} {
+      allow read, write: if accountOwner(uid) && collection != 'release_reminders';
+    }
+    match /subscriptions/{uid} {
+      allow read, write: if accountOwner(uid);
+    }
+    match /tv_sessions/{sessionCode} {
+      allow read, write: if true;
+      match /remote_commands/{commandId} {
+        allow read, write: if true;
+      }
+    }
+    function member() { return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function owner(uid) { return member() && request.auth.uid == uid; }
+    function padded(n) { return n < 10 ? '0' + string(n) : string(n); }
+    function today() { return string(request.time.year()) + '-' + padded(request.time.month()) + '-' + padded(request.time.day()); }
+    function quota(day) { return /databases/$(database)/documents/users/$(request.auth.uid)/discovery_days/$(day); }
+    function vote(day, title) { return /databases/$(database)/documents/users/$(request.auth.uid)/discovery_votes/$(day + '_' + title); }
+    function permittedQuota(day) {
+      return existsAfter(quota(day)) && getAfter(quota(day)).data.updatedAt == request.time && getAfter(quota(day)).data.count <= 20;
+    }
+    match /community_trends/{day}/titles/{title} {
+      allow read: if member();
+      allow create, update: if member() && day == today() && title.matches('(movie|tv)_[0-9]+') &&
+        request.resource.data.keys().hasOnly(['key','day','viewers','updatedAt']) &&
+        request.resource.data.key == title.replace('_', ':') && request.resource.data.day == day &&
+        request.resource.data.viewers is int && request.resource.data.updatedAt == request.time &&
+        request.resource.data.viewers == (resource == null ? 1 : resource.data.viewers + 1) &&
+        !exists(vote(day,title)) && existsAfter(vote(day,title)) && getAfter(vote(day,title)).data.createdAt == request.time && permittedQuota(day);
+      allow delete: if false;
+    }
+    match /users/{uid}/profiles/{profile}/release_reminders/{title} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid) && title.matches('(movie|tv)_[0-9]+') &&
+        request.resource.data.keys().hasOnly(['key','enabled','updatedAt']) &&
+        request.resource.data.key == title.replace('_', ':') && request.resource.data.enabled is bool &&
+        request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /users/{uid}/discovery_votes/{voteId} {
+      allow read: if owner(uid);
+      allow create: if owner(uid) && request.resource.data.keys().hasOnly(['day','key','createdAt']) &&
+        request.resource.data.key.matches('(movie|tv):[0-9]+') && request.resource.data.day == today() &&
+        voteId == request.resource.data.day + '_' + request.resource.data.key.replace(':','_') &&
+        request.resource.data.createdAt == request.time && permittedQuota(request.resource.data.day) &&
+        getAfter(/databases/$(database)/documents/community_trends/$(request.resource.data.day)/titles/$(request.resource.data.key.replace(':','_'))).data.updatedAt == request.time;
+      allow update, delete: if false;
+    }
+    match /users/{uid}/discovery_days/{day} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid) && day == today() && request.resource.data.keys().hasOnly(['count','updatedAt']) &&
+        request.resource.data.count is int && request.resource.data.count <= 20 && request.resource.data.updatedAt == request.time &&
+        request.resource.data.count == (resource == null ? 1 : resource.data.count + 1);
+      allow delete: if false;
+    }
+  }
+}

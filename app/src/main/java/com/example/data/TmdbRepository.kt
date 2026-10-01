@@ -185,7 +185,10 @@ class TmdbRepository {
             year = releaseYear,
             type = itemType,
             duration = if (isTv) "Series" else "Feature",
-            logoUrl = logoUrl ?: logoCache[id.toString()]
+            logoUrl = logoUrl ?: logoCache[id.toString()],
+            releaseDate = releaseDate ?: firstAirDate,
+            genreIds = genreIds.map { it.toInt() }, voteAverage = voteAverage ?: 0.0,
+            voteCount = voteCount ?: 0, popularity = popularity ?: 0.0
         )
     }
 

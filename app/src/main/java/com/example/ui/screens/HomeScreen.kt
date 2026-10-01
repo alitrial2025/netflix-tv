@@ -87,20 +87,28 @@ private fun buildHomeTabRows(
 ): List<Pair<String, List<Movie>>> {
     val continueMovies = continueWatchingList.map { it.toMovie() }.filter { !isKidProfile || com.example.model.isKidSafeMovie(it) }.distinctBy { it.id }
     val myListMovies = catalogBuckets.all.filter { myListMovieIds.contains(it.id) }.distinctBy { it.id }
-    val seed = catalogBuckets.all.size + activeTab.hashCode() + profileName.hashCode()
+    val seed = com.example.discovery.ReleasePolicy.day().hashCode() + activeTab.hashCode() + profileName.hashCode()
     val baseRows = buildAlgorithmicRowsForTab(
         activeTab = activeTab,
-        allCatalogMovies = catalogBuckets.all,
-        allMoviesList = catalogBuckets.movies,
-        allSeriesList = catalogBuckets.series,
+        allCatalogMovies = catalogBuckets.all.filter { !it.isComingSoon },
+        allMoviesList = catalogBuckets.movies.filter { !it.isComingSoon },
+        allSeriesList = catalogBuckets.series.filter { !it.isComingSoon },
         continueWatchingMovies = continueMovies,
         myListMovies = myListMovies,
         categoryRows = categoryRows,
         profileName = profileName,
         isKidProfile = isKidProfile,
         randomSeed = seed,
-        myListAddedAt = myListAddedAt
+        myListAddedAt = myListAddedAt,
+        comingSoonMovies = categoryRows.firstOrNull { it.first.contains("Coming Soon") }?.second.orEmpty(),
+        watchHistoryMovies = watchHistoryMovies
     ).filter { it.second.isNotEmpty() }
+    val fresh = categoryRows.firstOrNull { it.first == "New & Hot" }?.second.orEmpty().filter { com.example.discovery.ReleasePolicy.isNew(it.releaseDate) &&
+        (activeTab != "Series" || it.type == "Series") && (activeTab != "Films" || it.type != "Series") }
+    if (fresh.isNotEmpty() && activeTab != "My Netflix") baseRows.toMutableList().let { rows ->
+        rows.add(if (rows.firstOrNull()?.first?.startsWith("Continue Watching") == true) 1 else 0, "New & Hot" to fresh.take(20))
+        return rows
+    }
     return if (activeTab == "My Netflix") {
         val watchedMovies = watchHistoryMovies.mapNotNull { historyMovie ->
             val catalogMovie = if (historyMovie.title == "Watched title") {
@@ -1662,7 +1670,7 @@ private fun HomeRowWrapper(
     }
 
     val isMovieLockedLambda = remember(viewModel) { { movie: Movie -> viewModel.isMovieLocked(movie) } }
-    val onToggleReminderLambda = remember(viewModel) { { movie: Movie -> viewModel.toggleReminder(movie.id) } }
+    val onToggleReminderLambda = remember(viewModel) { { movie: Movie -> viewModel.toggleReminder(movie) } }
 
     rowStateHolder.SaveableStateProvider("carousel") {
         NetflixMovieRow(
