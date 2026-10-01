@@ -41,6 +41,15 @@ class StreamSessionPolicyTest {
         assertTrue(StreamSessionPolicy.isSessionRejected(200, "#EXTM3U\nvideo.m3u8?in=unknown"))
         assertTrue(StreamSessionPolicy.isSessionRejected(200, "{\"error\":\"expired\"}"))
         assertFalse(StreamSessionPolicy.isSessionRejected(503, "Service unavailable"))
+        assertFalse(StreamSessionPolicy.isSessionRejected(200, """{"sources":[{"file":"/mobile/hls/episode.m3u8?in=unknown"}]}"""))
+    }
+
+    @Test fun onlyAnActualProviderCookieCanBeInvalidatedByPlaybackFailure() {
+        assertNull(StreamSessionPolicy.providerCookieHash(null))
+        assertNull(StreamSessionPolicy.providerCookieHash("ott=nf; addhash=fixture"))
+        assertNull(StreamSessionPolicy.providerCookieHash("other_t_hash_t=fixture"))
+        assertNull(StreamSessionPolicy.providerCookieHash("t_hash_t="))
+        assertEquals("fixture", StreamSessionPolicy.providerCookieHash("addhash=other; t_hash_t=fixture; lang=eng"))
     }
 
     @Test fun authenticatedSearchRedirectsAndHtmlTriggerSessionRenewal() {

@@ -424,8 +424,9 @@ fun PlayerScreen(
                         playbackError = "The trailer could not be played."
                         return
                     }
-                    // A signed stream and its cookies expire together. Reusing the
-                    // raw URL with the same headers cannot recover an auth failure.
+                    // A CDN signature can fail while the provider cookie remains
+                    // valid. Refresh this route; renew a cookie only when one was
+                    // actually sent and rejected.
                     viewModel.reportBadSession(activeStream?.headers?.get("Cookie"))
                     viewModel.invalidateStream(movie, listenerSeason, listenerEpisode)
                     if (sessionRecoveryAttempts < 1) {
@@ -1206,11 +1207,8 @@ fun PlayerScreen(
                 onRetry = {
                     if (!viewModel.ownsSharedPlayback(playbackOwner)) return@PlayerErrorOverlay
                     sessionRecoveryAttempts = 0
-                    // If resolution never produced a stream, a rejected cookie may
-                    // have looked like empty search results. Retry with a fresh session.
-                    if (!isTrailerPlayback && activeStream == null && playbackError?.contains("rate limited", ignoreCase = true) != true) {
-                        viewModel.reportBadSession(null)
-                    }
+                    // Resolver verification handles revoked cookies. A missing
+                    // title or CDN failure alone must not force a fresh handshake.
                     if (!isTrailerPlayback && playbackError?.contains("rate limited", ignoreCase = true) == true) {
                         viewModel.evictCachedStream(movie, currentSeason, currentEpisode)
                     } else if (!isTrailerPlayback) {

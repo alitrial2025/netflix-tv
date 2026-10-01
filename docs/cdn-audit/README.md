@@ -49,8 +49,24 @@ A separate controlled test used the normal issued Smallville route and no CDN co
 
 [Full sanitized results](constructed-tokens.json) include stage timings. The second case proves that preserving/reassembling issued fields works. The third case shows that the public client formula used for provider-master requests does not independently authorize this CDN route. This test provides no independent CDN signing key/token service. It completed before publishing a new TV APK.
 
-## Final source validation
+## Initial resolver source validation
 
 The complete TV unit suite passed: **184 tests, 0 failures, 0 errors, 9 skipped** (175 passed). Two Node fixture tests passed; both probe modules passed syntax checks. Debug compilation/assembly and Android lint passed. These checks do not measure Android live first-frame latency. The compiled TV review APK has not been published during this standalone-token investigation.
 
 For independent token issuance, use the [draft provider integration request](provider-integration-request.md). It has not been sent; provider API access is not yet available.
+
+## Kotlin player follow-through — 1 October 2026
+
+The earlier resolver fix was present in Kotlin, but the active TV player still invalidated a **null-cookie** session on CDN 401/403 and on Retry after a missing title. That caused a valid ten-hour cookie to be discarded and the cold handshake to run again. The player, ViewModel and resolver now require an actual rejected provider cookie for invalidation; missing-title Retry and CDN route renewal preserve the session. Positive authenticated-provider rejection and natural expiry still renew normally.
+
+Other remaining integration fixes:
+
+- Only provider origins, mirror handshakes and requests carrying provider cookies use the provider pacing queue. Direct CDN and TMDB calls remain cancellable, honor cooldown/rate-limit checks and generation ownership, and no longer wait behind an unrelated provider request.
+- `playlist.php` JSON may legitimately contain an `in=unknown` master placeholder. The client fills it through the existing normal master flow; the JSON placeholder alone no longer falsely revokes a cookie. Unresolved HLS signatures and actual authorization rejection still fail.
+- A fresh video-only master is complete metadata: playback does not refetch it or probe a guessed audio path. Declared independent audio URIs are preserved without an unreliable HEAD preflight that could discard valid audio. A cached master expires at the earliest declared audio/video token, not just the video timestamp.
+- Route rediscovery retains the title, OTT selection and `SE<showId>=<episodeId>` cookie, including Smallville S4E8. Future opaque signatures follow the same preservation path on initial resolution and retry.
+- Debug-only `RuntimeTiming` markers separate `provider_queue_wait`, `provider_http`, `cdn_http` and `tmdb_http`. They contain elapsed milliseconds, not account data, signed URLs or cookies.
+
+Regression fixtures exercise full playback with independent audio/video hosts and signatures, a known video-only master, direct CDN progress while the provider queue is deliberately held, exact PV Smallville S4E8 selection and route rediscovery, cached repeat with no network calls, and cookie-free failure preservation across app restart. These are Kotlin/Robolectric fixtures, not live Android first-frame or physical-TV measurements. Current Mr. Robot CDN availability remains unverified.
+
+Final follow-through validation: **192 Kotlin unit tests, 0 failures, 0 errors, 9 skipped (183 passed)**; two Node fixture tests, debug assembly and Android lint passed. The updated TV review build is versionCode **29092029**, versionName **1.10.2026.2**, signed with the existing workspace debug certificate. Live Android playback and first-frame performance still require runtime validation.

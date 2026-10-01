@@ -2556,6 +2556,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun reportBadSession(cookieString: String?) {
+        if (com.example.data.StreamSessionPolicy.providerCookieHash(cookieString) == null) return
         synchronized(warmupJobLock) {
             warmupJob?.cancel()
             warmupJob = null

@@ -22,6 +22,12 @@ internal object CdnRoutePolicy {
         val token = parse(java.net.URLDecoder.decode(match.groupValues[1], "UTF-8"))
         token == null || StreamSessionPolicy.isFresh(StreamSessionPolicy.tokenIssuedAt(token.timestamp, now), now)
     }
+    fun earliestManifestExpiry(body: String, fetchedAt: Long): Long? =
+        Regex("""in=([^\s"'<>;&]+)""").findAll(body).mapNotNull { match ->
+            parse(java.net.URLDecoder.decode(match.groupValues[1], "UTF-8"))?.let {
+                StreamSessionPolicy.tokenIssuedAt(it.timestamp, fetchedAt) + StreamSessionPolicy.TTL_MS
+            }
+        }.minOrNull()
     fun videoRoute(body: String): String? {
         val lines = body.lineSequence().map(String::trim).toList()
         val variants = lines.indices.filter { lines[it].startsWith("#EXT-X-STREAM-INF") }

@@ -85,13 +85,19 @@ class DirectCDNSessionCacheTest {
         assertFalse(DirectCDNResolver(context).hasValidSession())
     }
 
-    @Test fun cookieLessCdnFailureClearsSessionAndDependentTokensAcrossRestart() {
+    @Test fun cookieLessCdnFailurePreservesSessionAndOtherTitleRoutesAcrossRestart() {
         prefs.edit().putString("directcdn_sessions", JSONArray().put(session()).toString())
             .putString("directcdn_session", session().toString())
             .putString("freecdn_nonce", "old-token")
             .putString("freecdn_routing_v1", "old-route").commit()
         val resolver = DirectCDNResolver(context)
         resolver.invalidateSessionByCookie(null)
+        assertEquals(0L, resolver.sessionVersion)
+        assertTrue(DirectCDNResolver(context).hasValidSession())
+        assertTrue(prefs.contains("freecdn_nonce"))
+        assertTrue(prefs.contains("freecdn_routing_v1"))
+
+        resolver.invalidateSessionByCookie("addhash=test-addhash; t_hash_t=test-cookie")
         assertEquals(1L, resolver.sessionVersion)
         assertFalse(DirectCDNResolver(context).hasValidSession())
         assertFalse(prefs.contains("directcdn_session"))
@@ -132,7 +138,7 @@ class DirectCDNSessionCacheTest {
         )
         // The cookie is replaced after media resolution, before the caller
         // stores its result or an asynchronous subtitle response returns.
-        resolver.invalidateSessionByCookie(null)
+        resolver.invalidateSessionByCookie("t_hash_t=test-cookie")
         val withCaptions = inFlight.copy(captions = listOf(Caption("https://example.invalid/sub.vtt", "English", "vtt")))
         assertEquals(1L, resolver.sessionVersion)
         assertEquals(0L, resolver.sessionVersionFor(inFlight))

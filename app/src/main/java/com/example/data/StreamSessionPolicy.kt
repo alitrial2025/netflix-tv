@@ -6,6 +6,10 @@ internal class PlaybackRateLimitedException(val retryAfterMs: Long? = null) :
 internal object StreamSessionPolicy {
     const val TTL_MS = 10L * 60 * 60 * 1_000
     const val EXPIRY_MARGIN_MS = 60_000L
+    // A cookie-free signed CDN failure cannot identify a rejected provider session.
+    fun providerCookieHash(cookie: String?): String? = cookie?.split(';')
+        ?.map(String::trim)?.firstOrNull { it.startsWith("t_hash_t=") }
+        ?.substringAfter('=')?.takeIf { it.isNotBlank() }
     private val authError = Regex(
         "\"(?:error|status)\"\\s*:\\s*\"(?:expired|unauthorized|forbidden|invalid_session)\"",
         RegexOption.IGNORE_CASE
@@ -48,7 +52,11 @@ internal object StreamSessionPolicy {
         isWaitingVideo(body) || limitMessage.containsMatchIn(body)
 
     fun isSessionRejected(code: Int, body: String): Boolean = code == 401 || code == 403 ||
-        listOf("in=unknown", "session expired", "token expired", "invalid token", "unauthenticated", "login required", "only valid users allowed")
+        // playlist.php may legitimately provide an unsigned master URL that
+        // the normal client fills in next. Only an unresolved HLS signature is
+        // an auth rejection, not that JSON source placeholder.
+        (body.trimStart().startsWith("#EXTM3U") && body.contains("in=unknown", ignoreCase = true)) ||
+        listOf("session expired", "token expired", "invalid token", "unauthenticated", "login required", "only valid users allowed")
             .any { body.contains(it, ignoreCase = true) } || authError.containsMatchIn(body)
 
     // The authenticated search/post endpoints return JSON. HTML from a captive

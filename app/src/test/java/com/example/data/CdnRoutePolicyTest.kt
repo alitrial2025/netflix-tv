@@ -39,4 +39,10 @@ class CdnRoutePolicyTest {
         assertFalse(CdnRoutePolicy.isCdnSource("https://s23.nm-cdn9.top/files/220884/master.m3u8"))
         try { CdnRoutePolicy.playbackUrl("https://other.invalid/title.m3u8", "s23.nm-cdn9.top", token("su")); fail() } catch (_: java.io.IOException) {}
     }
+    @Test fun independentAudioExpiryCannotBorrowTheLaterVideoTimestamp() {
+        val older = token("su", "audio").replace((now / 1000).toString(), ((now - 3_600_000) / 1000).toString())
+        val master = "#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,URI=\"https://audio.invalid/a.m3u8?in=$older\"\nhttps://video.invalid/video.m3u8?in=${token("su")}"
+        assertEquals(now - 3_600_000 + StreamSessionPolicy.TTL_MS, CdnRoutePolicy.earliestManifestExpiry(master, now))
+        assertNull(CdnRoutePolicy.earliestManifestExpiry("#EXTM3U\nvideo.m3u8?in=opaque-provider-signature", now))
+    }
 }

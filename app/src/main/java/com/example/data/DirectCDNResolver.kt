@@ -187,28 +187,40 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     }
 
     private suspend fun OkHttpClient.fetch(request: Request): HttpTextResponse {
-        return PlaybackServiceGate.request(currentCoroutineContext()[PreviewResolutionContext] != null) {
-        checkPlaybackCooldown()
-        val generation = sessionGeneration.get()
-        val response = fetchText(request)
-        currentCoroutineContext().ensureActive()
-        if (generation != sessionGeneration.get()) throw SessionChangedException()
-        PlaybackServiceGate.checkResponse(response.code, response.body, response.header("Retry-After"), request.url.toString())
-        val cookie = request.header("Cookie")
-        val usesSession = cookie?.contains("t_hash_t=") == true || request.url.queryParameter("in") != null
-        val authPage = cookie?.contains("t_hash_t=") == true && StreamSessionPolicy.isAuthLandingPage(
-            request.url.encodedPath, response.request.url.encodedPath, response.code, response.body
-        )
-        if (usesSession && (StreamSessionPolicy.isSessionRejected(response.code, response.body) || authPage)) {
-            if (cookie?.contains("t_hash_t=") == true) throw SessionRejectedException(cookie)
-            // A rejected CDN signature is not evidence that the ten-hour login cookie expired.
-            throw CdnRouteRejectedException()
+        // The provider's metadata queue must not hold a warm CDN request behind
+        // another title's search, a handshake poll, or a slow TMDB response.
+        val paced = ProviderRequestPolicy.needsPacing(request, activeDomain, DOMAIN_POOL)
+        val queuedAt = com.example.ui.util.RuntimeTiming.start()
+        val stage = if (paced) "provider" else if (request.url.host == "api.themoviedb.org") "tmdb" else "cdn"
+        val execute: suspend () -> HttpTextResponse = {
+            if (paced) com.example.ui.util.RuntimeTiming.elapsed("provider_queue_wait", queuedAt)
+            checkPlaybackCooldown()
+            val generation = sessionGeneration.get()
+            val networkStartedAt = com.example.ui.util.RuntimeTiming.start()
+            val response = try { fetchText(request) } finally {
+                com.example.ui.util.RuntimeTiming.elapsed("${stage}_http", networkStartedAt)
+            }
+            currentCoroutineContext().ensureActive()
+            if (generation != sessionGeneration.get()) throw SessionChangedException()
+            PlaybackServiceGate.checkResponse(response.code, response.body, response.header("Retry-After"), request.url.toString())
+            val cookie = request.header("Cookie")
+            val usesSession = cookie?.contains("t_hash_t=") == true || request.url.queryParameter("in") != null
+            val authPage = cookie?.contains("t_hash_t=") == true && StreamSessionPolicy.isAuthLandingPage(
+                request.url.encodedPath, response.request.url.encodedPath, response.code, response.body
+            )
+            if (usesSession && (StreamSessionPolicy.isSessionRejected(response.code, response.body) || authPage)) {
+                if (cookie?.contains("t_hash_t=") == true) throw SessionRejectedException(cookie)
+                // A rejected CDN signature is not evidence that the ten-hour login cookie expired.
+                throw CdnRouteRejectedException()
+            }
+            if (cookie?.contains("t_hash_t=") == true && StreamSessionPolicy.isUnexpectedAuthenticatedHtml(
+                    request.url.encodedPath, response.code, response.body
+                )) throw AuthenticatedEndpointUnavailableException()
+            response
         }
-        if (cookie?.contains("t_hash_t=") == true && StreamSessionPolicy.isUnexpectedAuthenticatedHtml(
-                request.url.encodedPath, response.code, response.body
-            )) throw AuthenticatedEndpointUnavailableException()
-        response
-        }
+        return if (paced) {
+            PlaybackServiceGate.request(currentCoroutineContext()[PreviewResolutionContext] != null, execute)
+        } else execute()
     }
 
     private val OTT_SEARCH_ORDER = listOf("nf", "pv", "hs", "dp", "hb", "atp", "pm", "pc", "hlu")
@@ -887,6 +899,14 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         Nonce(it.timestamp, it.hash2, System.currentTimeMillis(), it.hash1, it.suffix, it.mode)
     }
 
+    private suspend fun nonceForRoute(route: RouteEntry, contentId: String, ott: String): Nonce =
+        routeNonce(route.freecdnUrl, route.fetchedAt)?.takeIf(::nonceIsFresh)
+            ?: if (!route.freecdnUrl.toHttpUrlOrNull()?.queryParameter("in").isNullOrBlank()) {
+                // Future opaque signatures can be used exactly as issued. Do
+                // not replace one by asking an unrelated legacy nonce endpoint.
+                Nonce((route.fetchedAt / 1000).toString(), "", route.fetchedAt)
+            } else ensureFreshNonce(contentId, ott)
+
     private fun masterTokenFor(contentId: String): String {
         val t = (System.currentTimeMillis() / 1000).toString()
         val md = MessageDigest.getInstance("MD5")
@@ -1346,7 +1366,6 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         }
 
         for (sObj in seasonsToFetch) {
-            if (sObj == null) continue
             val sVal = sObj.optString("s").ifBlank { sObj.optString("season") }.ifBlank { sObj.optString("name") }.ifBlank { sObj.optString("title") }
                 .lowercase().replace("season", "").replace("s", "").trim()
             var seasonNum = sVal.toIntOrNull()
@@ -1556,13 +1575,15 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                             }
 
                             // If fileUrl is relative (e.g. /mobile/pv/hls/...)
-                            var fullHlsUrl = if (fileUrl.startsWith("http")) fileUrl else "https://$domain$fileUrl"
+                            val sourceHlsUrl = "https://$domain/".toHttpUrlOrNull()?.resolve(fileUrl)
+                                ?: throw java.io.IOException("Invalid provider master source")
                             val token = masterTokenFor(contentId)
-                            if (fullHlsUrl.contains("in=unknown")) {
-                                fullHlsUrl = fullHlsUrl.replace(Regex("""in=unknown(?:::ek)?"""), "in=$token")
-                            } else if (!fullHlsUrl.contains("in=")) {
-                                fullHlsUrl += (if (fullHlsUrl.contains("?")) "&" else "?") + "in=$token"
-                            }
+                            val sourceSignature = sourceHlsUrl.queryParameter("in")
+                            val fullHlsUrl = if (sourceSignature.isNullOrBlank() || sourceSignature.startsWith("unknown")) {
+                                // Replace the entire placeholder value, including
+                                // future mode tails; retain unrelated query fields.
+                                sourceHlsUrl.newBuilder().setQueryParameter("in", token).build().toString()
+                            } else sourceHlsUrl.toString()
 
                             try {
                                 val hlsReq = Request.Builder()
@@ -1928,8 +1949,8 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
             getPrefs().edit().putString(ROUTING_KEY, json.toString()).remove(NONCE_KEY).apply()
 
             if (!isRetry) {
-                val freshRoute = discoverHost(contentId, "", "", ott)
-                val freshNonce = routeNonce(freshRoute.freecdnUrl, freshRoute.fetchedAt)?.takeIf(::nonceIsFresh) ?: refreshNonceFromNet52(contentId, ott)
+                val freshRoute = discoverHost(contentId, title, showId, ott)
+                val freshNonce = nonceForRoute(freshRoute, contentId, ott)
                 return@withContext fetchManifest(freshRoute.host, contentId, freshNonce, freshRoute.freecdnUrl, isRetry = true, ott = ott, title = title, showId = showId, purpose = purpose)
             }
             throw Exception("DirectCDN manifest invalid (${body.length}B, HTTP ${res.code})")
@@ -1964,7 +1985,10 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
 
         // Construct master multivariant playlist with all real audio tracks from net52
         var masterBody = masterManifestCache[contentId]?.takeIf { CdnRoutePolicy.manifestTokensAreFresh(it, System.currentTimeMillis()) }
-        if (masterBody.isNullOrBlank() || !masterBody.contains("#EXT-X-MEDIA:TYPE=AUDIO")) {
+        // A valid video-only master is complete metadata. Refetching it and
+        // guessing a legacy audio path adds two requests without discovering
+        // audio the provider actually declared.
+        if (masterBody.isNullOrBlank()) {
             try {
                 val session = ensureSession()
                 val domain = session.domain
@@ -1988,10 +2012,10 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                 val res = metadataClient.fetch(req)
                 val bodyText = res.body
 
-                if (bodyText.contains("#EXTM3U") && bodyText.contains("#EXT-X-MEDIA:TYPE=AUDIO")) {
+                if (bodyText.trimStart().startsWith("#EXTM3U")) {
                     masterBody = bodyText
                     putTransientCache(masterManifestCache, contentId, bodyText, 12)
-                    Log.d("DirectCDN", "✅ Fetched real master HLS from net52 with all audio tracks for $contentId")
+                    Log.d("DirectCDN", "✅ Fetched provider master HLS metadata for $contentId")
                 }
             } catch (e: Exception) { rethrowControlFailure(e);
                 Log.w("DirectCDN", "Could not fetch master HLS from net52 for $contentId: ${e.message}")
@@ -2080,17 +2104,12 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                 i++
             }
 
-            // Verify primary audio track exists on FreeCDN before using cleanedMaster
-            val firstAudioMatch = Regex("""#EXT-X-MEDIA:TYPE=AUDIO[^\r\n]*URI="([^"]+)"""").find(processed)
-            val audioUrl = firstAudioMatch?.groupValues?.get(1)
-            val isAudioValid = if (!audioUrl.isNullOrBlank()) checkAudioTrackExists(audioUrl) else false
-            if (isAudioValid) {
-                cleanedMaster = sb.toString()
-            } else {
-                Log.w("DirectCDN", "Master HLS audio track missing or 404; using muxed audio")
-                cleanedMaster = null
-            }
-        } else {
+            // Signed audio URIs from the provider are authoritative. Some CDN
+            // routes accept GET but reject HEAD; discarding the entire audio
+            // group after probing its first (possibly non-default) track can
+            // turn a valid video-only variant into silent playback.
+            cleanedMaster = sb.toString()
+        } else if (masterBody.isNullOrBlank()) {
             // Check if separate audio track exists on FreeCDN before synthesizing master playlist
             val candidateAudioUrl = "https://$host/files/$contentId/a/0/0.m3u8?in=$inToken"
             val hasSeparateAudio = checkAudioTrackExists(candidateAudioUrl)
@@ -2121,12 +2140,17 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
             }
         }
 
+        val videoExpiry = StreamSessionPolicy.tokenIssuedAt(nonce.ts, nonce.fetchedAt) + NONCE_TTL_MS
+        // Independent audio signatures can expire sooner than the video's.
+        // A cached local master must refresh before its earliest signed track.
+        val playbackExpiry = cleanedMaster?.let { CdnRoutePolicy.earliestManifestExpiry(it, nonce.fetchedAt) }
+            ?.let { minOf(videoExpiry, it) } ?: videoExpiry
         DirectCDNStream(
             url = playUrl,
             headers = headers,
             captions = combinedCaptions,
             sourceId = "DirectCDN",
-            expiresAt = StreamSessionPolicy.tokenIssuedAt(nonce.ts, nonce.fetchedAt) + NONCE_TTL_MS,
+            expiresAt = playbackExpiry,
             title = "",
             rawVideoUrl = videoUrl
         )
@@ -2321,11 +2345,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         com.example.ui.util.AppDiagnosticsLogger.event("Stream", "🌐 Route resolved host: ${route.host} (contentId=$contentId)")
 
         // 4. Ensure nonce is fresh (1 call per 10h)
-        val nonce = routeNonce(route.freecdnUrl, route.fetchedAt)?.takeIf(::nonceIsFresh)
-            ?: if (!route.freecdnUrl.toHttpUrlOrNull()?.queryParameter("in").isNullOrBlank()) {
-                // An unfamiliar opaque provider signature can still be used as issued.
-                Nonce((route.fetchedAt / 1000).toString(), "", route.fetchedAt)
-            } else ensureFreshNonce(contentId, ott)
+        val nonce = nonceForRoute(route, contentId, ott)
 
         // 5. Fetch manifest from freecdn directly
         val manifest = fetchManifest(route.host, contentId, nonce, route.freecdnUrl, ott = ott, title = effectiveTitle, showId = showId, purpose = purpose)
@@ -2366,10 +2386,10 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
 
     fun invalidateSessionByCookie(cookieString: String?) {
         synchronized(sessionStateLock) {
-            val rejectedHash = cookieString?.substringAfter("t_hash_t=", "")?.substringBefore(";")
+            val rejectedHash = StreamSessionPolicy.providerCookieHash(cookieString) ?: return
             val pool = loadStoredSessions()
             // Ignore a delayed failure from a cookie that has already been replaced.
-            if (!rejectedHash.isNullOrBlank() && pool.isNotEmpty() && pool.none { it.tHashTEncoded == rejectedHash }) return
+            if (pool.isNotEmpty() && pool.none { it.tHashTEncoded == rejectedHash }) return
             clearSessionState()
         }
     }
