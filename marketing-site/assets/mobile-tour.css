@@ -17,9 +17,9 @@
 #phoneContent::-webkit-scrollbar { display:none; }
 .phone-device__gesture { position:absolute; bottom:14px; width:100px; height:4px; background:#888; border-radius:4px; left:50%; transform:translateX(-50%); pointer-events:none; }
 .phone-view { min-height:100%; padding:0 14px 32px; font-size:13px; background:#000; color:#fff; }
-.phone-view .app-icon { width:21px; height:21px; fill:currentColor; flex:0 0 auto; }
+.phone-device .app-icon { width:21px; height:21px; fill:currentColor; flex:0 0 auto; }
 .phone-view button { touch-action:manipulation; }
-.phone-view svg[fill="none"] { fill:none; }
+.phone-device svg[fill="none"] { fill:none; }
 .phone-header { display:flex; height:52px; align-items:center; gap:12px; }
 .phone-header h3 { font-size:19px; letter-spacing:-.2px; flex:1; }
 .phone-header button { display:grid; place-items:center; width:30px; min-height:36px; flex-shrink:0; }
@@ -31,7 +31,7 @@
 .phone-categories button:last-child { border-radius:5px 24px 24px 5px; }
 .phone-hero { position:relative; overflow:hidden; border-radius:13px; border:1px solid #ffffff50; background:#33352a; box-shadow:0 5px 15px #0005,inset 0 1px #ffffff20; }
 .phone-hero__poster { width:100%; height:430px; object-fit:cover; object-position:center 28%; }
-.phone-hero__copy { position:relative; margin-top:-145px; padding:38px 14px 14px; background:linear-gradient(transparent,#303126d9 40%,#303126); }
+.phone-hero__copy { position:relative; margin-top:-145px; padding:38px 14px 14px; background:linear-gradient(transparent,#303126 40%,#303126); }
 .phone-title-logo { width:83%; max-height:55px; object-fit:contain; margin:0 auto 14px; }
 .phone-hero__tags { font-size:10px; color:#ddd; text-align:center; margin-bottom:14px; }
 .phone-actions { display:flex; gap:10px; }

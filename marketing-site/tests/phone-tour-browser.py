@@ -28,6 +28,9 @@ with sync_playwright() as p:
   page.wait_for_timeout(260)
   assert page.locator(f'[data-phone-screen="{screen}"]').get_attribute('aria-pressed')=='true'
   assert page.locator('.phone-bottom').count()==(1 if screen in ['home','search'] else 0)
+  if screen in ['home','search']:
+   assert page.locator('.phone-bottom').bounding_box()['height'] <= 70
+   assert page.locator('.phone-bottom .app-icon').evaluate_all('(icons)=>icons.every(icon=>icon.getBoundingClientRect().width<=24&&icon.getBoundingClientRect().height<=24)')
   assert page.locator('#phoneContent img').evaluate_all('(images)=>images.every(image=>image.complete&&image.naturalWidth>0)')
   page.locator('#phone-tour').screenshot(path=str(out/f'{screen}-desktop.png'))
   checks.append(screen)
