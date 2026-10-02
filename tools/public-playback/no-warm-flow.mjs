@@ -92,7 +92,7 @@ export class NoWarmFlow {
         await response.body?.cancel();
         return await this.request(stage, next.href, binary);
       }
-      const cap = binary ? 65536 : ['www.primevideo.com','www.netflix.com'].includes(url.hostname) ? 6 * 1048576 : 1048576;
+      const cap = binary ? 65536 : ['www.primevideo.com','www.netflix.com','www.airtelxstream.in'].includes(url.hostname) ? 6 * 1048576 : 1048576;
       const reader = response.body?.getReader(); const chunks = []; let size = 0;
       if (reader) {
         while (true) {

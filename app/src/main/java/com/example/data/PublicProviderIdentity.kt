@@ -47,6 +47,20 @@ internal object PublicProviderIdentity {
             ids("P1874",Regex("[0-9]{5,20}")).map { it to "nf" } +
             ids("P14440",Regex("[A-Z0-9]{10,30}")).map { it to "pv" }).distinct()
     }
+    fun matchesAirtel(html: String, title: String, year: String): Boolean {
+        val displayedYear = Regex("""id=["']banner-content-release-year["'][^>]*>\s*([0-9]{4})\s*<""").find(html)?.groupValues?.get(1)
+        if (displayedYear != year) return false
+        val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>",RegexOption.IGNORE_CASE)
+        return scripts.findAll(html).any { match ->
+            val obj = try { JSONObject(match.groupValues[1]) } catch (_: org.json.JSONException) { return@any false }
+            obj.optString("@type") == "VideoObject" && normalize(obj.optString("name")) == normalize(title)
+        }
+    }
+    fun linkedHotstarIds(html: String): List<String> {
+        val unescaped = html.replace("\\/","/")
+        return Regex("""https://(?:www\.)?hotstar\.com/[^"\s\\<>]*?/([0-9]{5,20})(?=[/?"\s\\<>]|$)""")
+            .findAll(unescaped).map { it.groupValues[1] }.distinct().toList()
+    }
     fun matchesNetflix(html: String, title: String, year: String, type: String): Boolean {
         val scripts = Regex("""<script[^>]*type=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
         return scripts.findAll(html).any { match ->

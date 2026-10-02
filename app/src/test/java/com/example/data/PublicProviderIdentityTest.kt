@@ -10,6 +10,14 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicProviderIdentityTest {
+    @Test fun partnerIdsAreNotAssumedToBeNativeMovieIdsAndOfficialMetadataMustMatch() {
+        val page = """<p id="banner-content-release-year">2023</p><script>{"@type":"VideoObject","name":"Tumse Na Ho Payega"}</script><a href="https://www.hotstar.com/in/movies/tumse-na-ho-payega/1260149193">Watch</a>"""
+        assertTrue(PublicProviderIdentity.matchesAirtel(page,"Tumse Na Ho Payega","2023"))
+        assertFalse(PublicProviderIdentity.matchesAirtel(page,"Tumse Na Ho Payega","2024"))
+        assertFalse(PublicProviderIdentity.matchesAirtel(page,"Other movie","2023"))
+        assertEquals(listOf("1260149193"),PublicProviderIdentity.linkedHotstarIds(page))
+        assertTrue(PublicProviderIdentity.linkedHotstarIds(page.replace("hotstar.com","hotstar.com.evil.test")).isEmpty())
+    }
     @Test fun officialNetflixMetadataRejectsWrongRemakesAndMediaTypes() {
         val html = """<script type="application/ld+json">{"@type":"Movie","name":"Road House","datePublished":"1989-05-19"}</script>"""
         assertTrue(PublicProviderIdentity.matchesNetflix(html,"Road House","1989","movie"))

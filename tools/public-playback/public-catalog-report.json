@@ -776,14 +776,26 @@
       "type": "tv",
       "season": 1,
       "episode": 1,
-      "success": false,
+      "tmdbId": "194764",
+      "success": true,
       "handshakes": 0,
       "authenticationCookiesSent": false,
-      "tokenGeneration": false,
+      "tokenGeneration": true,
       "guessedIds": false,
-      "failedStage": "public_native_identity",
-      "error": "verified_public_identity_unavailable",
-      "elapsedMs": 3183,
+      "providerId": "1971003606",
+      "yearVerified": true,
+      "contentId": "1971117507",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 8841,
       "events": [
         {
           "stage": "search",
@@ -794,7 +806,7 @@
           ],
           "status": 200,
           "sampledBytes": 148,
-          "elapsedMs": 331
+          "elapsedMs": 1163
         },
         {
           "stage": "search",
@@ -805,7 +817,7 @@
           ],
           "status": 200,
           "sampledBytes": 914,
-          "elapsedMs": 267
+          "elapsedMs": 351
         },
         {
           "stage": "search",
@@ -816,43 +828,104 @@
           ],
           "status": 200,
           "sampledBytes": 76,
-          "elapsedMs": 244
+          "elapsedMs": 233
         },
         {
-          "stage": "tmdb_identity",
-          "host": "api.themoviedb.org",
-          "path": "/3/search/tv",
-          "queryKeys": [
-            "api_key",
-            "query"
-          ],
-          "status": 200,
-          "sampledBytes": 11675,
-          "elapsedMs": 527
-        },
-        {
-          "stage": "tmdb_external_identity",
-          "host": "api.themoviedb.org",
-          "path": "/3/tv/194764/external_ids",
-          "queryKeys": [
-            "api_key"
-          ],
-          "status": 200,
-          "sampledBytes": 214,
-          "elapsedMs": 150
-        },
-        {
-          "stage": "public_native_identity",
-          "host": "www.wikidata.org",
-          "path": "/wiki/Special:EntityData/Q111189743.json",
+          "stage": "public_partner_identity",
+          "host": "www.airtelxstream.in",
+          "path": "/tv-shows/the-penguin/HOTSTAR_DTH_TVSHOW_1971003606",
           "queryKeys": [],
           "status": 200,
-          "sampledBytes": 56708,
-          "elapsedMs": 1639
+          "sampledBytes": 852325,
+          "elapsedMs": 2690
+        },
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2056,
+          "elapsedMs": 233
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2056,
+          "elapsedMs": 232
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 221
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1971117507.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 1267,
+          "elapsedMs": 231
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 12856,
+          "elapsedMs": 964
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/720p/5424_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 542
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 12358,
+          "elapsedMs": 1378
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/a/0/5424_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 458
         }
       ],
       "requestedCatalog": "hb",
-      "actualCatalog": "hb"
+      "actualCatalog": "hs"
     },
     {
       "ott": "atp",
@@ -871,7 +944,7 @@
       "seasonSource": "verified_mapping_input",
       "mappingSource": "https://www.primevideo.com/detail/0MEYJKN34E2DBOY4OY7Z31N4Q4",
       "seasonId": "0MEYJKN34E2DBOY4OY7Z31N4Q4",
-      "episodeTitle": "Failure’s Contagious",
+      "episodeTitle": "Failure\u2019s Contagious",
       "contentId": "0LJR5CFZYHXPDPVS240PDG6WQ8",
       "masterRequestMode": "existing_app_public_ek_m",
       "videoSample": {
@@ -1528,5 +1601,5 @@
       "actualCatalog": "hs"
     }
   ],
-  "successCount": 10
+  "successCount": 11
 }

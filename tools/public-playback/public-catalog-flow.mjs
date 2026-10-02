@@ -53,7 +53,7 @@ export function netflixSeasons(html, title) {
   return new Map(pairs);
 }
 export class PublicCatalogFlow extends NoWarmFlow {
-  constructor(options = {}) {super({...options, appClientMode:true}); this.tmdbKey = options.tmdbKey}
+  constructor(options = {}) {super({...options, appClientMode:true}); this.tmdbKey = options.tmdbKey; this.hotstarIndex = options.hotstarIndex ?? []}
   async nativeIdentity(t) {
     let tmdbId = t.tmdbId;
     if (!tmdbId) {
@@ -69,6 +69,27 @@ export class PublicCatalogFlow extends NoWarmFlow {
     if (t.type === 'tv' && tmdbId === '1399' && t.year === 2011) ids = ['1971002880'];
     else if (t.type === 'tv' && tmdbId === '95350' && t.year === 2026) ids = ['1271680756'];
     else {
+      for (const row of this.hotstarIndex.filter(r => r[0] === t.type && r[1] === norm(t.title)).slice(0,3)) {
+        const [,,partnerId,path] = row;
+        if (!/^\/(?:movies|tv-shows)\/[a-z0-9-]+\/HOTSTAR_DTH_(?:MOVIE|TVSHOW)_\d{5,20}$/.test(path)) continue;
+        const page = await this.request('public_partner_identity', 'https://www.airtelxstream.in'+path);
+        if (page.body.match(/id=["']banner-content-release-year["'][^>]*>\s*(\d{4})\s*</)?.[1] !== String(t.year)) continue;
+        let matched = false;
+        for (const m of page.body.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
+          try {const j = JSON.parse(m[1]); if (j['@type'] === 'VideoObject' && norm(j.name) === norm(t.title)) matched = true} catch {}
+        }
+        if (!matched) continue;
+        const unescaped = page.body.replace(/\\\//g,'/');
+        const linked = [...unescaped.matchAll(/https:\/\/(?:www\.)?hotstar\.com\/[^"\s\\<>]*?\/(\d{5,20})(?=[/?"\s\\<>]|$)/g)].map(m => m[1]);
+        const candidates = [...new Set([...(partnerId.length >= 10 ? [partnerId] : []),...linked])];
+        for (const id of candidates.slice(0,3)) {
+          const d = await this.json('public_identity_validation','/mobile/hs/post.php',{id});
+          const title = t.type === 'tv' ? d.title?.replace(/\s+(?:S|Season\s+)\d+$/i,'') : d.title;
+          if (d.status === 'y' && norm(title) === norm(t.title) && d.type === (t.type === 'tv' ? 't' : 'm') && (t.type === 'tv' || Number(d.year) === t.year)) {
+            t.ott = 'hs'; return {id,yearVerified:Number(d.year) === t.year};
+          }
+        }
+      }
       const external = (await this.request('tmdb_external_identity', `https://api.themoviedb.org/3/${t.type}/${tmdbId}/external_ids?api_key=${this.tmdbKey}`)).data;
       if (!/^Q[1-9]\d*$/.test(external?.wikidata_id ?? '')) return null;
       const entity = (await this.request('public_native_identity', `https://www.wikidata.org/wiki/Special:EntityData/${external.wikidata_id}.json`)).data;
@@ -117,8 +138,9 @@ async function main() {
     {ott:'hs',title:'Game of Thrones',year:2011,type:'tv',season:1,episode:1,tmdbId:'1399'},
     {ott:'hs',title:'Lanterns',year:2026,type:'tv',season:1,episode:1,tmdbId:'95350'}];
   const report = {at:new Date().toISOString(),cookieFree:true,handshakes:0,scope:'Bounded HLS video/audio container samples; Android decoding and complete-title availability are not proven.',results:[]};
+  const hotstarIndex = JSON.parse(await readFile(option('--hotstar-index') || new URL('../../app/src/main/assets/public-hotstar-catalog.json',import.meta.url),'utf8')).rows;
   for (const input of targets) {
-    const t = {...input}; const f = new PublicCatalogFlow({tmdbKey,titleTimeoutMs:65000,requestTimeoutMs:15000});
+    const t = {...input}; const f = new PublicCatalogFlow({tmdbKey,hotstarIndex,titleTimeoutMs:65000,requestTimeoutMs:15000});
     const result = await f.run(t); result.requestedCatalog = input.ott; result.actualCatalog = t.ott;
     report.results.push(result); report.successCount = report.results.filter(r => r.success).length;
     await writeFile(option('--report') || 'public-catalog-report.json', JSON.stringify(report,null,2));

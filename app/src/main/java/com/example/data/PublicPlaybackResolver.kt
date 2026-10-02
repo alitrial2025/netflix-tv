@@ -83,6 +83,19 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             val seeded = PublicProviderIdentity.seed(tmdbId, type, year)
             val indexed = catalog?.candidates(type, tmdbId).orEmpty()
             validateCandidates(indexed.filter { it !in attempted }, title, year, type)?.let { return it }
+            for ((partnerId, path) in catalog?.hotstarTitles(type,title).orEmpty().take(3)) {
+                try {
+                    val page = text(("https://www.airtelxstream.in" + path).toHttpUrl(), publicNetflix = true)
+                    requireSuccess(page)
+                    if (!PublicProviderIdentity.matchesAirtel(page.body,title,year)) continue
+                    // Series partner IDs can retain older working native IDs; movie partner IDs often cannot.
+                    val nativeIds = (if (partnerId.length >= 10) listOf(partnerId) else emptyList()) +
+                        PublicProviderIdentity.linkedHotstarIds(page.body)
+                    validateCandidates(nativeIds.distinct().map { it to "hs" }.filter { it !in attempted },title,year,type)?.let { return it }
+                } catch (rate: PlaybackRateLimitedException) { throw rate }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: IOException) { }
+            }
             val ids = if (seeded != null) listOf(seeded) else {
                 val externalUrl = "https://api.themoviedb.org/3/$type/$tmdbId/external_ids".toHttpUrl().newBuilder()
                     .addQueryParameter("api_key", com.example.BuildConfig.TMDB_API_KEY).build()

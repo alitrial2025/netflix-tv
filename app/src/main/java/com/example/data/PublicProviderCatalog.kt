@@ -25,6 +25,27 @@ internal class PublicProviderCatalog(context: Context) {
             result.mapValues { it.value.distinct() }
         } catch (_: Exception) { emptyMap() }
     }
+    private val hotstarTitles by lazy {
+        try {
+            val root = JSONObject(app.assets.open("public-hotstar-catalog.json").bufferedReader().use { it.readText() })
+            val rows = root.optJSONArray("rows") ?: JSONArray()
+            val result = mutableMapOf<String, MutableList<Pair<String, String>>>()
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONArray(i) ?: continue
+                val type = row.optString(0); val title = row.optString(1)
+                val id = row.optString(2); val path = row.optString(3)
+                if (type !in listOf("movie","tv") || title.isBlank() || !valid("hs",id) ||
+                    !path.matches(Regex("/(?:movies|tv-shows)/[a-z0-9-]+/HOTSTAR_DTH_(?:MOVIE|TVSHOW)_[0-9]{5,20}"))) continue
+                result.getOrPut("$type:$title") { mutableListOf() }.add(id to path)
+            }
+            result.mapValues { it.value.distinct() }
+        } catch (_: Exception) { emptyMap() }
+    }
+    fun hotstarTitles(type: String, title: String): List<Pair<String, String>> {
+        val normalized = java.text.Normalizer.normalize(title,java.text.Normalizer.Form.NFKD)
+            .replace(Regex("\\p{M}"),"").lowercase(java.util.Locale.ROOT).replace(Regex("[^a-z0-9]"),"")
+        return hotstarTitles["$type:$normalized"].orEmpty()
+    }
     private val verified by lazy {
         try { file.openRead().use { JSONObject(it.bufferedReader().readText()) } }
         catch (_: Exception) { JSONObject() }

@@ -15,6 +15,9 @@ class PublicProviderCatalogTest {
         val store = PublicProviderCatalog(context)
         assertTrue(store.candidates("movie", "238").any { it.second == "nf" })
         assertTrue(store.candidates("invalid", "238").isEmpty())
+        assertTrue(store.hotstarTitles("tv","The Penguin").any { it.first == "1971003606" })
+        assertTrue(store.hotstarTitles("movie","The Penguin").isEmpty())
+        assertTrue(store.hotstarTitles("movie","Tumse Na Ho Payega").any { it.first == "1091922" })
         val key = "fixture:movie:238:thegodfather:1972"
         store.evict(key)
         assertNull(store.verified(key, 100_000L))

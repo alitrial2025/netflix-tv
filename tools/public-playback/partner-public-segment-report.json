@@ -1,0 +1,343 @@
+{
+  "at": "2026-10-02T19:06:17.646Z",
+  "cookieFree": true,
+  "handshakes": 0,
+  "scope": "Bounded HLS video/audio container samples; Android decoding and complete-title availability are not proven.",
+  "results": [
+    {
+      "ott": "hb",
+      "title": "The Penguin",
+      "year": 2024,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "tmdbId": "194764",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1971003606",
+      "yearVerified": true,
+      "contentId": "1971117507",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 8841,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 148,
+          "elapsedMs": 1163
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 351
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 76,
+          "elapsedMs": 233
+        },
+        {
+          "stage": "public_partner_identity",
+          "host": "www.airtelxstream.in",
+          "path": "/tv-shows/the-penguin/HOTSTAR_DTH_TVSHOW_1971003606",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 852325,
+          "elapsedMs": 2690
+        },
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2056,
+          "elapsedMs": 233
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2056,
+          "elapsedMs": 232
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 221
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1971117507.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 1267,
+          "elapsedMs": 231
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 12856,
+          "elapsedMs": 964
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/720p/5424_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 542
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 12358,
+          "elapsedMs": 1378
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/a/0/5424_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 458
+        }
+      ],
+      "requestedCatalog": "hb",
+      "actualCatalog": "hs"
+    },
+    {
+      "ott": "hs",
+      "title": "Tumse Na Ho Payega",
+      "year": 2023,
+      "type": "movie",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1260149193",
+      "yearVerified": true,
+      "contentId": "1260149193",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 13045,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 31,
+          "elapsedMs": 294
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 229
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 76,
+          "elapsedMs": 230
+        },
+        {
+          "stage": "tmdb_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/search/movie",
+          "queryKeys": [
+            "api_key",
+            "query"
+          ],
+          "status": 200,
+          "sampledBytes": 568,
+          "elapsedMs": 738
+        },
+        {
+          "stage": "public_partner_identity",
+          "host": "www.airtelxstream.in",
+          "path": "/movies/tumse-na-ho-payega/HOTSTAR_DTH_MOVIE_1091922",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 892904,
+          "elapsedMs": 4692
+        },
+        {
+          "stage": "tmdb_external_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/movie/1177634/external_ids",
+          "queryKeys": [
+            "api_key"
+          ],
+          "status": 200,
+          "sampledBytes": 121,
+          "elapsedMs": 503
+        },
+        {
+          "stage": "public_native_identity",
+          "host": "www.wikidata.org",
+          "path": "/wiki/Special:EntityData/Q122781628.json",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 7454,
+          "elapsedMs": 2527
+        },
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 1229,
+          "elapsedMs": 426
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 844,
+          "elapsedMs": 246
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1260149193.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 643,
+          "elapsedMs": 247
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s35.freecdn34.top",
+          "path": "/files/1260149193/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 27903,
+          "elapsedMs": 1253
+        },
+        {
+          "stage": "video_sample",
+          "host": "s35.freecdn34.top",
+          "path": "/files/1260149193/720p/8785_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 369
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s35.freecdn34.top",
+          "path": "/files/1260149193/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 26578,
+          "elapsedMs": 883
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s35.freecdn34.top",
+          "path": "/files/1260149193/a/0/8785_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 387
+        }
+      ],
+      "requestedCatalog": "hs",
+      "actualCatalog": "hs"
+    }
+  ],
+  "successCount": 2
+}
