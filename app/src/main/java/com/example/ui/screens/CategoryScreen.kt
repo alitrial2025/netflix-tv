@@ -19,7 +19,6 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +58,7 @@ fun CategoryScreen(
     onPlayMovie: (Movie) -> Unit,
     onMovieClick: (Movie) -> Unit
 ) {
+    androidx.activity.compose.BackHandler(onBack = onBack)
     val categoryRows by viewModel.categoryRows.collectAsStateWithLifecycle()
     val activeMovie by viewModel.currentMovie.collectAsStateWithLifecycle()
     val continueWatchingList by viewModel.continueWatchingList.collectAsStateWithLifecycle()
@@ -136,12 +136,10 @@ fun CategoryScreen(
     }
 
     // Focus state levels:
-    // -2: Back Button / Header Bar
     // -1: Billboard Section (Hero)
     //  0..N-1: Movie Rows
     var currentFocusLevel by remember { mutableIntStateOf(-1) }
 
-    val backButtonFocusRequester = remember { FocusRequester() }
     val billboardFocusRequester = remember { FocusRequester() }
     val moreInfoFocusRequester = remember { FocusRequester() }
     val rowFocusRequesters = remember(displayedCategoryRows.size) {
@@ -211,13 +209,6 @@ fun CategoryScreen(
     val billboardHeight = 435.dp
     val headerOffset = 28.dp
 
-    // perf: hoist the back-button focus state to the CategoryScreen scope.
-    // The original had `var isBackFocused by remember { mutableStateOf(false) }`
-    // inside the Row's content lambda. The remember slot survives, but having
-    // the State declared in a top-level scope makes ownership obvious and lets
-    // us reuse the State across lambdas in the same body.
-    var isBackFocused by remember { mutableStateOf(false) }
-
     val targetScrollY by remember {
         derivedStateOf {
             when {
@@ -272,7 +263,7 @@ fun CategoryScreen(
                                 val rowHeightPxValue = with(density) { rowHeight.toPx() }
                                 val levelShift = (-currentOffset / rowHeightPxValue).roundToInt()
                                 val maxLevel = displayedCategoryRows.size - 1
-                                val newLevel = (currentFocusLevel + levelShift).coerceIn(-2, maxLevel)
+                                val newLevel = (currentFocusLevel + levelShift).coerceIn(-1, maxLevel)
                                 currentFocusLevel = newLevel
                                 manualTouchOffsetAnim.animateTo(
                                     targetValue = 0f,
@@ -312,7 +303,7 @@ fun CategoryScreen(
                                             currentFocusLevel++
                                         }
                                     } else if (scrollDelta < 0f) {
-                                        if (currentFocusLevel > -2) {
+                                        if (currentFocusLevel > -1) {
                                             currentFocusLevel--
                                         }
                                     }
@@ -332,74 +323,13 @@ fun CategoryScreen(
                     .graphicsLayer { translationY = animatedScrollY.value.toPx() + manualTouchOffsetAnim.value }
                     .padding(bottom = 120.dp)
             ) {
-                // Header Bar with Back Button & Category Title
+                // Category accent divider and title begin at the screen margin.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // perf: hoist the focus callback so the lambda identity is
-                    // stable across recompositions — otherwise the Box modifier
-                    // chain is rebuilt on every parent recomposition.
-                    val onBackFocusChanged = remember<(androidx.compose.ui.focus.FocusState) -> Unit> {
-                        { state ->
-                            isBackFocused = state.isFocused
-                            if (state.isFocused) currentFocusLevel = -2
-                        }
-                    }
-                    // perf: hoist the onDpadDown lambda so the Box modifier chain
-                    // is not rebuilt on every parent recomposition.
-                    val onBackDpadDown = remember<() -> Boolean> {
-                        {
-                            currentFocusLevel = -1
-                            try { billboardFocusRequester.requestFocus() } catch (_: Exception) {}
-                            true
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            // a11y: 48dp minimum TV touch target. Original was
-                            // 8dp padding + 24dp icon = 40dp, below the recommended
-                            // 48dp; bump padding to 12dp so the surface is 48dp.
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(if (isBackFocused) Color.White.copy(alpha = 0.25f) else Color.Transparent)
-                            .border(
-                                width = if (isBackFocused) 2.dp else 0.dp,
-                                color = if (isBackFocused) Color.White else Color.Transparent,
-                                shape = CircleShape
-                            )
-                            // perf: focusable() must come BEFORE onFocusChanged()
-                            // so the modifier chain is in a sensible order
-                            // (focusable declares the focus target, then
-                            // onFocusChanged observes it). The original had them
-                            // reversed which made the focus state fire only on
-                            // the first gain/loss, not on subsequent ones.
-                            .focusRequester(backButtonFocusRequester)
-                            .focusable()
-                            .onFocusChanged(onBackFocusChanged)
-                            .handleTvDpadNavigation(
-                                onDpadDown = onBackDpadDown
-                            )
-                            // a11y: explicitly mark the back button as a Button
-                            // role for TalkBack/screen readers. The Icon inside is
-                            // decorative (the box itself is the clickable target).
-                            .semantics { role = androidx.compose.ui.semantics.Role.Button }
-                            .clickable { onBack() }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            // a11y: icon is decorative; the parent Box carries
-                            // the Button role and is the screen-reader target.
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
                     Box(
                         modifier = Modifier
                             .width(4.dp)
@@ -441,9 +371,8 @@ fun CategoryScreen(
                 }
                 val onBillboardDpadUp = remember<() -> Boolean> {
                     {
-                        currentFocusLevel = -2
-                        try { backButtonFocusRequester.requestFocus() } catch (_: Exception) {}
-                        true
+                        currentFocusLevel = -1
+                        false
                     }
                 }
                 BillboardSection(
