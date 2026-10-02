@@ -29,10 +29,10 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
     private data class SeasonCache(val expiresAt: Long, val seasons: Map<Int, String>)
     private val netflixSeasons = ConcurrentHashMap<String, SeasonCache>()
 
-    suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int): PublicPlaybackResult = withTimeout(45_000L) {
+    suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String = ""): PublicPlaybackResult = withTimeout(45_000L) {
         if (title.isBlank() || type !in listOf("movie", "tv") || type == "tv" && (season < 1 || episode < 1))
             throw IOException("Invalid title or episode selection")
-        Run().resolve(title, year, type, season, episode)
+        Run().resolve(title, year, type, season, episode, tmdbId)
     }
 
     private inner class Run {
@@ -75,8 +75,34 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             } } catch (e: org.json.JSONException) { throw IOException("Invalid playback metadata", e) }
         }
 
-        private suspend fun search(title: String, year: String): Pair<String, String> {
-            for (ott in CATALOGS) {
+        private suspend fun publicIdentity(tmdbId: String, type: String, title: String, year: String): Pair<String, String>? {
+            if (!tmdbId.matches(Regex("\\d+"))) return null
+            val seeded = PublicProviderIdentity.seed(tmdbId, type, year)
+            val ids = if (seeded != null) listOf(seeded) else {
+                val externalUrl = "https://api.themoviedb.org/3/$type/$tmdbId/external_ids".toHttpUrl().newBuilder()
+                    .addQueryParameter("api_key", com.example.BuildConfig.TMDB_API_KEY).build()
+                val externalResponse = text(externalUrl, publicNetflix = true)
+                requireSuccess(externalResponse)
+                val wikidataId = JSONObject(externalResponse.body).optString("wikidata_id")
+                if (!wikidataId.matches(Regex("Q[1-9][0-9]*"))) return null
+                val entityResponse = text("https://www.wikidata.org/wiki/Special:EntityData/$wikidataId.json".toHttpUrl(), publicNetflix = true)
+                requireSuccess(entityResponse)
+                PublicProviderIdentity.hotstarIds(entityResponse.body, wikidataId)
+            }
+            for (id in ids.take(3)) {
+                val data = json("/mobile/hs/post.php", "id" to id) as? JSONObject ?: continue
+                // TV catalogs commonly report the most recent season year, not the first-air year.
+                if (PublicProviderIdentity.matches(data, title, year, type)) return id to "hs"
+            }
+            return null
+        }
+
+        private suspend fun search(title: String, year: String, type: String, tmdbId: String): Pair<String, String> {
+            // Known public mappings avoid cookie-gated search. Other titles use TMDB -> Wikidata identifiers.
+            PublicProviderIdentity.seed(tmdbId, type, year)?.let {
+                publicIdentity(tmdbId, type, title, year)?.let { match -> return match }
+            }
+            for (ott in listOf("nf", "pv")) {
                 val paths = if (ott == "nf") listOf("/search.php", "/mobile/search.php") else listOf("${prefix(ott)}/search.php")
                 for (path in paths) {
                     val data = try { json(path, "s" to title) } catch (e: IOException) {
@@ -97,7 +123,8 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     matches.singleOrNull()?.let { val id = id(it); if (id.isNotBlank()) return id to ott }
                 }
             }
-            throw IOException("No exact provider match for this title and year")
+            publicIdentity(tmdbId, type, title, year)?.let { return it }
+            throw IOException("No verified public provider identity is available for this title")
         }
 
         private suspend fun publicSeasons(showId: String, title: String): Map<Int, String> {
@@ -149,8 +176,8 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             throw IOException("Requested episode S${season}E${episode} is unavailable")
         }
 
-        suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int): PublicPlaybackResult {
-            val (showId, ott) = search(title, year)
+        suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult {
+            val (showId, ott) = search(title, year, type, tmdbId)
             val contentId = if (type == "tv") episodeId(showId, ott, title, season, episode) else showId
             val data = json("${prefix(ott)}/playlist.php", "id" to contentId, "t" to title, "tm" to (System.currentTimeMillis() / 1000).toString())
             val item = (data as? JSONObject) ?: (data as? JSONArray)?.optJSONObject(0) ?: throw IOException("Issued playlist unavailable")

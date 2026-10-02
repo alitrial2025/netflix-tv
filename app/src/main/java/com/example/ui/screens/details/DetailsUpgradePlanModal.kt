@@ -36,9 +36,9 @@ fun UpgradePlanModal(
     onUpgradeConfirm: (planId: String, planName: String) -> Unit,
     onWatchTrailer: () -> Unit
 ) {
-    var selectedPlanId by remember { mutableStateOf("plan_standard") }
+    var selectedPlanId by remember { mutableStateOf(if (currentPlanName == "Guest") "plan_basic" else "plan_standard") }
     val plans = remember {
-        SubscriptionPlans.PLANS.filter { it.id == "plan_standard" || it.id == "plan_premium" }
+        SubscriptionPlans.PLANS.filter { it.id != "plan_mobile" }
     }
     val initialPlanFocusRequester = remember { FocusRequester() }
 
@@ -84,7 +84,7 @@ fun UpgradePlanModal(
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = stringResource(R.string.upgrade_modal_title),
+                        text = "Subscribe to watch the full story",
                         color = Color.White,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
@@ -94,7 +94,7 @@ fun UpgradePlanModal(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = lockReason,
+                    text = "$lockReason\nChoose a plan in the NetflixPro mobile app using this account. Or continue with the official trailer.",
                     color = Color.LightGray,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center
@@ -205,7 +205,7 @@ fun UpgradePlanModal(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.upgrade_modal_cta),
+                                text = "Subscribe on your phone",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
@@ -236,7 +236,7 @@ fun UpgradePlanModal(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.upgrade_modal_watch_trailer),
+                                text = "Continue with trailer",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold

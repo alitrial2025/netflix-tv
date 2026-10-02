@@ -9,7 +9,7 @@ service cloud.firestore {
     // Quotas and immutable votes must not inherit a recursive write grant.
     match /users/{uid}/{collection}/{document=**} {
       allow read, write: if accountOwner(uid) &&
-        !(collection in ['profiles', 'discovery_votes', 'discovery_days']);
+        !(collection in ['profiles', 'discovery_votes', 'discovery_days', 'device_binding', 'stream_slots']);
     }
     match /users/{uid}/profiles/{profile} {
       allow read, write: if accountOwner(uid);
@@ -21,11 +21,50 @@ service cloud.firestore {
     match /subscriptions/{uid} {
       allow read, write: if accountOwner(uid);
     }
-    match /tv_sessions/{sessionCode} {
-      allow read, write: if true;
-      match /remote_commands/{commandId} {
-        allow read, write: if true;
-      }
+    // Removed client-only pairing must not expose account/session data anonymously.
+    match /tv_sessions/{sessionCode}/{document=**} {
+      allow read, write: if false;
+    }
+    function currentPlan(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)/subscription/current).data;
+    }
+    function paid(uid) {
+      let sub = currentPlan(uid);
+      return sub.planId in ['plan_mobile','plan_basic','plan_standard','plan_premium'] &&
+        sub.status in ['ACTIVE','GRACE_PERIOD'] && sub.expiresAt is int && sub.expiresAt > 0 &&
+        request.time.toMillis() < sub.expiresAt + 172800000;
+    }
+    function binding(uid) {
+      return /databases/$(database)/documents/users/$(uid)/device_binding/current;
+    }
+    function screenCount(uid) {
+      let id = currentPlan(uid).planId;
+      return id == 'plan_premium' ? 4 : (id == 'plan_standard' ? 2 : 1);
+    }
+    match /users/{uid}/device_binding/current {
+      allow read: if owner(uid);
+      allow create: if owner(uid) && paid(uid) && currentPlan(uid).planId in ['plan_mobile','plan_basic'] &&
+        request.resource.data.keys().hasOnly(['deviceId','deviceType','boundAt']) &&
+        request.resource.data.deviceId.matches('[a-f0-9]{64}') &&
+        request.resource.data.deviceType in ['mobile','tv'] &&
+        (currentPlan(uid).planId != 'plan_mobile' || request.resource.data.deviceType == 'mobile') &&
+        request.resource.data.boundAt == request.time;
+      allow update, delete: if false;
+    }
+    match /users/{uid}/stream_slots/{slot} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid) && paid(uid) && slot in ['0','1','2','3'] && int(slot) < screenCount(uid) &&
+        request.resource.data.keys().hasOnly(['deviceId','deviceType','lastHeartbeat','released','leaseToken']) &&
+        request.resource.data.deviceId.matches('[a-f0-9]{64}') &&
+        request.resource.data.deviceType in ['mobile','tv'] && request.resource.data.released is bool &&
+        request.resource.data.leaseToken is string && request.resource.data.leaseToken.size() == 36 &&
+        request.resource.data.lastHeartbeat == request.time &&
+        (currentPlan(uid).planId != 'plan_mobile' || request.resource.data.deviceType == 'mobile') &&
+        (!(currentPlan(uid).planId in ['plan_mobile','plan_basic']) ||
+          (exists(binding(uid)) && get(binding(uid)).data.deviceId == request.resource.data.deviceId)) &&
+        (resource == null || resource.data.deviceId == request.resource.data.deviceId || resource.data.released ||
+          resource.data.lastHeartbeat <= request.time - duration.value(45, 's'));
+      allow delete: if false;
     }
     function member() { return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
     function owner(uid) { return member() && request.auth.uid == uid; }

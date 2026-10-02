@@ -135,4 +135,21 @@ class PublicPlaybackResolverTest {
         catch (e: IOException) { assertEquals("Playback metadata requires authorization", e.message) }
         assertEquals(listOf("/search.php"), seen.map { it.url.encodedPath })
     }
+    @Test fun lanternsUsesItsPublicNativeIdWithoutSearchOrCookieHandshake() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/mobile/hs/post.php" -> """{"status":"y","title":"Lanterns","year":"2026","type":"t","episodes":[{"id":"1271684191","s":"S1","ep":"E1"}]}""" to 200
+                "/mobile/hs/playlist.php" -> """[{"sources":[{"file":"/mobile/hs/hls/1271684191.m3u8?in=unknown::ek"}]}]""" to 200
+                "/mobile/hs/hls/1271684191.m3u8" -> "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=500000\nhttps://s1.freecdn1.top/video/issued.m3u8?in=issued" to 200
+                "/video/issued.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.jpg\n#EXT-X-ENDLIST" to 200
+                else -> throw AssertionError("Unexpected endpoint ${request.url.encodedPath}")
+            }
+        })
+        val result = resolver.resolve("Lanterns", "2026", "tv", 1, 1, "95350")
+        assertEquals("hs", result.ott)
+        assertEquals("1271684191", result.contentId)
+        assertTrue(seen.none { it.url.encodedPath.contains("search") || it.url.encodedPath.contains("verify") })
+    }
+
 }

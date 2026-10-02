@@ -1121,88 +1121,11 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     if (user != null) {
                         val uid = user.uid
 
-                        // Check subscription plan in Firestore before accepting login
-                        var detectedPlanId = ""
-                        var detectedPlanName = ""
-                        var detectedStatus = ""
-                        var expiresAt = 0L
-
-                        withContext(Dispatchers.IO) {
-                            try {
-                                val db = FirebaseFirestore.getInstance()
-
-                                // 1. Check users/{uid}/subscription/current
-                                val subDoc = db.collection("users").document(uid)
-                                    .collection("subscription").document("current")
-                                    .get().await()
-                                if (subDoc.exists()) {
-                                    detectedPlanId = subDoc.getString("planId") ?: ""
-                                    detectedPlanName = subDoc.getString("planName") ?: ""
-                                    detectedStatus = subDoc.getString("status") ?: ""
-                                    expiresAt = subDoc.getLong("expiresAt") ?: 0L
-                                }
-
-                                // 2. Check users/{uid} root document if not found
-                                if (detectedPlanId.isBlank() && detectedPlanName.isBlank()) {
-                                    val userDoc = db.collection("users").document(uid).get().await()
-                                    if (userDoc.exists()) {
-                                        detectedPlanId = userDoc.getString("planId")
-                                            ?: userDoc.getString("plan")
-                                            ?: userDoc.getString("subscriptionPlan") ?: ""
-                                        detectedPlanName = userDoc.getString("planName") ?: ""
-                                        detectedStatus = userDoc.getString("status")
-                                            ?: userDoc.getString("subscriptionStatus") ?: ""
-                                        expiresAt = userDoc.getLong("expiresAt") ?: 0L
-                                    }
-                                }
-
-                                // 3. Check subscriptions/{uid} if present
-                                if (detectedPlanId.isBlank() && detectedPlanName.isBlank()) {
-                                    val directSubDoc = db.collection("subscriptions").document(uid).get().await()
-                                    if (directSubDoc.exists()) {
-                                        detectedPlanId = directSubDoc.getString("planId")
-                                            ?: directSubDoc.getString("plan") ?: ""
-                                        detectedPlanName = directSubDoc.getString("planName") ?: ""
-                                        detectedStatus = directSubDoc.getString("status") ?: ""
-                                        expiresAt = directSubDoc.getLong("expiresAt") ?: 0L
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.w("NetflixViewModel", "Error checking subscription on login: ${e.message}")
-                            }
-                        }
-
-                        val planIdClean = detectedPlanId.trim().lowercase()
-                        val planNameClean = detectedPlanName.trim().lowercase()
-                        val isMobilePlan = planIdClean == "plan_mobile" ||
-                                planIdClean == "mobile" ||
-                                planIdClean.contains("mobile") ||
-                                planNameClean.contains("mobile")
-
-                        if (isMobilePlan) {
-                            // Mobile plan is restricted to phones/tablets - reject login on TV
-                            try {
-                                auth.signOut()
-                            } catch (_: Exception) {}
-                            val msg = "Your account is on the Mobile Plan which does not support TV login. Please upgrade your plan to Basic, Standard, or Premium to sign in on TV."
-                            _authEvents.trySend(AuthEvent.Error(msg))
-                            onError(msg)
-                            return@withLock
-                        }
-
-                        // For all other plans (Basic, Standard, Premium, etc.), accept login.
-                        // Audit fix: when no plan was found on the server, we
-                        // previously forced the user to plan_standard + ACTIVE,
-                        // which is a free upgrade. The right thing is to leave
-                        // the user in PENDING_ACTIVATION and let the Firestore
-                        // subscription listener populate the real plan once it
-                        // connects. If a real plan IS reported by the server,
-                        // trust it.
-                        val finalPlanId = detectedPlanId
-                        val finalPlanName = detectedPlanName
-                        val finalStatus = detectedStatus.takeUnless {
-                            it.isBlank() || it.equals("NONE", ignoreCase = true)
-                        } ?: "PENDING_ACTIVATION"
+                        val checked = com.example.data.DeviceAccessGuard.confirm(getApplication(), tv = true)
+                        val finalPlanId = checked.getString("planId") ?: "plan_guest"
+                        val finalPlanName = checked.getString("planName") ?: "Guest"
+                        val finalStatus = checked.getString("status") ?: "NONE"
+                        val expiresAt = checked.getLong("expiresAt") ?: 0L
 
                         val previousUid = prefs.getString("paired_user_id", null)
                         if (!previousUid.isNullOrBlank() && previousUid != uid) {
@@ -1269,6 +1192,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     // contain pieces of the credential failure path or partial
                     // identifiers. Map known error classes to user-friendly copy.
                     val rawMsg = (e.localizedMessage ?: e.message ?: "Sign in failed")
+                    if (e is com.example.data.DeviceAccessException || e is com.example.data.MembershipCheckException) {
+                        signOutFromTv()
+                        _authEvents.trySend(AuthEvent.Error(e.message ?: "Membership could not be verified."))
+                        onError(e.message ?: "Membership could not be verified.")
+                        return@withLock
+                    }
                     val friendlyMsg = when {
                         rawMsg.contains("password", ignoreCase = true) || rawMsg.contains("credential", ignoreCase = true) ->
                             "Incorrect password. Please try again."
@@ -1307,6 +1236,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun signOutFromTv() {
+        com.example.data.DeviceAccessGuard.clear()
+        stopStreamHeartbeat()
         if (releaseRefreshJob != null) sharedReleaseReminders.close()
         profileListenerGeneration.incrementAndGet()
         profileSnapshotGeneration.incrementAndGet()
@@ -2770,6 +2701,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     suspend fun resolveStream(movie: Movie, season: Int = 1, episode: Int = 1, purpose: com.example.data.StreamPurpose = com.example.data.StreamPurpose.PLAYBACK): com.example.data.NetMirrorStream? {
         val ownerUid = authenticatedUid() ?: return null
         if (!_userSubscription.value.isTvAllowed || isMovieLocked(movie)) return null
+        if (!confirmPlaybackAccess(movie)) return null
         // Count the wait for a pending warmup, session renewal, and manifest
         // discovery together. A first Play must finish or fail within a minute.
         return kotlinx.coroutines.withTimeoutOrNull(58_000L) {
@@ -3002,7 +2934,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 movie.title.contains("Oppenheimer", ignoreCase = true) ||
                 movie.title.contains("Squid", ignoreCase = true) ||
                 movie.year == "2026" || movie.year == "2025"
-        return _userSubscription.value.isMovieLocked(
+        val sub = _userSubscription.value
+        val uid = authenticatedUid() ?: return true
+        if (!com.example.data.DeviceAccessGuard.isConfirmed(uid, sub.planId, sub.expiresAt, sub.status)) return true
+        return sub.isMovieLocked(
             movieId = movie.id,
             releaseYear = movie.year,
             isTrendingOrVip = isVipOrBlockbuster,
@@ -3053,7 +2988,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                             }
                             return@addSnapshotListener
                         }
-                        if (snapshot?.metadata?.hasPendingWrites() == true) return@addSnapshotListener
+                        if (snapshot?.metadata?.hasPendingWrites() == true || snapshot?.metadata?.isFromCache == true) return@addSnapshotListener
                         if (snapshot != null && snapshot.exists()) {
                             if (!snapshot.metadata.isFromCache) runCatching { snapshot.getTimestamp("updatedAt")?.toDate()?.time }.getOrNull()?.let {
                                 com.example.data.SubscriptionTime.observeServerTimestamp(it)
@@ -3083,8 +3018,20 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                                 cancellationReason = snapshot.getString("cancellationReason"),
                                 gracePeriodEndsAt = snapshot.getLong("gracePeriodEndsAt")
                             )
-                            _userSubscription.value = sub
-                            saveStoredSubscription(sub)
+                            viewModelScope.launch {
+                                try {
+                                    val checked = com.example.data.DeviceAccessGuard.confirm(getApplication(), tv = true)
+                                    if (authenticatedUid() != targetUid || checked.getString("planId") != sub.planId || checked.getLong("expiresAt") != sub.expiresAt || checked.getString("status") != sub.status) return@launch
+                                    _userSubscription.value = sub
+                                    saveStoredSubscription(sub)
+                                } catch (cancelled: CancellationException) { throw cancelled }
+                                catch (blocked: com.example.data.DeviceAccessException) {
+                                    signOutFromTv()
+                                    android.widget.Toast.makeText(getApplication(), blocked.message, android.widget.Toast.LENGTH_LONG).show()
+                                } catch (_: Exception) {
+                                    if (authenticatedUid() == targetUid) _userSubscription.value = com.example.model.UserSubscription()
+                                }
+                            }
                         } else {
                             _userSubscription.value = com.example.model.UserSubscription()
                             saveStoredSubscription(_userSubscription.value)
@@ -3136,58 +3083,40 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     private var remoteCommandListener: com.google.firebase.firestore.ListenerRegistration? = null
     private var streamHeartbeatJob: kotlinx.coroutines.Job? = null
 
+    suspend fun confirmPlaybackAccess(movie: Movie): Boolean {
+        val owner = authenticatedUid() ?: return false
+        com.example.data.DeviceAccessGuard.confirm(getApplication(), tv = true)
+        if (authenticatedUid() != owner || isMovieLocked(movie)) return false
+        com.example.data.ScreenLease.acquire(getApplication(), tv = true)
+        return authenticatedUid() == owner && !isMovieLocked(movie)
+    }
+
     fun startStreamHeartbeat(mediaTitle: String) {
-        val targetUid = authenticatedUid() ?: return
-        val deviceId = prefs.getString("tv_device_id", null) ?: "tv_${System.currentTimeMillis()}".also {
-            prefs.edit().putString("tv_device_id", it).apply()
-        }
+        val owner = authenticatedUid() ?: return
         streamHeartbeatJob?.cancel()
-        streamHeartbeatJob = viewModelScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                try {
-                    if (FirebaseApp.getApps(getApplication()).isNotEmpty()) {
-                        val db = FirebaseFirestore.getInstance()
-                        val data = hashMapOf(
-                            "deviceId" to deviceId,
-                            "deviceName" to "Android TV",
-                            "mediaTitle" to mediaTitle,
-                            "lastHeartbeat" to System.currentTimeMillis()
-                        )
-                        // active_streams is not in the policy map (it's
-                        // a write-only ephemeral collection, not a
-                        // conflict domain). The policy check returns
-                        // true for any unknown field, so the write
-                        // proceeds. We still log the policy lookup so a
-                        // future schema change that DOES add a
-                        // SERVER_ONLY field to active_streams (e.g.
-                        // "isBillable") is caught by the existing
-                        // log line.
-                        ConflictResolver.policyFor(Collections.ACTIVE_STREAMS, "lastHeartbeat")
-                            ?: android.util.Log.d(
-                                "Sync",
-                                "policy=DEFAULT_WRITE field=lastHeartbeat collection=active_streams"
-                            )
-                        db.collection("users").document(targetUid).collection(Collections.ACTIVE_STREAMS).document(deviceId)
-                            .set(data, SetOptions.merge())
+        streamHeartbeatJob = viewModelScope.launch {
+            while (isActive && authenticatedUid() == owner) {
+                try { com.example.data.ScreenLease.acquire(getApplication(), tv = true) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (error: Exception) {
+                    com.example.data.DeviceAccessGuard.clear()
+                    _userSubscription.value = UserSubscription()
+                    if (sharedExoPlayerDelegate.isInitialized()) {
+                        sharedExoPlayer.stop()
+                        sharedExoPlayer.clearMediaItems()
                     }
-                } catch (_: Exception) {}
-                kotlinx.coroutines.delay(20_000L)
+                    android.widget.Toast.makeText(getApplication(), error.message ?: "Reconnect to verify your screens.", android.widget.Toast.LENGTH_LONG).show()
+                    com.example.data.ScreenLease.release()
+                    return@launch
+                }
+                delay(20_000L)
             }
         }
     }
 
     fun stopStreamHeartbeat() {
         streamHeartbeatJob?.cancel()
-        val targetUid = authenticatedUid() ?: return
-        val deviceId = prefs.getString("tv_device_id", null) ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (FirebaseApp.getApps(getApplication()).isNotEmpty()) {
-                    FirebaseFirestore.getInstance().collection("users").document(targetUid)
-                        .collection("active_streams").document(deviceId).delete()
-                }
-            } catch (_: Exception) {}
-        }
+        com.example.data.ScreenLease.releaseIn(viewModelScope)
     }
 
     private var lastFirestoreSyncTimestamp = 0L

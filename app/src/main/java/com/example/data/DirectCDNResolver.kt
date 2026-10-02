@@ -2289,7 +2289,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         val key = "${type}_${movie.id}_${season}_${episode}"
         streamCache[key]?.takeIf { it.sessionVersion == generation && it.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS }?.let { return@withTimeoutOrNull it }
         val info = getTmdbInfo(movie.id, type, movie.title, movie.year)
-        val source = publicPlayback.resolve(info.title, info.year, type, season, episode)
+        val source = publicPlayback.resolve(info.title, info.year, type, season, episode, movie.id)
         val stream = NetMirrorStream(source.url, source.headers, source.captions, "Public HLS [${source.ott.uppercase()}]", source.expiresAt, info.title, sessionVersion = generation)
         currentCoroutineContext().ensureActive()
         synchronized(sessionStateLock) {
