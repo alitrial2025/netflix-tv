@@ -29,7 +29,7 @@ fun playbackMediaSource(
         .setAllowCrossProtocolRedirects(true)
         .setConnectTimeoutMs(30_000)
         .setReadTimeoutMs(90_000)
-        .setDefaultRequestProperties(stream.headers)
+        .setDefaultRequestProperties(stream.headers.filterKeys { !it.equals("Cookie", true) && !it.equals("Authorization", true) })
     val item = MediaItem.Builder().setUri(url).setMediaId(mediaId)
     streamMimeTypeForUrl(url)?.let(item::setMimeType)
     // HLS subtitle playlists belong to the manifest, not the single-file VTT loader.

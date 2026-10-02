@@ -113,13 +113,20 @@ jobs:
             app/build/outputs/apk/release/*.apk
             app/build/outputs/apk/release/output-metadata.json
             release-badging.txt
-      - name: Save private symbols and release reports
+      - name: Encrypt release symbols
+        env:
+          SYMBOLS_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+        run: |
+          tar -czf release-symbols.tar.gz -C app/build/outputs/mapping release
+          printf '%s' "$SYMBOLS_PASSWORD" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 --output release-symbols.tar.gz.gpg release-symbols.tar.gz
+          rm -f release-symbols.tar.gz
+      - name: Save encrypted symbols and release reports
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: release-symbols-and-reports
           path: |
-            app/build/outputs/mapping/release/
+            release-symbols.tar.gz.gpg
             app/build/reports/
       - name: Remove temporary credentials
         if: always()

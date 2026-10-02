@@ -1,6 +1,8 @@
 package com.example.ui.screens.details
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,7 +49,7 @@ fun UpgradePlanModal(
         try { initialPlanFocusRequester.requestFocus() } catch (_: Exception) {}
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.85f)),
@@ -66,11 +68,11 @@ fun UpgradePlanModal(
             ),
             modifier = Modifier
                 .width(520.dp)
-                .wrapContentHeight()
-                .padding(24.dp)
+                .heightIn(max = maxHeight - 32.dp)
+                .padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(
