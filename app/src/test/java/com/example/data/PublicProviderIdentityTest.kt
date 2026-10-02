@@ -10,6 +10,12 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicProviderIdentityTest {
+    @Test fun officialNetflixMetadataRejectsWrongRemakesAndMediaTypes() {
+        val html = """<script type="application/ld+json">{"@type":"Movie","name":"Road House","datePublished":"1989-05-19"}</script>"""
+        assertTrue(PublicProviderIdentity.matchesNetflix(html,"Road House","1989","movie"))
+        assertFalse(PublicProviderIdentity.matchesNetflix(html,"Road House","2024","movie"))
+        assertFalse(PublicProviderIdentity.matchesNetflix(html,"Road House","1989","tv"))
+    }
     @Test fun seriesLastSeasonYearDoesNotRejectAnAuthoritativeShowId() {
         assertTrue(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Game Of Thrones","type":"t","year":"2019"}"""), "Game of Thrones", "2011", "tv"))
         assertFalse(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Game Of Thrones","type":"m","year":"2011"}"""), "Game of Thrones", "2011", "tv"))

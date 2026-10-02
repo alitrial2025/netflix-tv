@@ -33,6 +33,44 @@ internal object PublicProviderIdentity {
                 ?.takeIf { it.matches(Regex("\\d{5,20}")) }
         }.plus(websiteIds).distinct()
     }
+    fun nativeIds(json: String, entityId: String): List<Pair<String, String>> {
+        val claims = JSONObject(json).optJSONObject("entities")?.optJSONObject(entityId)?.optJSONObject("claims") ?: return emptyList()
+        fun ids(property: String, pattern: Regex): List<String> {
+            val rows = claims.optJSONArray(property) ?: org.json.JSONArray()
+            return (0 until rows.length()).mapNotNull { i ->
+                val claim = rows.optJSONObject(i) ?: return@mapNotNull null
+                if (claim.optString("rank") == "deprecated") return@mapNotNull null
+                claim.optJSONObject("mainsnak")?.optJSONObject("datavalue")?.optString("value")?.takeIf(pattern::matches)
+            }
+        }
+        return (hotstarIds(json,entityId).map { it to "hs" } +
+            ids("P1874",Regex("[0-9]{5,20}")).map { it to "nf" } +
+            ids("P14440",Regex("[A-Z0-9]{10,30}")).map { it to "pv" }).distinct()
+    }
+    fun matchesNetflix(html: String, title: String, year: String, type: String): Boolean {
+        val scripts = Regex("""<script[^>]*type=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
+        return scripts.findAll(html).any { match ->
+            val data = try { org.json.JSONTokener(match.groupValues[1]).nextValue() } catch (_: org.json.JSONException) { null }
+            val rows = if (data is JSONObject) listOf(data) else if (data is org.json.JSONArray)
+                (0 until data.length()).mapNotNull(data::optJSONObject) else emptyList()
+            rows.any { normalize(it.optString("name")) == normalize(title) &&
+                it.optString("@type").contains(if (type == "tv") "TVSeries" else "Movie") &&
+                (type == "tv" || it.optString("datePublished").take(4) == year) }
+        }
+    }
+    fun matchesPrime(html: String, title: String, year: String, type: String): Boolean {
+        val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
+        return scripts.findAll(html).any { match ->
+            val root = try { JSONObject(match.groupValues[1]) } catch (_: org.json.JSONException) { return@any false }
+            val details = root.optJSONObject("init")?.optJSONObject("preparations")?.optJSONObject("body")
+                ?.optJSONObject("atf")?.optJSONObject("state")?.optJSONObject("detail")?.optJSONObject("headerDetail") ?: return@any false
+            details.keys().asSequence().mapNotNull(details::optJSONObject).count {
+                val name = if (type == "tv") it.optString("title").replace(Regex("(?i)\\s*[-:]?\\s*Season\\s+\\d+$"), "") else it.optString("title")
+                normalize(name) == normalize(title) && it.optString("titleType") == (if (type == "tv") "season" else "movie") &&
+                    (type == "tv" || listOf("releaseYear", "releaseDate", "year").any { field -> it.optString(field).take(4) == year })
+            } == 1
+        }
+    }
     fun matches(data: JSONObject, title: String, year: String, type: String): Boolean =
         data.optString("status") == "y" && normalize(if (type == "tv") data.optString("title").replace(Regex("(?i)\\s+(?:S|Season\\s+)\\d+$"), "") else data.optString("title")) == normalize(title) &&
             data.optString("type") == (if (type == "tv") "t" else "m") &&

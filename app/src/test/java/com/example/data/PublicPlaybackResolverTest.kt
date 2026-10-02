@@ -16,6 +16,23 @@ import java.io.IOException
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicPlaybackResolverTest {
+    @Test fun staleNetflixPlaylistFallsBackToExactPrimeIdentityWithoutCookies() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/search.php" -> """{"searchResult":[{"id":"81458416","t":"Fixture Film","y":"2024"}]}""" to 200
+                "/mobile/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
+                "/mobile/playlist.php" -> "[]" to 200
+                "/mobile/pv/search.php" -> """{"searchResult":[{"id":"0O70LSZ5KT12QBNQRUQGGRIWDP","t":"Fixture Film","y":"2024"}]}""" to 200
+                "/mobile/pv/playlist.php" -> """{"sources":[{"file":"https://cdn.example/master.m3u8?in=issued"}]}""" to 200
+                "/master.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts" to 200
+                else -> throw AssertionError("Unexpected request")
+            }
+        })
+        assertEquals("pv",resolver.resolve("Fixture Film","2024","movie",0,0).ott)
+        assertEquals(1,seen.count { it.url.encodedPath == "/mobile/playlist.php" })
+        assertFalse(seen.any { it.header("Cookie") != null || it.header("Authorization") != null })
+    }
     private val html = """<script type="application/ld+json">{"@type":"TVSeries","name":"Smallville"}</script><select name="seasonSelect"><option value="60031634">Season 1</option><option value="70037632">Season 4</option></select><a href="/title/99999">Recommendation</a>"""
     private fun client(seen: MutableList<Request>, body: (Request) -> Pair<String, Int>) = OkHttpClient.Builder().addInterceptor { chain ->
         val request = chain.request(); seen += request

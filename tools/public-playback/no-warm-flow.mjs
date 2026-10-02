@@ -80,10 +80,19 @@ export class NoWarmFlow {
     const event = { stage, host: url.host, path: url.pathname, queryKeys: [...new Set(url.searchParams.keys())] };
     this.events.push(event); const start = Date.now();
     try {
-      const response = await fetch(url, { headers, redirect: 'error', credentials: 'omit',
+      const response = await fetch(url, { headers, redirect: 'manual', credentials: 'omit',
         signal: AbortSignal.timeout(Math.min(this.requestTimeoutMs, remaining)) });
       event.status = response.status;
-      const cap = binary ? 65536 : 1048576;
+      if ([301,302,307,308].includes(response.status) && url.hostname === 'www.netflix.com') {
+        const next = new URL(response.headers.get('location') || '', url);
+        const titleId = url.pathname.match(/\/title\/(\d+)$/)?.[1];
+        if (!titleId || next.protocol !== 'https:' || next.hostname !== 'www.netflix.com' ||
+            !next.pathname.endsWith(`/title/${titleId}`) || (this.netflixRedirects = (this.netflixRedirects || 0) + 1) > 3)
+          fail('invalid_public_catalog_redirect', stage);
+        await response.body?.cancel();
+        return await this.request(stage, next.href, binary);
+      }
+      const cap = binary ? 65536 : ['www.primevideo.com','www.netflix.com'].includes(url.hostname) ? 6 * 1048576 : 1048576;
       const reader = response.body?.getReader(); const chunks = []; let size = 0;
       if (reader) {
         while (true) {

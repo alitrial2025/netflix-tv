@@ -1,0 +1,5 @@
+SELECT ?item ?tmdb ?type ?ott ?nativeId WHERE {
+ VALUES (?p ?type) { (wdt:P4947 "movie") (wdt:P4983 "tv") }
+ VALUES (?n ?ott) { (wdt:P1874 "nf") (wdt:P14440 "pv") (wdt:P11049 "hs") }
+ ?item ?p ?tmdb . ?item ?n ?nativeId .
+}

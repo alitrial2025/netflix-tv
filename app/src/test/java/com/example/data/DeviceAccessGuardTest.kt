@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DeviceAccessGuardTest {
+    @Test fun verifiedMembershipSurvivesRenewalDisplayTransitionButRejectsSuspension() {
+        val expiry = 100_000L
+        val grace = expiry + RenewalPolicy.DAY_MS
+        assertTrue(DeviceAccessPolicy.confirmationStatusMatches("ACTIVE", "GRACE_PERIOD", expiry, grace))
+        assertFalse(DeviceAccessPolicy.confirmationStatusMatches("ACTIVE", "SUSPENDED", expiry, grace))
+        assertFalse(DeviceAccessPolicy.confirmationStatusMatches("ACTIVE", "GRACE_PERIOD", expiry, expiry + RenewalPolicy.GRACE_MS))
+        assertFalse(DeviceAccessPolicy.confirmationStatusMatches("NONE", "ACTIVE", expiry, grace))
+    }
     @Test fun singleDevicePlansRejectSecondDeviceEvenAfterSignOut() {
         for (plan in listOf("plan_mobile", "plan_basic")) {
             assertTrue(DeviceAccessPolicy.permits(plan, true, false, null, "phone-a"))

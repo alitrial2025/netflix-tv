@@ -119,7 +119,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         .followSslRedirects(true)
         .build()
 
-    private val publicPlayback = PublicPlaybackResolver(client)
+    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context))
     val requiresWarmSession: Boolean get() = false
 
     private val SEC_CH_UA = "\"Not(A:Brand\";v=\"99\", \"Android WebView\";v=\"133\", \"Chromium\";v=\"133\""

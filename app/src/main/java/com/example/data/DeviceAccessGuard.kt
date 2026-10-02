@@ -20,6 +20,9 @@ internal object DeviceAccessPolicy {
     fun permits(planId: String, active: Boolean, tv: Boolean, boundDevice: String?, device: String): Boolean =
         !active || (!(tv && planId == "plan_mobile") &&
             (!isSingleDevice(planId) || boundDevice.isNullOrBlank() || boundDevice == device))
+    fun confirmationStatusMatches(verified: String, displayed: String, expiry: Long, now: Long): Boolean =
+        verified.equals(displayed, true) ||
+            (RenewalPolicy.grantsAccess(verified, expiry, now) && RenewalPolicy.grantsAccess(displayed, expiry, now))
     fun screenCount(planId: String): Int = when (planId) {
         "plan_mobile", "plan_basic" -> 1
         "plan_standard" -> 2
@@ -47,8 +50,11 @@ object DeviceAccessGuard {
     }
 
     fun clear() { confirmed = null }
-    fun isConfirmed(uid: String, plan: String, expiry: Long, status: String): Boolean =
-        confirmed == Confirmation(uid, plan, expiry, status) && uid.isNotBlank()
+    fun isConfirmed(uid: String, plan: String, expiry: Long, status: String): Boolean {
+        val proof = confirmed ?: return false
+        return uid.isNotBlank() && proof.uid == uid && proof.plan == plan && proof.expiry == expiry &&
+            DeviceAccessPolicy.confirmationStatusMatches(proof.status, status, expiry, SubscriptionTime.now())
+    }
 
     suspend fun confirm(context: Context, tv: Boolean): com.google.firebase.firestore.DocumentSnapshot {
         val auth = FirebaseAuth.getInstance()
@@ -59,7 +65,7 @@ object DeviceAccessGuard {
         val device = deviceId(context)
         try {
             // Server transaction serializes two first-device logins, including Mobile -> Basic changes.
-            val snapshot = db.runTransaction { tx ->
+            val snapshot = kotlinx.coroutines.withTimeoutOrNull(15_000L) { db.runTransaction { tx ->
                 val sub = tx.get(subRef)
                 val plan = sub.getString("planId").orEmpty()
                 val active = DeviceAccessPolicy.screenCount(plan) > 0 && RenewalPolicy.grantsAccess(
@@ -75,7 +81,7 @@ object DeviceAccessGuard {
                         "boundAt" to FieldValue.serverTimestamp()))
                 }
                 sub
-            }.await()
+            }.await() } ?: throw MembershipCheckException()
             if (auth.currentUser?.uid != user.uid) throw MembershipCheckException()
             confirmed = Confirmation(user.uid, snapshot.getString("planId").orEmpty(), snapshot.getLong("expiresAt") ?: 0L, snapshot.getString("status").orEmpty())
             return snapshot
@@ -106,7 +112,7 @@ object ScreenLease {
         val db = FirebaseFirestore.getInstance()
         val account = db.collection("users").document(user.uid)
         val token = UUID.randomUUID().toString()
-        val slot = db.runTransaction { tx ->
+        val slot = kotlinx.coroutines.withTimeoutOrNull(15_000L) { db.runTransaction { tx ->
             val sub = tx.get(account.collection("subscription").document("current"))
             val plan = sub.getString("planId").orEmpty()
             val max = DeviceAccessPolicy.screenCount(plan)
@@ -125,7 +131,7 @@ object ScreenLease {
                 "deviceId" to device, "deviceType" to if (tv) "tv" else "mobile",
                 "lastHeartbeat" to FieldValue.serverTimestamp(), "released" to false, "leaseToken" to token))
             available
-        }.await()
+        }.await() } ?: throw MembershipCheckException()
         if (auth.currentUser?.uid != user.uid) throw MembershipCheckException()
         synchronized(this) { lease = Lease(user.uid, slot, device, token) }
     }
