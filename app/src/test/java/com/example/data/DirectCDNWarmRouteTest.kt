@@ -20,7 +20,7 @@ import org.robolectric.annotation.Config
 @Config(manifest = Config.NONE, sdk = [28])
 class DirectCDNWarmRouteTest {
     @Test fun cachedWarmRouteUsesExactProviderSignatureWithoutHandshake() = exerciseRoute(false)
-    @Test fun cdnRejectionRefreshesRouteWithoutDiscardingTenHourSession() = exerciseRoute(true)
+    @Test fun cdnRejectionStopsWithoutDiscardingUnusedLegacySession() = exerciseRoute(true)
     @Test fun unsignedProviderRouteIsNotGivenAnotherTitlesNonce() = exerciseRoute(false, unsigned = true)
     private fun exerciseRoute(rejected: Boolean, unsigned: Boolean = false) = runBlocking {
         val context = RuntimeEnvironment.getApplication()
@@ -40,7 +40,7 @@ class DirectCDNWarmRouteTest {
             val body = when (req.url.encodedPath) {
                 "/3/movie/fixture" -> """{"title":"Fixture","release_date":"2001-01-01"}"""
                 "/mobile/playlist.php" -> JSONObject().put("sources", JSONArray().put(JSONObject().put("file", url))).put("tracks", JSONArray()).toString()
-                "/mobile/search.php" -> """{"searchResult":[{"id":"episode","t":"Fixture","y":"2001"}]}"""
+                "/search.php" -> """{"searchResult":[{"id":"episode","t":"Fixture","y":"2001"}]}"""
                 "/custom/full-hd/media" -> {
                     assertEquals(if (unsigned) null else token, req.url.queryParameter("in"))
                     if (rejected) "Only valid users allowed" else "#EXTM3U\n#EXTINF:10,\nsegment.jpg\n#EXT-X-ENDLIST"
@@ -55,10 +55,10 @@ class DirectCDNWarmRouteTest {
         if (rejected) {
             try { resolver.resolveStream(movie, purpose = StreamPurpose.SILENT_PREVIEW); fail("Rejected media must not be returned") }
             catch (_: java.io.IOException) { }
-            assertEquals(2, requested.count { it == "/custom/full-hd/media" })
+            assertEquals(1, requested.count { it == "/custom/full-hd/media" })
         } else {
             val result = resolver.resolveStream(movie, purpose = StreamPurpose.SILENT_PREVIEW)
-            assertEquals(url, result.rawVideoUrl)
+            assertEquals(url, result.url)
             val requestsBefore = requested.size
             resolver.resolveStream(movie, purpose = StreamPurpose.SILENT_PREVIEW)
             assertEquals("Warm cache must make zero network requests", requestsBefore, requested.size)

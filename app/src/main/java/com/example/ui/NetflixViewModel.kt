@@ -1847,7 +1847,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                             kotlinx.coroutines.withTimeoutOrNull(1_500L) { _userSubscription.first { it.isTvAllowed } }
                         }
                         if (uid == null || authenticatedUid() != uid || !_userSubscription.value.isTvAllowed || !hasStartupNetwork()) false
-                        else directCDNResolver.ensureSessionWarm()
+                        else if (directCDNResolver.requiresWarmSession) directCDNResolver.ensureSessionWarm() else false
                     }
                 )
                 com.example.ui.util.RuntimeTiming.elapsed(
@@ -2076,19 +2076,20 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun hasValidStreamSession(): Boolean = directCDNResolver.hasValidSession()
+    fun hasValidStreamSession(): Boolean = !directCDNResolver.requiresWarmSession || directCDNResolver.hasValidSession()
 
     private fun canWarmStreamSession(): Boolean = authenticatedUid() != null &&
         _selectedProfile.value != null && _userSubscription.value.isTvAllowed
 
     suspend fun ensureStreamWarmedAsync(): Boolean =
-        canWarmStreamSession() && directCDNResolver.ensureSessionWarm()
+        directCDNResolver.requiresWarmSession && canWarmStreamSession() && directCDNResolver.ensureSessionWarm()
 
     private val warmupJobLock = Any()
     @Volatile private var warmupJob: kotlinx.coroutines.Job? = null
     private var warmupIsImmediate = false
     private var warmupHasStartedAttempt = false
     fun ensureStreamWarmed(immediate: Boolean = false) {
+        if (!directCDNResolver.requiresWarmSession) return
         if (!canWarmStreamSession()) return
         synchronized(warmupJobLock) {
             val pending = warmupJob?.takeIf { it.isActive }
@@ -2694,7 +2695,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         val withinFallbackTtl = age >= 0 && age < streamCacheFallbackTtlMs
         val expiresAt = cached.stream.expiresAt
         val hasEnoughLifetime = expiresAt <= 0L || expiresAt - currentTime > streamExpirySafetyMarginMs
-        return directCDNResolver.hasValidSession() &&
+        return (!directCDNResolver.requiresWarmSession || directCDNResolver.hasValidSession()) &&
             cached.sessionVersion == directCDNResolver.sessionVersion && withinFallbackTtl && hasEnoughLifetime
     }
 
