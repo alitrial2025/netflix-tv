@@ -1,0 +1,7 @@
+{
+  "name": "netflixpro-nitroflare-tools",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test", "check": "node cli.mjs status" }
+}

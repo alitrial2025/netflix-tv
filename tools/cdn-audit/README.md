@@ -36,3 +36,20 @@ node tools/cdn-audit/compare-tokens.mjs \
 ```
 
 This tests the original provider signature, byte-identical reconstruction from issued fields, and one request using the app's public **provider-master** token formula at the CDN. Reassembling issued fields is reuse, not independent token issuance. No signing-secret extraction or key guessing occurs. The first two cases fetch real media samples and require a decoded sample frame; the last case records whether the CDN accepts HLS. A CDN200 authorization-error body counts as rejection.
+
+## Four-show route audit
+
+```bash
+node tools/cdn-audit/audit-four-shows.mjs --report /tmp/four-shows-report.json
+node tools/cdn-audit/audit-four-shows.mjs --help
+```
+
+Checks Smallville S3E1, Silo S1E1, Ironheart S1E1 and Mr. Robot S1E1 with
+one normal session and one bounded video sample per title. A shared session
+failure or rate limit stops further requests. The report includes catalogue
+bucket, show/episode IDs, requested CDN hosts, timings and HTTP outcomes;
+query values and signatures stay private. A CDN host appearing in the report
+does not imply successful playback: inspect status and media evidence.
+The historical snapshot and TV comparison are in
+`docs/audits/cdn-four-shows-20261002/`. Hosts are discovery results, not constants
+to hard-code into an app.

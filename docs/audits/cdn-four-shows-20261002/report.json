@@ -1,0 +1,1320 @@
+{
+  "checkedAt": "2026-10-02T07:36:48.894Z",
+  "scope": "Normal provider resolution with one bounded segment sample; not Android playback.",
+  "runs": [
+    {
+      "title": "Smallville",
+      "year": 2001,
+      "season": 3,
+      "episode": 1,
+      "phase": "cold",
+      "totalMs": 40845,
+      "handshakes": 1,
+      "sessionReadyMs": 36577,
+      "success": true,
+      "segmentCount": 1,
+      "separateAudioValidated": false,
+      "evidence": "hls_and_media_container_bytes",
+      "decodedSampleFrame": false,
+      "androidFirstFrameMeasured": false,
+      "events": [
+        {
+          "stage": "handshake_home",
+          "host": "net52.cc",
+          "path": "/mobile/home",
+          "queryKeys": [
+            "app"
+          ],
+          "elapsedMs": 422,
+          "status": 200,
+          "bytes": 16781,
+          "connectMs": 1,
+          "firstByteMs": 400,
+          "redirects": 0,
+          "kind": "html",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_trigger",
+          "host": "userver.net52.cc",
+          "path": "/",
+          "queryKeys": [
+            "ffr455",
+            "a",
+            "t"
+          ],
+          "elapsedMs": 1188,
+          "status": 204,
+          "bytes": 0,
+          "connectMs": 2,
+          "firstByteMs": 1168,
+          "redirects": 1,
+          "kind": "other",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 318,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 299,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 410,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 10,
+          "firstByteMs": 393,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 338,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 321,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 255,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 6,
+          "firstByteMs": 235,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 627,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 3,
+          "firstByteMs": 603,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 653,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 9,
+          "firstByteMs": 629,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 239,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 220,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 243,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 13,
+          "firstByteMs": 222,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 322,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 301,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 441,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 2,
+          "firstByteMs": 331,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 246,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 228,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 291,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 3,
+          "firstByteMs": 273,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 236,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 220,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 217,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 195,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 247,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 230,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 236,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 216,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 287,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 271,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 232,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 213,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 218,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 200,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 241,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 224,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 232,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 208,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 246,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 1,
+          "firstByteMs": 215,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 319,
+          "status": 200,
+          "bytes": 50,
+          "connectMs": 50,
+          "firstByteMs": 302,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "handshake_verify",
+          "host": "net52.cc",
+          "path": "/mobile/verify2.php",
+          "queryKeys": [],
+          "elapsedMs": 219,
+          "status": 200,
+          "bytes": 31,
+          "connectMs": 1,
+          "firstByteMs": 201,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 557,
+          "status": 200,
+          "bytes": 110,
+          "connectMs": 1,
+          "firstByteMs": 540,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "post",
+          "host": "net52.cc",
+          "path": "/mobile/post.php",
+          "queryKeys": [
+            "id",
+            "t"
+          ],
+          "elapsedMs": 513,
+          "status": 200,
+          "bytes": 2931,
+          "connectMs": 1,
+          "firstByteMs": 498,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t"
+          ],
+          "elapsedMs": 312,
+          "status": 200,
+          "bytes": 912,
+          "connectMs": 1,
+          "firstByteMs": 295,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t",
+            "page"
+          ],
+          "elapsedMs": 236,
+          "status": 200,
+          "bytes": 878,
+          "connectMs": 1,
+          "firstByteMs": 211,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t",
+            "page"
+          ],
+          "elapsedMs": 302,
+          "status": 200,
+          "bytes": 234,
+          "connectMs": 1,
+          "firstByteMs": 284,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "playlist_discovery",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "elapsedMs": 287,
+          "status": 200,
+          "bytes": 1016,
+          "connectMs": 1,
+          "firstByteMs": 269,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "master_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/82171122.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "elapsedMs": 228,
+          "status": 200,
+          "bytes": 482,
+          "connectMs": 1,
+          "firstByteMs": 212,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171122/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 887,
+          "status": 200,
+          "bytes": 8241,
+          "connectMs": 2,
+          "firstByteMs": 862,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s23.nm-cdn9.top",
+          "path": "/files/82171122/720p/8904_000.jpg",
+          "queryKeys": [],
+          "elapsedMs": 941,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 457,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        }
+      ],
+      "cdns": [
+        "s23.nm-cdn9.top"
+      ],
+      "catalogRoute": {
+        "ott": "nf",
+        "showId": "70155584",
+        "episodeId": "82171122"
+      },
+      "cdnTokenMode": "su"
+    },
+    {
+      "title": "Silo",
+      "year": 2023,
+      "season": 1,
+      "episode": 1,
+      "phase": "warm_session_new_title",
+      "totalMs": 5038,
+      "handshakes": 0,
+      "sessionReadyMs": 0,
+      "success": true,
+      "segmentCount": 1,
+      "separateAudioValidated": true,
+      "evidence": "hls_and_media_container_bytes",
+      "decodedSampleFrame": false,
+      "androidFirstFrameMeasured": false,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 264,
+          "status": 200,
+          "bytes": 74,
+          "connectMs": 2,
+          "firstByteMs": 243,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 589,
+          "status": 200,
+          "bytes": 130,
+          "connectMs": 1,
+          "firstByteMs": 571,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "post",
+          "host": "net52.cc",
+          "path": "/mobile/pv/post.php",
+          "queryKeys": [
+            "id",
+            "t"
+          ],
+          "elapsedMs": 227,
+          "status": 200,
+          "bytes": 2894,
+          "connectMs": 1,
+          "firstByteMs": 209,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t"
+          ],
+          "elapsedMs": 304,
+          "status": 200,
+          "bytes": 1389,
+          "connectMs": 1,
+          "firstByteMs": 287,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t",
+            "page"
+          ],
+          "elapsedMs": 398,
+          "status": 200,
+          "bytes": 77,
+          "connectMs": 1,
+          "firstByteMs": 377,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "playlist_discovery",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "elapsedMs": 346,
+          "status": 200,
+          "bytes": 6073,
+          "connectMs": 2,
+          "firstByteMs": 315,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "master_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0LUD8W2JDNWH13VM368DJJEENO.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "elapsedMs": 309,
+          "status": 200,
+          "bytes": 1867,
+          "connectMs": 1,
+          "firstByteMs": 282,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LUD8W2JDNWH13VM368DJJEENO/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 872,
+          "status": 200,
+          "bytes": 11738,
+          "connectMs": 1,
+          "firstByteMs": 854,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LUD8W2JDNWH13VM368DJJEENO/720p/7127_000.jpg",
+          "queryKeys": [],
+          "elapsedMs": 397,
+          "status": 206,
+          "bytes": 232556,
+          "connectMs": 1,
+          "firstByteMs": 345,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LUD8W2JDNWH13VM368DJJEENO/a/1/1.m3u8",
+          "queryKeys": [],
+          "elapsedMs": 858,
+          "status": 200,
+          "bytes": 11466,
+          "connectMs": 2,
+          "firstByteMs": 836,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "audio_segment",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LUD8W2JDNWH13VM368DJJEENO/a/1/7127_000.js",
+          "queryKeys": [],
+          "elapsedMs": 469,
+          "status": 200,
+          "bytes": 176908,
+          "connectMs": 2,
+          "firstByteMs": 382,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        }
+      ],
+      "cdns": [
+        "s11.nm-cdn8.top"
+      ],
+      "catalogRoute": {
+        "ott": "pv",
+        "showId": "0GKY3CQGOYOPDSE76BWMJN5CK3",
+        "episodeId": "0LUD8W2JDNWH13VM368DJJEENO"
+      },
+      "cdnTokenMode": "su"
+    },
+    {
+      "title": "Ironheart",
+      "year": 2025,
+      "season": 1,
+      "episode": 1,
+      "phase": "warm_session_new_title",
+      "totalMs": 3789,
+      "handshakes": 0,
+      "sessionReadyMs": 0,
+      "success": true,
+      "segmentCount": 1,
+      "separateAudioValidated": true,
+      "evidence": "hls_and_media_container_bytes",
+      "decodedSampleFrame": false,
+      "androidFirstFrameMeasured": false,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 287,
+          "status": 200,
+          "bytes": 74,
+          "connectMs": 1,
+          "firstByteMs": 243,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 250,
+          "status": 200,
+          "bytes": 76,
+          "connectMs": 2,
+          "firstByteMs": 221,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/hs/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 220,
+          "status": 200,
+          "bytes": 108,
+          "connectMs": 1,
+          "firstByteMs": 204,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "post",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id",
+            "t"
+          ],
+          "elapsedMs": 269,
+          "status": 200,
+          "bytes": 1882,
+          "connectMs": 2,
+          "firstByteMs": 240,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "playlist_discovery",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "elapsedMs": 260,
+          "status": 200,
+          "bytes": 1199,
+          "connectMs": 1,
+          "firstByteMs": 232,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "master_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1271341040.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 258,
+          "status": 200,
+          "bytes": 978,
+          "connectMs": 3,
+          "firstByteMs": 227,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271341040/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 692,
+          "status": 200,
+          "bytes": 7992,
+          "connectMs": 1,
+          "firstByteMs": 675,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_segment",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271341040/720p/6221_000.jpg",
+          "queryKeys": [],
+          "elapsedMs": 457,
+          "status": 206,
+          "bytes": 262144,
+          "connectMs": 1,
+          "firstByteMs": 378,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271341040/a/0/0.m3u8",
+          "queryKeys": [],
+          "elapsedMs": 708,
+          "status": 200,
+          "bytes": 7684,
+          "connectMs": 4,
+          "firstByteMs": 674,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "audio_segment",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271341040/a/0/6221_000.js",
+          "queryKeys": [],
+          "elapsedMs": 385,
+          "status": 200,
+          "bytes": 175592,
+          "connectMs": 3,
+          "firstByteMs": 332,
+          "redirects": 0,
+          "kind": "mpeg_ts",
+          "proxyBlocked": false
+        }
+      ],
+      "cdns": [
+        "s30.freecdn31.top"
+      ],
+      "catalogRoute": {
+        "ott": "hs",
+        "showId": "1271341039",
+        "episodeId": "1271341040"
+      },
+      "cdnTokenMode": "su"
+    },
+    {
+      "title": "Mr. Robot",
+      "year": 2015,
+      "season": 1,
+      "episode": 1,
+      "phase": "warm_session_new_title",
+      "totalMs": 2500,
+      "handshakes": 0,
+      "sessionReadyMs": 0,
+      "success": false,
+      "error": "cdn_route_rejected",
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 284,
+          "status": 200,
+          "bytes": 74,
+          "connectMs": 3,
+          "firstByteMs": 248,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s",
+            "t"
+          ],
+          "elapsedMs": 296,
+          "status": 200,
+          "bytes": 135,
+          "connectMs": 3,
+          "firstByteMs": 258,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "post",
+          "host": "net52.cc",
+          "path": "/mobile/pv/post.php",
+          "queryKeys": [
+            "id",
+            "t"
+          ],
+          "elapsedMs": 269,
+          "status": 200,
+          "bytes": 3160,
+          "connectMs": 8,
+          "firstByteMs": 231,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t"
+          ],
+          "elapsedMs": 255,
+          "status": 200,
+          "bytes": 1610,
+          "connectMs": 1,
+          "firstByteMs": 219,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series",
+            "t",
+            "page"
+          ],
+          "elapsedMs": 405,
+          "status": 200,
+          "bytes": 77,
+          "connectMs": 1,
+          "firstByteMs": 373,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "playlist_discovery",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "elapsedMs": 262,
+          "status": 200,
+          "bytes": 731,
+          "connectMs": 3,
+          "firstByteMs": 228,
+          "redirects": 0,
+          "kind": "json",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "master_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0RZED4V5SOLKXX2U04B6XONCIM.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "elapsedMs": 268,
+          "status": 200,
+          "bytes": 2701,
+          "connectMs": 3,
+          "firstByteMs": 239,
+          "redirects": 0,
+          "kind": "hls",
+          "proxyBlocked": false
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s10.freecdn43.top",
+          "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "elapsedMs": 460,
+          "status": 403,
+          "bytes": 25,
+          "connectMs": 4,
+          "firstByteMs": 426,
+          "redirects": 0,
+          "kind": "cdn_route_rejected",
+          "proxyBlocked": false
+        }
+      ],
+      "cdns": [
+        "s10.freecdn43.top"
+      ],
+      "catalogRoute": {
+        "ott": "pv",
+        "showId": "0L52QDYY6OG738LB7ILP0VB7R4",
+        "episodeId": "0RZED4V5SOLKXX2U04B6XONCIM"
+      },
+      "cdnTokenMode": "su"
+    }
+  ],
+  "mrRobotCompatibility": {
+    "purpose": "One retry of the unchanged provider-issued CDN URL with normal app headers; no token changes or session renewal.",
+    "outcome": "cdn_route_rejected",
+    "events": [
+      {
+        "stage": "exact_app_headers",
+        "host": "s10.freecdn43.top",
+        "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/720p/720p.m3u8",
+        "queryKeys": [
+          "in"
+        ],
+        "elapsedMs": 251,
+        "status": 403,
+        "bytes": 25,
+        "connectMs": 1,
+        "firstByteMs": 225,
+        "redirects": 0,
+        "kind": "cdn_route_rejected",
+        "proxyBlocked": false
+      }
+    ]
+  },
+  "mrRobotFreshRoute": {
+    "title": "Mr. Robot",
+    "year": 2015,
+    "season": 1,
+    "episode": 1,
+    "phase": "fresh_route_same_session",
+    "totalMs": 3180,
+    "handshakes": 0,
+    "sessionReadyMs": 0,
+    "success": false,
+    "error": "cdn_route_rejected",
+    "events": [
+      {
+        "stage": "search",
+        "host": "net52.cc",
+        "path": "/mobile/search.php",
+        "queryKeys": [
+          "s",
+          "t"
+        ],
+        "elapsedMs": 902,
+        "status": 200,
+        "bytes": 74,
+        "connectMs": 1,
+        "firstByteMs": 881,
+        "redirects": 0,
+        "kind": "json",
+        "proxyBlocked": false
+      },
+      {
+        "stage": "search",
+        "host": "net52.cc",
+        "path": "/mobile/pv/search.php",
+        "queryKeys": [
+          "s",
+          "t"
+        ],
+        "elapsedMs": 308,
+        "status": 200,
+        "bytes": 135,
+        "connectMs": 1,
+        "firstByteMs": 291,
+        "redirects": 0,
+        "kind": "json",
+        "proxyBlocked": false
+      },
+      {
+        "stage": "post",
+        "host": "net52.cc",
+        "path": "/mobile/pv/post.php",
+        "queryKeys": [
+          "id",
+          "t"
+        ],
+        "elapsedMs": 526,
+        "status": 200,
+        "bytes": 3160,
+        "connectMs": 1,
+        "firstByteMs": 509,
+        "redirects": 0,
+        "kind": "json",
+        "proxyBlocked": false
+      },
+      {
+        "stage": "episodes",
+        "host": "net52.cc",
+        "path": "/mobile/pv/episodes.php",
+        "queryKeys": [
+          "s",
+          "series",
+          "t"
+        ],
+        "elapsedMs": 246,
+        "status": 200,
+        "bytes": 1610,
+        "connectMs": 1,
+        "firstByteMs": 230,
+        "redirects": 0,
+        "kind": "json",
+        "proxyBlocked": false
+      },
+      {
+        "stage": "episodes",
+        "host": "net52.cc",
+        "path": "/mobile/pv/episodes.php",
+        "queryKeys": [
+          "s",
+          "series",
+          "t",
+          "page"
+        ],
+        "elapsedMs": 339,
+        "status": 200,
+        "bytes": 77,
+        "connectMs": 1,
+        "firstByteMs": 322,
+        "redirects": 0,
+        "kind": "json",
+        "proxyBlocked": false
+      },
+      {
+        "stage": "playlist_discovery",
+        "host": "net52.cc",
+        "path": "/mobile/pv/playlist.php",
+        "queryKeys": [
+          "id",
+          "t",
+          "tm"
+        ],
+        "elapsedMs": 332,
+        "status": 200,
+        "bytes": 731,
+        "connectMs": 1,
+        "firstByteMs": 317,
+        "redirects": 0,
+        "kind": "json",
+        "proxyBlocked": false
+      },
+      {
+        "stage": "master_manifest",
+        "host": "net52.cc",
+        "path": "/mobile/pv/hls/0RZED4V5SOLKXX2U04B6XONCIM.m3u8",
+        "queryKeys": [
+          "in",
+          "hd",
+          "lang"
+        ],
+        "elapsedMs": 296,
+        "status": 200,
+        "bytes": 2701,
+        "connectMs": 1,
+        "firstByteMs": 279,
+        "redirects": 0,
+        "kind": "hls",
+        "proxyBlocked": false
+      },
+      {
+        "stage": "video_manifest",
+        "host": "s10.freecdn43.top",
+        "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/720p/720p.m3u8",
+        "queryKeys": [
+          "in"
+        ],
+        "elapsedMs": 226,
+        "status": 403,
+        "bytes": 25,
+        "connectMs": 1,
+        "firstByteMs": 208,
+        "redirects": 0,
+        "kind": "cdn_route_rejected",
+        "proxyBlocked": false
+      }
+    ],
+    "catalogRoute": {
+      "ott": "pv",
+      "showId": "0L52QDYY6OG738LB7ILP0VB7R4",
+      "episodeId": "0RZED4V5SOLKXX2U04B6XONCIM"
+    }
+  },
+  "smallvilleCodecEvidence": {
+    "streams": [
+      {
+        "codec_name": "h264",
+        "profile": "High",
+        "codec_type": "video",
+        "width": 1280,
+        "height": 720
+      },
+      {
+        "codec_name": "aac",
+        "profile": "LC",
+        "codec_type": "audio",
+        "sample_rate": "48000",
+        "channels": 2
+      }
+    ],
+    "softwareFirstFrameDecoded": true,
+    "androidPlaybackMeasured": false
+  }
+}
