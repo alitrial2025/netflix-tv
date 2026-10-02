@@ -90,9 +90,9 @@ jobs:
           def property_value(v):
               return v.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r')
           assert all(os.environ[k] for k in ['KEYSTORE','STORE_PASSWORD','KEY_PASSWORD','KEY_ALIAS']), 'Release signing secrets are required'
-          Path('release.jks').write_bytes(base64.b64decode(os.environ['KEYSTORE']))
+          Path('app/release.jks').write_bytes(base64.b64decode(os.environ['KEYSTORE']))
           values={'storeFile':'release.jks','storePassword':os.environ['STORE_PASSWORD'],'keyPassword':os.environ['KEY_PASSWORD'],'keyAlias':os.environ['KEY_ALIAS']}
-          Path('release-signing.properties').write_text(''.join(k+'='+property_value(v)+'\n' for k,v in values.items()))
+          Path('app/release-signing.properties').write_text(''.join(k+'='+property_value(v)+'\n' for k,v in values.items()))
           if os.environ['PAYHERO_API_AUTH']:
               Path('.env').write_text('PAYHERO_API_AUTH='+property_value(os.environ['PAYHERO_API_AUTH'])+'\n')
           PY
@@ -123,4 +123,4 @@ jobs:
             app/build/reports/
       - name: Remove temporary credentials
         if: always()
-        run: rm -f release.jks release-signing.properties .env
+        run: rm -f app/release.jks app/release-signing.properties .env
