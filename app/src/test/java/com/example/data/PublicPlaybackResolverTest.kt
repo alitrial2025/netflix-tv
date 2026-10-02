@@ -120,4 +120,19 @@ class PublicPlaybackResolverTest {
         val master = ProviderMasterRequest.resolve("https://net52.cc/mobile/pv/hls/id.m3u8?lang=eng", "opaque")
         assertTrue(master.contains("lang=eng")); assertTrue(master.contains("in="))
     }
+
+    @Test fun oversizedMetadataIsRejectedByTheCancellableTransport() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val http = client(seen) { "x".repeat(64) to 200 }
+        try { http.fetchText(Request.Builder().url("https://net52.cc/search.php").build(), 16); fail("Oversized response accepted") }
+        catch (e: IOException) { assertEquals("Playback response is too large", e.message) }
+    }
+
+    @Test fun authorizationFailureStopsWithoutTryingWarmupOrAnotherCatalog() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = PublicPlaybackResolver(client(seen) { "Invalid User" to 403 })
+        try { resolver.resolve("Smallville", "2001", "tv", 1, 1); fail("Unauthorized lookup accepted") }
+        catch (e: IOException) { assertEquals("Playback metadata requires authorization", e.message) }
+        assertEquals(listOf("/search.php"), seen.map { it.url.encodedPath })
+    }
 }
