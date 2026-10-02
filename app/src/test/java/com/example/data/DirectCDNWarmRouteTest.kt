@@ -51,7 +51,7 @@ class DirectCDNWarmRouteTest {
         }.build()
         // A silent preview uses the exact video route and requires no optional audio/caption probes.
         val resolver = DirectCDNResolver(context, client)
-        val movie = Movie(id = "fixture", title = "Fixture", year = "2001", type = "Movie", description = "", backdropUrl = "", posterUrl = "")
+        val movie = Movie(id = "fixture", title = "Fixture", year = "2001", type = "Movie", duration = "", description = "", backdropUrl = "", posterUrl = "")
         if (rejected) {
             try { resolver.resolveStream(movie, purpose = StreamPurpose.SILENT_PREVIEW); fail("Rejected media must not be returned") }
             catch (_: java.io.IOException) { }

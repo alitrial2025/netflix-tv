@@ -33,7 +33,7 @@ class DirectCDNPlaybackMetadataTest {
             }
             Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("fixture").body(body.toResponseBody()).build()
         }.build()
-        val movie = Movie(id = "fixture", title = "Fixture", year = "2001", type = "Movie", description = "", backdropUrl = "", posterUrl = "")
+        val movie = Movie(id = "fixture", title = "Fixture", year = "2001", type = "Movie", duration = "", description = "", backdropUrl = "", posterUrl = "")
         val resolver = DirectCDNResolver(context, client)
         val stream = resolver.resolveStream(movie)
         assertTrue(stream.url.startsWith("https://net52.cc/mobile/hls/content.m3u8"))
