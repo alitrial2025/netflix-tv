@@ -154,6 +154,10 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 publicSeasons(showId, title)[season] ?: throw IOException("Requested season is unavailable")
             } else if (ott == "pv" && showId == PRIME_MR_ROBOT.first()) {
                 PRIME_MR_ROBOT.getOrNull(season - 1) ?: throw IOException("Requested season is unavailable")
+            } else if (ott == "pv") {
+                val page = text("https://www.primevideo.com/detail/$showId".toHttpUrl(), publicNetflix = true)
+                requireSuccess(page)
+                parsePrimeSeasons(page.body, title)[season] ?: throw IOException("Requested Prime season is unavailable in the public catalog")
             } else {
                 val data = json("${prefix(ott)}/post.php", "id" to showId) as? JSONObject ?: throw IOException("Season catalog unavailable")
                 findEpisode(data.optJSONArray("episodes") ?: JSONArray(), season, episode)?.let { return it }
@@ -230,6 +234,35 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             val label = field(it, "s", "season", "s_num")
             (label.isBlank() || number(label) == season) && number(field(it, "ep", "episode", "e")) == episode
         }?.let(::id)?.takeIf(String::isNotBlank)
+
+        internal fun parsePrimeSeasons(html: String, title: String): Map<Int, String> {
+            val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
+            for (script in scripts.findAll(html)) {
+                val root = try { JSONObject(script.groupValues[1]) } catch (_: org.json.JSONException) { continue }
+                val state = root.optJSONObject("init")?.optJSONObject("preparations")?.optJSONObject("body")
+                    ?.optJSONObject("atf")?.optJSONObject("state") ?: continue
+                val details = state.optJSONObject("detail")?.optJSONObject("headerDetail") ?: continue
+                val matches = details.keys().asSequence().mapNotNull { details.optJSONObject(it) }.filter {
+                    val baseTitle = it.optString("title").replace(Regex("(?i)\\s*[-:]?\\s*Season\\s+\\d+$"), "")
+                    it.optString("titleType") == "season" && normalize(baseTitle) == normalize(title)
+                }.toList()
+                if (matches.size != 1) continue
+                val seasons = state.optJSONObject("seasons") ?: continue
+                val ids = mutableMapOf<Int, String>()
+                for (key in seasons.keys()) {
+                    for (row in objects(seasons.optJSONArray(key) ?: JSONArray())) {
+                        val number = row.optInt("sequenceNumber", 0)
+                        val link = "https://www.primevideo.com".toHttpUrl().resolve(row.optString("seasonLink")) ?: continue
+                        if (link.host != "www.primevideo.com") continue
+                        val id = Regex("^/detail/([A-Z0-9]{10,30})$").find(link.encodedPath)?.groupValues?.get(1) ?: continue
+                        if (number !in 1..30 || ids.containsKey(number) && ids[number] != id) throw IOException("Ambiguous Prime season metadata")
+                        ids[number] = id
+                    }
+                }
+                if (ids.isNotEmpty()) return ids
+            }
+            throw IOException("Prime public season metadata unavailable")
+        }
 
         internal fun parseNetflixSeasons(html: String, title: String): Map<Int, String> {
             val scripts = Regex("""<script[^>]*type=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)

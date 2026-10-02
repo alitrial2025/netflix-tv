@@ -3100,7 +3100,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (error: Exception) {
                     com.example.data.DeviceAccessGuard.clear()
-                    _userSubscription.value = UserSubscription()
+                    _userSubscription.value = com.example.model.UserSubscription()
                     if (sharedExoPlayerDelegate.isInitialized()) {
                         sharedExoPlayer.stop()
                         sharedExoPlayer.clearMediaItems()

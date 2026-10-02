@@ -86,7 +86,7 @@ test('legacy reminder migration cannot overwrite a concurrent disable', {timeout
  assert.equal((await getDoc(doc(phone,path))).data().enabled,false);
 });
 
-test('integrated rules preserve existing owned app data and supplied TV pairing permissions', async()=> {
+test('owned app data remains private and removed anonymous TV pairing is denied', async()=> {
  const alice=db('alice');const bob=db('bob');
  for(const path of ['users/alice','users/alice/profiles/home','users/alice/profiles/home/watch_history/tv_1',
   'users/alice/history/movie_1','users/alice/profiles/home/preferences/player','subscriptions/alice']) {
@@ -96,8 +96,8 @@ test('integrated rules preserve existing owned app data and supplied TV pairing 
   await assertFails(setDoc(doc(bob,path),{fixture:false}));
  }
  const publicPairing=env.unauthenticatedContext().firestore();
- await assertSucceeds(setDoc(doc(publicPairing,'tv_sessions/session'),{fixture:true}));
- await assertSucceeds(setDoc(doc(publicPairing,'tv_sessions/session/remote_commands/command'),{fixture:true}));
+ await assertFails(setDoc(doc(publicPairing,'tv_sessions/session'),{fixture:true}));
+ await assertFails(setDoc(doc(publicPairing,'tv_sessions/session/remote_commands/command'),{fixture:true}));
 });
 
 // Membership documents are seeded with administrative privileges; payment remains a client flow.

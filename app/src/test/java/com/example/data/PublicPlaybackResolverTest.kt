@@ -152,4 +152,10 @@ class PublicPlaybackResolverTest {
         assertTrue(seen.none { it.url.encodedPath.contains("search") || it.url.encodedPath.contains("verify") })
     }
 
+    @Test fun primeSeasonLinksAreBoundToTheSeriesAndExcludeRecommendations() {
+        val json="""<script>{"init":{"preparations":{"body":{"atf":{"state":{"detail":{"headerDetail":{"show":{"title":"Slow Horses - Season 1","titleType":"season"}}},"seasons":{"show":[{"sequenceNumber":1,"seasonLink":"/detail/0MEYJKN34E2DBOY4OY7Z31N4Q4?ref_=s1"},{"sequenceNumber":2,"seasonLink":"https://evil.example/detail/0UNTRUSTED12345"}]}}}}}}}</script>"""
+        assertEquals(mapOf(1 to "0MEYJKN34E2DBOY4OY7Z31N4Q4"), PublicPlaybackResolver.parsePrimeSeasons(json, "Slow Horses"))
+        try { PublicPlaybackResolver.parsePrimeSeasons(json, "Different Show"); fail("Expected identity rejection") } catch (_: IOException) { }
+    }
+
 }
