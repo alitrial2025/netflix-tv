@@ -16,6 +16,48 @@ import java.io.IOException
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicPlaybackResolverTest {
+    private val lionessPrime = """<script>{"init":{"preparations":{"body":{"atf":{"state":{"detail":{"headerDetail":{"show":{"title":"Lioness - Season 1","titleType":"season","releaseYear":2023,"seasonNumber":1}}},"seasons":{"show":[{"sequenceNumber":1,"seasonLink":"/detail/0SVGUHKPBBP0BH7FC5VO19ALDR?ref_=s1","isSelected":true},{"sequenceNumber":2,"seasonLink":"/detail/0SPN6KOKA7I2O7Z73U3E12U19A"}]}}}}}}}</script>"""
+
+    @Test fun lionessAliasDiscoveryRetainsProviderEditionAndReachesExactEpisode() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val providerId = "0LEE086T9L711TRMJ0ODBQHZGS"
+        val episodeId = "0KVBLO9DOW99VWB40BUV66DI2U"
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/search.php" -> """{"searchResult":[]}""" to 200
+                "/mobile/pv/search.php" -> """{"searchResult":[{"id":"$providerId","t":"Special Ops: Lioness","y":"2023"}]}""" to 200
+                "/3/tv/113962" -> """{"id":113962,"name":"Lioness","first_air_date":"2023-07-23","alternative_titles":{"results":[{"title":"Special Ops: Lioness"}]}}""" to 200
+                "/sparql" -> "{}" to 200
+                "/detail/$providerId" -> lionessPrime to 200
+                "/mobile/pv/episodes.php" -> {
+                    assertEquals(providerId, request.url.queryParameter("s"))
+                    assertEquals(providerId, request.url.queryParameter("series"))
+                    """{"episodes":[{"id":"$episodeId","s":"S1","ep":"E1","t":"Sacrificial Soldiers"}]}""" to 200
+                }
+                "/mobile/pv/playlist.php" -> {
+                    assertEquals(episodeId, request.url.queryParameter("id"))
+                    """{"sources":[{"file":"https://cdn.example/lioness.m3u8?in=issued"}]}""" to 200
+                }
+                "/lioness.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts" to 200
+                else -> throw AssertionError("Unneeded lookup ${request.url.encodedPath}")
+            }
+        }, backgroundCatalogRefresh = false)
+        assertEquals(episodeId, resolver.resolve("Lioness", "2023", "tv", 1, 1, "113962").contentId)
+        assertEquals(1, seen.count { it.url.encodedPath == "/mobile/pv/search.php" })
+        assertFalse(seen.any { it.url.encodedPath.contains("post.php") || it.url.encodedPath.contains("verify") })
+    }
+
+    @Test fun primeCurrentSeasonEditionRequiresMatchingHeaderAndSeasonNumber() {
+        assertEquals(mapOf(1 to "0LEE086T9L711TRMJ0ODBQHZGS", 2 to "0SPN6KOKA7I2O7Z73U3E12U19A"),
+            PublicPlaybackResolver.parsePrimeSeasons(lionessPrime, "Lioness", "0LEE086T9L711TRMJ0ODBQHZGS"))
+        try {
+            PublicPlaybackResolver.parsePrimeSeasons(lionessPrime.replace("\"seasonNumber\":1", "\"seasonNumber\":2"), "Lioness", "0LEE086T9L711TRMJ0ODBQHZGS")
+            fail("Contradictory season header accepted")
+        } catch (_: IOException) { }
+        try { PublicPlaybackResolver.parsePrimeSeasons(lionessPrime, "Different Show", "0LEE086T9L711TRMJ0ODBQHZGS"); fail("Wrong show accepted") }
+        catch (_: IOException) { }
+    }
+
     @Test fun unlabelledDefaultEpisodesCannotOverrideTheRequestedSeason() = runBlocking {
         val seen = mutableListOf<Request>()
         val resolver = PublicPlaybackResolver(client(seen) { request ->

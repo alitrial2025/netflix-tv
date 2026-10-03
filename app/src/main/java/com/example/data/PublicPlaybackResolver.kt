@@ -50,6 +50,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         private val typedCandidates = mutableSetOf<Pair<String, String>>()
         private val publicPages = mutableMapOf<Pair<String, String>, String>()
         private val providerDetails = mutableMapOf<Pair<String, String>, JSONObject>()
+        private val searchRows = linkedMapOf<String, JSONArray>()
         private var liveBrowseChecked = false
         private var discoveryChecked = false
         private val titleAliases = linkedSetOf<String>()
@@ -189,6 +190,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     val before = titleAliases.size
                     titleAliases += metadata.aliases
                     if (titleAliases.size != before) attempted.retainAll(unavailable)
+                    cachedSearchIdentity(title, year, type)?.let { return@coroutineScope it }
                     typedCandidates.addAll(metadata.homepageIds)
                     if (metadata.homepageIds.isNotEmpty()) {
                         catalog?.saveDiscovered(discoveryKey, metadata.homepageIds, titleAliases.toList(), System.currentTimeMillis(), metadata.homepageIds)
@@ -282,32 +284,42 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     val obj = data as? JSONObject
                     if (obj?.optString("head") == "Top Searches" || obj?.optString("status") == "n") continue
                     val rows = (data as? JSONArray) ?: obj?.optJSONArray("searchResult") ?: JSONArray()
-                    val matches = objects(rows).filter { row ->
-                        val raw = field(row, "t", "title", "T", "Title")
-                        val suffix = Regex("\\s*\\((\\d{4})\\)\\s*$").find(raw)
-                        val comparable = if (suffix?.groupValues?.get(1) == year) raw.substring(0, suffix.range.first) else raw
-                        val rowYear = field(row, "y", "year", "Y", "Year")
-                        val rowType = field(row, "type", "media_type").lowercase(java.util.Locale.ROOT)
-                        val rightType = when (rowType) { "t", "tv", "series" -> type == "tv"; "m", "movie" -> type == "movie"; else -> true }
-                        titleAliases.any { PublicIdentityDiscovery.sameTitle(comparable, it) } && rightType &&
-                            (type == "tv" || rowYear.isBlank() || rowYear == year) && (id(row) to ott) !in attempted
-                    }
-                    if (matches.size > 1 && matches.any { !id(it).matches(Regex(if (ott == "pv") "[A-Z0-9]{10,30}" else "[0-9]{5,20}")) })
-                        throw IOException("Provider title identity is ambiguous")
-                    if (type == "movie") matches.forEach { row ->
-                        val kind = field(row, "type", "media_type").lowercase(java.util.Locale.ROOT)
-                        val release = field(row, "y", "year", "Y", "Year")
-                        if (kind in listOf("m", "movie") && release.matches(Regex("[0-9]{4}"))) {
-                            providerDetails[id(row) to ott] = JSONObject().put("status", "y")
-                                .put("id", id(row)).put("title", field(row, "t", "title", "T", "Title").removeSuffix(" ($release)"))
-                                .put("type", "m").put("year", release)
-                        }
-                    }
-                    validateCandidates(matches.map { id(it) to ott }, title, year, type)?.let { return it }
+                    searchRows[ott] = rows
+                    cachedSearchIdentity(title, year, type)?.let { return it }
                 }
             }
             publicIdentity(tmdbId, type, title, year)?.let { return it }
             throw IOException("No verified public provider identity is available for this title")
+        }
+
+        // Authoritative aliases arrive after the first provider search. Reuse its
+        // records so provider-native IDs are retained without another search.
+        private suspend fun cachedSearchIdentity(title: String, year: String, type: String): Pair<String, String>? {
+            for ((ott, rows) in searchRows) {
+                val matches = objects(rows).filter { row ->
+                    val raw = field(row, "t", "title", "T", "Title")
+                    val suffix = Regex("\\s*\\((\\d{4})\\)\\s*$").find(raw)
+                    val comparable = if (suffix?.groupValues?.get(1) == year) raw.substring(0, suffix.range.first) else raw
+                    val rowYear = field(row, "y", "year", "Y", "Year")
+                    val rowType = field(row, "type", "media_type").lowercase(java.util.Locale.ROOT)
+                    val rightType = when (rowType) { "t", "tv", "series" -> type == "tv"; "m", "movie" -> type == "movie"; else -> true }
+                    titleAliases.any { PublicIdentityDiscovery.sameTitle(comparable, it) } && rightType &&
+                        (type == "tv" || rowYear.isBlank() || rowYear == year) && (id(row) to ott) !in attempted
+                }
+                if (matches.size > 1 && matches.any { !id(it).matches(Regex(if (ott == "pv") "[A-Z0-9]{10,30}" else "[0-9]{5,20}")) })
+                    throw IOException("Provider title identity is ambiguous")
+                if (type == "movie") matches.forEach { row ->
+                    val kind = field(row, "type", "media_type").lowercase(java.util.Locale.ROOT)
+                    val release = field(row, "y", "year", "Y", "Year")
+                    if (kind in listOf("m", "movie") && release.matches(Regex("[0-9]{4}"))) {
+                        providerDetails[id(row) to ott] = JSONObject().put("status", "y")
+                            .put("id", id(row)).put("title", field(row, "t", "title", "T", "Title").removeSuffix(" ($release)"))
+                            .put("type", "m").put("year", release)
+                    }
+                }
+                validateCandidates(matches.map { id(it) to ott }, title, year, type)?.let { return it }
+            }
+            return null
         }
 
         private suspend fun publicSeasons(showId: String, title: String, requestedSeason: Int): Map<Int, String> {
@@ -383,7 +395,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 PRIME_MR_ROBOT.getOrNull(season - 1) ?: throw IOException("Requested season is unavailable")
             } else if (ott == "pv") {
                 val html = publicPages[showId to ott] ?: text("https://www.primevideo.com/detail/$showId".toHttpUrl(), publicNetflix = true).also(::requirePublicSuccess).body
-                val seasons = parsePrimeSeasons(html, titleAliases.firstOrNull { PublicProviderIdentity.matchesPrime(html, it, year = "", type = "tv", typedMapping = true) } ?: title)
+                val seasons = parsePrimeSeasons(html, titleAliases.firstOrNull { PublicProviderIdentity.matchesPrime(html, it, year = "", type = "tv", typedMapping = true) } ?: title, showId)
                 catalog?.episodeCatalog?.saveSeasons(base.toString(), ott, showId, seasons, System.currentTimeMillis(), "official-public")
                 seasons[season] ?: throw IOException("Requested Prime season is unavailable in the public catalog")
             } else {
@@ -536,7 +548,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             return ids.singleOrNull()
         }
 
-        internal fun parsePrimeSeasons(html: String, title: String): Map<Int, String> {
+        internal fun parsePrimeSeasons(html: String, title: String, currentId: String = ""): Map<Int, String> {
             val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
             for (script in scripts.findAll(html)) {
                 val root = try { JSONObject(script.groupValues[1]) } catch (_: org.json.JSONException) { continue }
@@ -558,6 +570,17 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                         val id = Regex("^/(?:-/[a-zA-Z_-]+/)?detail/([A-Z0-9]{10,30})$").find(link.encodedPath)?.groupValues?.get(1) ?: continue
                         if (number !in 1..30 || ids.containsKey(number) && ids[number] != id) throw IOException("Ambiguous Prime season metadata")
                         ids[number] = id
+                    }
+                    val header = details.getJSONObject(key)
+                    val labelled = Regex("(?i)Season\\s+([0-9]+)\\s*$").find(header.optString("title"))?.groupValues?.get(1)?.toIntOrNull()
+                    val currentSeason = header.optInt("seasonNumber", 0).takeIf { it in 1..30 }
+                    if (currentSeason != null && labelled != null && currentSeason != labelled) throw IOException("Ambiguous Prime season metadata")
+                    // The verified detail URL is itself a season identity. Its
+                    // selector may link to another regional edition unavailable
+                    // in the provider, so preserve the provider-published ID.
+                    if (PublicIdentityDiscovery.validId(currentId, "pv") && currentSeason != null && currentSeason in 1..30) {
+                        if (ids.any { (number, id) -> number != currentSeason && id == currentId }) throw IOException("Ambiguous Prime season metadata")
+                        ids[currentSeason] = currentId
                     }
                 }
                 if (ids.isNotEmpty()) return ids
