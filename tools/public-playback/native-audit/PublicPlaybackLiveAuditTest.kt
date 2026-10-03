@@ -32,6 +32,7 @@ class PublicPlaybackLiveAuditTest {
         val output = File(requireNotNull(System.getenv("NPRO_PLAYBACK_AUDIT_OUTPUT")))
         val rows = JSONArray()
         val requests = java.util.concurrent.atomic.AtomicInteger(0)
+        val events = java.util.concurrent.ConcurrentLinkedQueue<JSONObject>()
         val client = OkHttpClient.Builder().cookieJar(CookieJar.NO_COOKIES)
             .followRedirects(false).followSslRedirects(false)
             .connectTimeout(4, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS)
@@ -39,18 +40,40 @@ class PublicPlaybackLiveAuditTest {
             .addNetworkInterceptor { chain ->
                 check(chain.request().header("Cookie") == null)
                 check(chain.request().header("Authorization") == null)
-                requests.incrementAndGet()
-                chain.proceed(chain.request())
+                val number = requests.incrementAndGet()
+                val request = chain.request()
+                val response = chain.proceed(request)
+                val path = request.url.encodedPath
+                val kind = when {
+                    path.endsWith("episodes.php") -> "episodes"
+                    path.endsWith("playlist.php") -> "playlist"
+                    path.endsWith("post.php") -> "provider-title"
+                    request.url.host == "www.netflix.com" -> "official-netflix-title"
+                    request.url.host.contains("themoviedb") -> "tmdb-metadata"
+                    request.url.host.contains("wikidata") -> "wikidata-metadata"
+                    request.header("Range") != null -> "media-segment"
+                    path.endsWith(".m3u8") -> "issued-manifest"
+                    else -> "public-metadata"
+                }
+                val event = JSONObject().put("request", number).put("host", request.url.host)
+                    .put("kind", kind).put("httpStatus", response.code)
+                if (kind in listOf("episodes", "playlist", "provider-title", "issued-manifest")) {
+                    val sample = response.peekBody(65536).string()
+                    event.put("rateLimited", StreamSessionPolicy.isRateLimited(response.code, sample))
+                        .put("waitingVideo", StreamSessionPolicy.isWaitingVideo(sample) || StreamSessionPolicy.isWaitingVideo(request.url.toString()))
+                }
+                events.add(event)
+                response
             }.build()
         val app = ApplicationProvider.getApplicationContext<Application>()
         val catalog = PublicProviderCatalog(app)
         catalog.refresh(client, force = true)
         val resolver = PublicPlaybackResolver(client, catalog = catalog, backgroundCatalogRefresh = false)
         val selections = listOf(
+            Selection("Grand Theft Auto VI: An Extended Look", "2026", "movie", "1744462"),
+            Selection("Lioness", "2023", "tv", "113962", 1, 1),
             Selection("Stranger Things", "2016", "tv", "66732", 1, 1),
             Selection("Stranger Things", "2016", "tv", "66732", 4, 1),
-            Selection("Lioness", "2023", "tv", "113962", 1, 1),
-            Selection("Grand Theft Auto VI: An Extended Look", "2026", "movie", "1744462")
         )
         for (selection in selections) {
             val row = JSONObject().put("title", selection.title).put("year", selection.year)
@@ -73,11 +96,12 @@ class PublicPlaybackLiveAuditTest {
             row.put("elapsedMs", (System.nanoTime() - started) / 1_000_000)
                 .put("httpRequests", requests.get() - before)
             rows.put(row)
-            output.parentFile.mkdirs()
+            output.parentFile?.mkdirs()
             output.writeText(JSONObject().put("schemaVersion", 1)
                 .put("source", "production Kotlin PublicPlaybackResolver")
                 .put("cookies", false).put("warming", false)
-                .put("generatedAt", System.currentTimeMillis()).put("results", rows).toString(2))
+                .put("generatedAt", System.currentTimeMillis()).put("results", rows)
+                .put("requests", JSONArray(events.toList())).toString(2))
             println("AUDIT ${selection.title} S${selection.season}E${selection.episode}: ${row.optBoolean("success")} (${row.optLong("elapsedMs")}ms)")
             if (PlaybackServiceGate.remainingMs() > 0) break
         }
