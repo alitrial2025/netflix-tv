@@ -47,14 +47,24 @@ internal object PublicProviderIdentity {
             ids("P1874",Regex("[0-9]{5,20}")).map { it to "nf" } +
             ids("P14440",Regex("[A-Z0-9]{10,30}")).map { it to "pv" }).distinct()
     }
-    fun matchesAirtel(html: String, title: String, year: String): Boolean {
+    fun matchesAirtel(html: String, title: String, year: String, type: String = "movie"): Boolean {
         val displayedYear = Regex("""id=["']banner-content-release-year["'][^>]*>\s*([0-9]{4})\s*<""").find(html)?.groupValues?.get(1)
-        if (displayedYear != year) return false
+        if (type != "tv" && displayedYear != year) return false
         val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>",RegexOption.IGNORE_CASE)
         return scripts.findAll(html).any { match ->
             val obj = try { JSONObject(match.groupValues[1]) } catch (_: org.json.JSONException) { return@any false }
             obj.optString("@type") == "VideoObject" && normalize(obj.optString("name")) == normalize(title)
         }
+    }
+    /** Discover opaque IDs from actual public links, including releases absent from the feed. */
+    fun partnerLinks(html: String, title: String, type: String): List<Pair<String, String>> {
+        if (type !in listOf("movie", "tv")) return emptyList()
+        val group = if (type == "tv") "tv-shows" else "movies"
+        val namespace = if (type == "tv") "TVSHOW" else "MOVIE"
+        val unescaped = html.replace("\\/", "/")
+        return Regex("""["'](?:https://www\.airtelxstream\.in)?(/$group/([a-z0-9-]+)/HOTSTAR_DTH_${namespace}_([0-9]{5,20}))["']""")
+            .findAll(unescaped).filter { normalize(it.groupValues[2]) == normalize(title) }
+            .map { it.groupValues[3] to it.groupValues[1] }.distinct().take(6).toList()
     }
     fun linkedHotstarIds(html: String): List<String> {
         val unescaped = html.replace("\\/","/")

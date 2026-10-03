@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collect
 
 private class DetailsPreviewCookie {
     var value: String? = null
@@ -80,7 +81,6 @@ fun DetailsScreen(
         viewModel.stopHomePreviews()
         onDispose { }
     }
-    val categoryRows by viewModel.categoryRows.collectAsStateWithLifecycle()
     val continueWatchingList by viewModel.continueWatchingList.collectAsStateWithLifecycle()
     val myListMovieIds by viewModel.myListMovieIds.collectAsStateWithLifecycle()
     val likedMovieIds by viewModel.likedMovieIds.collectAsStateWithLifecycle()
@@ -95,20 +95,7 @@ fun DetailsScreen(
 
     val isTvSeries = remember(movie.id, movie.type, movie.duration) { movie.isSeriesContent() }
 
-    val recommendations = remember(movie.id, categoryRows, isKidContent, isTvSeries) {
-        val all = categoryRows.flatMap { it.second }.distinctBy { it.id }
-        val pool = if (isKidContent) {
-            all.filter { isKidSafeMovie(it) && it.id != movie.id }
-        } else {
-            all.filter { it.id != movie.id }
-        }
-        val sorted = if (isTvSeries) {
-            pool.sortedByDescending { it.type.equals("Series", ignoreCase = true) || it.duration.contains("Season", ignoreCase = true) }
-        } else {
-            pool.sortedByDescending { !it.type.equals("Series", ignoreCase = true) && !it.duration.contains("Season", ignoreCase = true) }
-        }
-        sorted.take(12)
-    }
+    var recommendations by remember(movieKey) { mutableStateOf<List<Movie>>(emptyList()) }
 
     val context = LocalContext.current
     var detailsBillboardMeta by remember(movie.id) {
@@ -193,7 +180,7 @@ fun DetailsScreen(
         entranceProgress.snapTo(0f)
         entranceProgress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = TvMotion.duration(950), easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = TvMotion.duration(220), easing = FastOutSlowInEasing)
         )
     }
     // Read the reveal only in child graphics layers, keeping the screen's content
@@ -201,6 +188,8 @@ fun DetailsScreen(
     val entranceProgressProvider = remember(entranceProgress) { { entranceProgress.value } }
 
     LaunchedEffect(movie.id) {
+        // Let navigation paint before applying optional artwork/metadata updates.
+        delay(TvMotion.duration(220).toLong())
         if (currentDetailsLogoUrl.isNullOrBlank()) {
             val isTv = movie.isSeriesContent()
             val fetched = withContext(Dispatchers.IO) { viewModel.fetchLogoUrl(movie.id, isTv) }
@@ -232,6 +221,14 @@ fun DetailsScreen(
     }
 
     var showModalScreen by remember(movie.id) { mutableStateOf(false) }
+    LaunchedEffect(movieKey, showModalScreen, activeTabName, isKidContent, isTvSeries) {
+        if (!showModalScreen || activeTabName != "More like this") return@LaunchedEffect
+        viewModel.categoryRows.collect { rows ->
+            recommendations = withContext(Dispatchers.Default) {
+                selectDetailsRecommendations(rows.flatMap { it.second }, movie, isKidContent)
+            }
+        }
+    }
     var lastModalCloseTime by remember(movie.id) { mutableLongStateOf(0L) }
     var lastFocusedSourceRequester by remember(movie.id) { mutableStateOf<FocusRequester?>(null) }
 

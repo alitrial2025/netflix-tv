@@ -4,6 +4,7 @@ import {NoWarmFlow, TARGETS, FlowError} from './no-warm-flow.mjs';
 import {readFile, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {matchesPartnerPage,partnerRow,publishedLinks} from './partner-catalog.mjs';
 const norm = s => String(s ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const fail = (code, stage) => {throw new FlowError(code, stage)};
 export function hotstarIds(entity, entityId) {
@@ -53,10 +54,18 @@ export function netflixSeasons(html, title) {
   return new Map(pairs);
 }
 export class PublicCatalogFlow extends NoWarmFlow {
-  constructor(options = {}) {super({...options, appClientMode:true}); this.tmdbKey = options.tmdbKey; this.hotstarIndex = options.hotstarIndex ?? []}
-  async nativeIdentity(t) {
+  constructor(options = {}) {super({...options, appClientMode:true}); this.tmdbKey = options.tmdbKey; this.hotstarIndex = options.hotstarIndex ?? []; this.postCache = new Map(); this.rejected = new Set(); this.partnerPages = new Map()}
+  async json(stage,path,params) {
+    const key = path.endsWith('/post.php') ? `${path}:${params.id}` : null;
+    if(key && this.postCache.has(key)) return this.postCache.get(key);
+    const value=await super.json(stage,path,params);
+    if(key) this.postCache.set(key,value);
+    return value;
+  }
+  async nativeIdentity(t,includeDiscovery=true) {
     let tmdbId = t.tmdbId;
     if (!tmdbId) {
+      if(!includeDiscovery) return null;
       const u = new URL(`https://api.themoviedb.org/3/search/${t.type}`);
       u.search = new URLSearchParams({api_key:this.tmdbKey, query:t.title});
       const data = (await this.request('tmdb_identity', u.href)).data;
@@ -69,11 +78,12 @@ export class PublicCatalogFlow extends NoWarmFlow {
     if (t.type === 'tv' && tmdbId === '1399' && t.year === 2011) ids = ['1971002880'];
     else if (t.type === 'tv' && tmdbId === '95350' && t.year === 2026) ids = ['1271680756'];
     else {
-      for (const row of this.hotstarIndex.filter(r => r[0] === t.type && r[1] === norm(t.title)).slice(0,3)) {
+      const partnerIdentity = async rows => { for (const row of rows.slice(0,6)) {
         const [,,partnerId,path] = row;
         if (!/^\/(?:movies|tv-shows)\/[a-z0-9-]+\/HOTSTAR_DTH_(?:MOVIE|TVSHOW)_\d{5,20}$/.test(path)) continue;
-        const page = await this.request('public_partner_identity', 'https://www.airtelxstream.in'+path);
-        if (page.body.match(/id=["']banner-content-release-year["'][^>]*>\s*(\d{4})\s*</)?.[1] !== String(t.year)) continue;
+        const page = this.partnerPages.get(path) ?? await this.request('public_partner_identity', 'https://www.airtelxstream.in'+path);
+        this.partnerPages.set(path,page);
+        if (!matchesPartnerPage(page.body,t.title,t.year,t.type)) continue;
         let matched = false;
         for (const m of page.body.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
           try {const j = JSON.parse(m[1]); if (j['@type'] === 'VideoObject' && norm(j.name) === norm(t.title)) matched = true} catch {}
@@ -83,12 +93,23 @@ export class PublicCatalogFlow extends NoWarmFlow {
         const linked = [...unescaped.matchAll(/https:\/\/(?:www\.)?hotstar\.com\/[^"\s\\<>]*?\/(\d{5,20})(?=[/?"\s\\<>]|$)/g)].map(m => m[1]);
         const candidates = [...new Set([...(partnerId.length >= 10 ? [partnerId] : []),...linked])];
         for (const id of candidates.slice(0,3)) {
+          if(this.rejected.has(id)) continue;
+          this.rejected.add(id);
           const d = await this.json('public_identity_validation','/mobile/hs/post.php',{id});
           const title = t.type === 'tv' ? d.title?.replace(/\s+(?:S|Season\s+)\d+$/i,'') : d.title;
           if (d.status === 'y' && norm(title) === norm(t.title) && d.type === (t.type === 'tv' ? 't' : 'm') && (t.type === 'tv' || Number(d.year) === t.year)) {
             t.ott = 'hs'; return {id,yearVerified:Number(d.year) === t.year};
           }
         }
+      } return null; };
+      const indexed=await partnerIdentity(this.hotstarIndex.filter(r => r[0] === t.type && r[1] === norm(t.title)));
+      if(indexed) return indexed;
+      if(!includeDiscovery) return null;
+      const section=t.type==='tv'?'tv-shows':'movies';
+      for(const path of [`/${section}`,`/${section}/english-${section}`]) {
+        const page=await this.request('public_partner_browse','https://www.airtelxstream.in'+path);
+        const rows=publishedLinks(page.body).map(partnerRow).filter(r=>r && r[0]===t.type && r[1]===norm(t.title));
+        const found=await partnerIdentity(rows); if(found) return found;
       }
       const external = (await this.request('tmdb_external_identity', `https://api.themoviedb.org/3/${t.type}/${tmdbId}/external_ids?api_key=${this.tmdbKey}`)).data;
       if (!/^Q[1-9]\d*$/.test(external?.wikidata_id ?? '')) return null;
@@ -104,7 +125,7 @@ export class PublicCatalogFlow extends NoWarmFlow {
     return null;
   }
   async search(t) {
-    if (['1399','95350'].includes(t.tmdbId)) {const id = await this.nativeIdentity(t); if (id) return id}
+    const known=await this.nativeIdentity(t,false); if(known) return known;
     for (const ott of ['nf','pv']) {
       try {const found = await super.search({...t,ott}); t.ott = ott; return found}
       catch(e) {if (!['title_not_found_or_query_rejected','endpoint_not_found'].includes(e.code)) throw e}
@@ -140,7 +161,7 @@ async function main() {
   const report = {at:new Date().toISOString(),cookieFree:true,handshakes:0,scope:'Bounded HLS video/audio container samples; Android decoding and complete-title availability are not proven.',results:[]};
   const hotstarIndex = JSON.parse(await readFile(option('--hotstar-index') || new URL('../../app/src/main/assets/public-hotstar-catalog.json',import.meta.url),'utf8')).rows;
   for (const input of targets) {
-    const t = {...input}; const f = new PublicCatalogFlow({tmdbKey,hotstarIndex,titleTimeoutMs:65000,requestTimeoutMs:15000});
+    const t = {...input}; const f = new PublicCatalogFlow({tmdbKey,hotstarIndex,titleTimeoutMs:28000,requestTimeoutMs:6000});
     const result = await f.run(t); result.requestedCatalog = input.ott; result.actualCatalog = t.ott;
     report.results.push(result); report.successCount = report.results.filter(r => r.success).length;
     await writeFile(option('--report') || 'public-catalog-report.json', JSON.stringify(report,null,2));

@@ -119,7 +119,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         .followSslRedirects(true)
         .build()
 
-    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context))
+    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context), backgroundCatalogRefresh = clientOverride == null)
     val requiresWarmSession: Boolean get() = false
 
     private val SEC_CH_UA = "\"Not(A:Brand\";v=\"99\", \"Android WebView\";v=\"133\", \"Chromium\";v=\"133\""
@@ -2468,6 +2468,9 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         tmdbInfoCache[key]?.let { cached ->
             if (cached.title.isNotBlank()) return cached
         }
+        // Cards already contain the TMDB title/year; don't repeat that network call on Play.
+        if (fallbackTitle.isNotBlank() && fallbackYear.matches(Regex("[0-9]{4}")) && fallbackTitle.any { it in 'A'..'Z' || it in 'a'..'z' })
+            return TmdbInfo(fallbackTitle, fallbackYear)
         val apiKey = BuildConfig.TMDB_API_KEY
         if (apiKey.isBlank()) {
             val info = TmdbInfo(fallbackTitle, fallbackYear)

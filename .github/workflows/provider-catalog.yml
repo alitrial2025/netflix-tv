@@ -1,0 +1,35 @@
+name: Refresh public provider identities
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: public-provider-catalog
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.repository == 'alitrial2025/netflix-tv'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Validate catalog parsing
+        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs
+      - name: Export current public metadata
+        run: |
+          node tools/public-playback/build-public-catalog.mjs --output "$RUNNER_TEMP/native.json"
+          node tools/public-playback/build-hotstar-catalog.mjs --output "$RUNNER_TEMP/partner.json"
+          node tools/public-playback/build-provider-feed.mjs --native "$RUNNER_TEMP/native.json" --partner "$RUNNER_TEMP/partner.json"
+      - name: Publish validated identity candidates
+        run: |
+          git add catalogs/provider-identities.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Refresh public provider identity feed"
+          git push origin HEAD:main

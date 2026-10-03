@@ -32,6 +32,8 @@ jobs:
       - name: Validate marketing and playback diagnostics
         if: ${{ github.repository == 'alitrial2025/netflix-tv' }}
         run: node --test marketing-site/tests/release-policy.test.mjs tools/cdn-audit/season-catalog-audit.test.mjs tools/cdn-audit/probe.test.mjs tools/cdn-audit/audit-profiles.test.mjs tools/public-playback/public-catalog-flow.test.mjs
+      - name: Validate provider identity refresh
+        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs tools/public-playback/public-catalog-flow.test.mjs
       - name: Build debug APK
         run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug
       - name: Run unit tests
@@ -108,6 +110,8 @@ jobs:
           ! grep -q 'application-debuggable' release-badging.txt
           test -s app/build/outputs/mapping/release/mapping.txt
           test -s app/build/outputs/mapping/release/usage.txt
+      - name: Verify R8 preserves suspend API response types
+        run: python3 tools/release-validation/check-retrofit-dex.py --apk app/build/outputs/apk/release/app-release.apk --mapping app/build/outputs/mapping/release/mapping.txt --api com.example.api.TmdbApiService
       - name: Save signed release APK
         uses: actions/upload-artifact@v5
         with:
