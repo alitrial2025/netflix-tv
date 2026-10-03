@@ -1,0 +1,368 @@
+{
+  "schemaVersion": 1,
+  "timestamp": "2026-10-03T12:48:40.062Z",
+  "scope": "Bounded live movie checks using normal existing application routes; no authentication cookies or warmup; no issued CDN signature changes.",
+  "summary": {
+    "providerSearchCookieFreeVerified": true,
+    "providerPlaylistCookieFreeVerified": true,
+    "providerPostCookieFreeVerified": false,
+    "playableVideoSegmentsVerified": false,
+    "playableAudioSegmentsVerified": false,
+    "androidDecodeVerified": false,
+    "reason": "The faithful-header retry returned the provider waiting video (/files/220884), identified by the user as its deliberate rate-limit video. HTTP 200, no Retry-After, and no explicit rate-limit or authorization text were observed. No real media segments were delivered; the exact reason this request receives the waiting response remains unverified."
+  },
+  "cookieHandling": {
+    "transport": "Node fetch through configured session proxy",
+    "credentials": "omit",
+    "cookieJar": false,
+    "cookieHeaderAdded": false,
+    "authenticationHeaderAdded": false,
+    "setCookiePersisted": false
+  },
+  "issuedOnly": [
+    {
+      "ott": "nf",
+      "title": "Glass Onion: A Knives Out Mystery",
+      "year": 2022,
+      "type": "movie",
+      "success": false,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": false,
+      "guessedIds": false,
+      "providerId": "81458416",
+      "yearVerified": false,
+      "contentId": "81458416",
+      "failedStage": "playlist",
+      "error": "issued_authorization_missing",
+      "elapsedMs": 430,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 106,
+          "elapsedMs": 265
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 956,
+          "elapsedMs": 164
+        }
+      ]
+    },
+    {
+      "ott": "pv",
+      "title": "Road House",
+      "year": 2024,
+      "type": "movie",
+      "success": false,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": false,
+      "guessedIds": false,
+      "providerId": "0O70LSZ5KT12QBNQRUQGGRIWDP",
+      "yearVerified": true,
+      "contentId": "0O70LSZ5KT12QBNQRUQGGRIWDP",
+      "failedStage": "playlist",
+      "error": "issued_authorization_missing",
+      "elapsedMs": 312,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 219,
+          "elapsedMs": 159
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 5400,
+          "elapsedMs": 152
+        }
+      ]
+    }
+  ],
+  "existingApplicationMasterFlow": [
+    {
+      "ott": "nf",
+      "title": "Glass Onion: A Knives Out Mystery",
+      "year": 2022,
+      "type": "movie",
+      "success": false,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "81458416",
+      "yearVerified": false,
+      "contentId": "81458416",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "failedStage": "video_manifest",
+      "error": "rate_limited",
+      "elapsedMs": 968,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 106,
+          "elapsedMs": 289
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 956,
+          "elapsedMs": 493
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/81458416.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "status": 200,
+          "sampledBytes": 2742,
+          "error": "rate_limited",
+          "elapsedMs": 183
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "A successful provider search confirms an ID candidate, not playable or correct media.",
+    "Glass Onion search did not include year or media type; public identity validation remains necessary.",
+    "Road House provider search included the expected year; metadata and segment delivery still require validation.",
+    "No direct provider post endpoint probe completed before the shared rate limit.",
+    "Earlier repository reports record successful media samples but do not establish current upstream availability."
+  ],
+  "afterCooldownRetry": {
+    "timestamp": "2026-10-03T13:03:26.056Z",
+    "attempts": 1,
+    "existingApplicationMasterFlow": {
+      "ott": "nf",
+      "title": "Glass Onion: A Knives Out Mystery",
+      "year": 2022,
+      "type": "movie",
+      "nativeId": "81458416",
+      "success": false,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "81458416",
+      "yearVerified": false,
+      "contentId": "81458416",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "failedStage": "video_manifest",
+      "error": "rate_limited",
+      "elapsedMs": 1173,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 106,
+          "elapsedMs": 677
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 956,
+          "elapsedMs": 323
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/81458416.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "status": 200,
+          "sampledBytes": 2742,
+          "error": "rate_limited",
+          "elapsedMs": 168
+        }
+      ]
+    }
+  },
+  "methodologyCorrection": {
+    "earlierProbeHeadersFaithful": false,
+    "earlierDummyClassification": "Earlier diagnostics labelled the known /files/220884 waiting video rate_limited without recording whether HTTP 429, Retry-After, or explicit text was present. The user confirms this dummy video is the provider rate-limit video; separate diagnostics now distinguish its appearance from explicit HTTP/text signals. The native sentinel guard remains unchanged.",
+    "headerDifference": "Earlier Node audit sent XMLHttpRequest to all provider metadata and HLS. Kotlin app sends XMLHttpRequest only to PHP endpoints and app.netmirror.netmirrornew to provider HLS/CDN.",
+    "correctedProbeHeadersFaithful": true
+  },
+  "faithfulHeaderRetry": {
+    "timestamp": "2026-10-03T13:12:14.544Z",
+    "attempts": 1,
+    "providerHeaders": "XMLHttpRequest only for .php; app.netmirror.netmirrornew for HLS and CDN",
+    "result": {
+      "ott": "nf",
+      "title": "Glass Onion: A Knives Out Mystery",
+      "year": 2022,
+      "type": "movie",
+      "nativeId": "81458416",
+      "success": false,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "81458416",
+      "yearVerified": false,
+      "contentId": "81458416",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "failedStage": "video_manifest",
+      "error": "waiting_video_returned",
+      "elapsedMs": 1589,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "retryAfter": null,
+          "sampledBytes": 106,
+          "responseSignals": {
+            "explicitRateLimit": false,
+            "waitingVideoReturned": false
+          },
+          "elapsedMs": 837
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "retryAfter": null,
+          "sampledBytes": 956,
+          "responseSignals": {
+            "explicitRateLimit": false,
+            "waitingVideoReturned": false
+          },
+          "elapsedMs": 563
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/81458416.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "status": 200,
+          "retryAfter": null,
+          "sampledBytes": 2742,
+          "responseSignals": {
+            "explicitRateLimit": false,
+            "waitingVideoReturned": true
+          },
+          "error": "waiting_video_returned",
+          "elapsedMs": 182
+        }
+      ]
+    },
+    "samples": []
+  },
+  "publicLandingInspection": {
+    "timestamp": "2026-10-03T13:13:06.506Z",
+    "cookieFree": true,
+    "requests": [
+      {
+        "host": "net52.cc",
+        "path": "/",
+        "status": 302,
+        "bytes": 0,
+        "retryAfter": null,
+        "authorizationMessage": false,
+        "challenge": false,
+        "scripts": [],
+        "observedFlowNames": [],
+        "redirect": {
+          "host": "net52.cc",
+          "path": "/home",
+          "queryKeys": []
+        }
+      },
+      {
+        "host": "net52.cc",
+        "path": "/home",
+        "status": 301,
+        "bytes": 0,
+        "retryAfter": null,
+        "authorizationMessage": false,
+        "challenge": false,
+        "scripts": [],
+        "observedFlowNames": [],
+        "redirect": {
+          "host": "net77.cc",
+          "path": "/verify2",
+          "queryKeys": []
+        }
+      }
+    ],
+    "conclusion": "The old provider public landing redirects to net77.cc/verify2. Inspection stopped before the authorization flow; no public player JavaScript was obtained to verify the current master formula."
+  }
+}

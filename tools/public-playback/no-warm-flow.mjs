@@ -53,6 +53,8 @@ export function appMasterRequest(source, contentId, baseUrl, timestamp = Math.fl
   const ts = String(timestamp);
   const hash = createHash('md5').update(ts + contentId).digest('hex');
   url.searchParams.set('in', `235ca31540ab8d90fcef4a00de8a247c::${hash}::${ts}::ek::m`);
+  for (const [name,value] of [['hd','off'],['lang','eng'],['hp','yes']])
+    if (!url.searchParams.has(name)) url.searchParams.set(name,value);
   return { url: url.href, constructed: true };
 }
 
@@ -73,7 +75,8 @@ export class NoWarmFlow {
     if (remaining <= 0) fail('title_budget_exceeded', stage);
     if (++this.requestCount > 32) fail('title_request_budget_exceeded', stage);
     const headers = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 16; sdk_gphone64_x86_64 Build/BE2A.250530.026.D1; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/133.0.6943.137 Mobile Safari/537.36 /OS.Gatu v3.0',
-      'Accept': '*/*', 'X-Requested-With': binary || url.origin !== this.base ? 'app.netmirror.netmirrornew' : 'XMLHttpRequest',
+      'Accept': '*/*', 'X-Requested-With': binary || url.origin !== this.base ||
+        this.appClientMode && !url.pathname.endsWith('.php') ? 'app.netmirror.netmirrornew' : 'XMLHttpRequest',
       'Referer': this.base + '/', 'Origin': this.base };
     if (binary) headers.Range = 'bytes=0-65535';
     // Node fetch has no browser cookie jar. Never add Cookie, Authorization or client certificates.
@@ -83,6 +86,7 @@ export class NoWarmFlow {
       const response = await fetch(url, { headers, redirect: 'manual', credentials: 'omit',
         signal: AbortSignal.timeout(Math.min(this.requestTimeoutMs, remaining)) });
       event.status = response.status;
+      event.retryAfter = response.headers.get('retry-after');
       if ([301,302,307,308].includes(response.status) && url.hostname === 'www.netflix.com') {
         const next = new URL(response.headers.get('location') || '', url);
         const titleId = url.pathname.match(/\/title\/(\d+)$/)?.[1];
@@ -103,9 +107,12 @@ export class NoWarmFlow {
         }
       }
       const bytes = Buffer.concat(chunks); const body = bytes.toString('utf8'); event.sampledBytes = bytes.length;
-      if (response.status === 429 || /\/files\/220884(?:[/?\s]|$)|too many requests|rate[_ -]?limit/i.test(body)) {
-        this.rateLimited = true; fail('rate_limited', stage);
-      }
+      const explicitLimit = response.status === 429 || /too many requests|rate[_ -]?limit/i.test(body);
+      const waitingVideo = /\/files\/220884(?:[/?."\s]|$)/i.test(body.replace(/\\\//g, '/'));
+      event.responseSignals = { explicitRateLimit: explicitLimit, waitingVideoReturned: waitingVideo };
+      if (explicitLimit) { this.rateLimited = true; fail('rate_limited', stage); }
+      // The provider returns this known rate-limit video even with HTTP 200.
+      if (waitingVideo) { this.rateLimited = true; fail('waiting_video_returned', stage); }
       if ([401, 403].includes(response.status)) fail('authorization_required', stage);
       if (response.status === 404) fail('endpoint_not_found', stage);
       if (!response.ok) fail('http_error', stage);
