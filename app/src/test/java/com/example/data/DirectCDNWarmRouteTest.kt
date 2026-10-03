@@ -40,7 +40,8 @@ class DirectCDNWarmRouteTest {
             val body = when (req.url.encodedPath) {
                 "/3/movie/fixture" -> """{"title":"Fixture","release_date":"2001-01-01"}"""
                 "/mobile/playlist.php" -> JSONObject().put("sources", JSONArray().put(JSONObject().put("file", url))).put("tracks", JSONArray()).toString()
-                "/search.php" -> """{"searchResult":[{"id":"episode","t":"Fixture","y":"2001"}]}"""
+                "/search.php" -> """{"searchResult":[{"id":"8100000003","t":"Fixture","y":"2001"}]}"""
+                "/title/8100000003" -> """<script type="application/ld+json">{"@type":"Movie","name":"Fixture","datePublished":"2001-01-01"}</script>"""
                 "/custom/full-hd/media" -> {
                     assertEquals(if (unsigned) null else token, req.url.queryParameter("in"))
                     if (rejected) "Only valid users allowed" else "#EXTM3U\n#EXTINF:10,\nsegment.jpg\n#EXT-X-ENDLIST"
@@ -66,5 +67,6 @@ class DirectCDNWarmRouteTest {
         assertEquals(0L, resolver.sessionVersion)
         assertTrue(resolver.hasValidSession())
         assertFalse(requested.any { it.contains("verify") || it.contains("home") })
+        assertFalse("Card metadata avoids an extra TMDB fetch", requested.any { it.startsWith("/3/movie/") })
     }
 }

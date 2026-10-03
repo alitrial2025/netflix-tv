@@ -25,7 +25,8 @@ class DirectCDNPlaybackMetadataTest {
             val req = chain.request(); seen += req; assertNull(req.header("Cookie"))
             val body = when (req.url.encodedPath) {
                 "/3/movie/fixture" -> """{"title":"Fixture","release_date":"2001-01-01"}"""
-                "/search.php" -> """{"searchResult":[{"id":"content","t":"Fixture","y":"2001"}]}"""
+                "/search.php" -> """{"searchResult":[{"id":"8100000002","t":"Fixture","y":"2001"}]}"""
+                "/title/8100000002" -> """<script type="application/ld+json">{"@type":"Movie","name":"Fixture","datePublished":"2001-01-01"}</script>"""
                 "/mobile/playlist.php" -> """{"sources":[{"file":"/mobile/hls/content.m3u8?in=unknown::ek"}],"tracks":[{"file":"/captions/en.vtt","kind":"subtitles","srclang":"en"}]}"""
                 "/mobile/hls/content.m3u8" -> "#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",URI=\"$audio\"\n#EXT-X-STREAM-INF:BANDWIDTH=500000,AUDIO=\"audio\"\n$video"
                 "/video/media.m3u8" -> { assertEquals(video, req.url.toString()); "#EXTM3U\n#EXTINF:10,\ns.jpg" }
@@ -40,6 +41,7 @@ class DirectCDNPlaybackMetadataTest {
         assertFalse(stream.url.contains("unknown")); assertNull(stream.headers["Cookie"])
         assertFalse(resolver.requiresWarmSession); assertFalse(resolver.hasValidSession())
         assertEquals(0L, stream.sessionVersion)
+        assertFalse("Card metadata avoids an extra TMDB fetch", seen.any { it.url.encodedPath.startsWith("/3/movie/") })
         assertEquals("https://net52.cc/captions/en.vtt", stream.captions.single().url)
         val count = seen.size
         assertEquals(stream.url, resolver.resolveStream(movie, purpose = StreamPurpose.SILENT_PREVIEW).url)
