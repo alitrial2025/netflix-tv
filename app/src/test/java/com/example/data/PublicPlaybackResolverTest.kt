@@ -16,6 +16,25 @@ import java.io.IOException
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicPlaybackResolverTest {
+    @Test fun unlabelledDefaultEpisodesCannotOverrideTheRequestedSeason() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/mobile/hs/post.php" -> """{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"wrong-default","ep":"E1"}],"season":[{"id":"1271685002","s":"S2"}]}""" to 200
+                "/mobile/hs/episodes.php" -> {
+                    assertEquals("1271685002", request.url.queryParameter("s"))
+                    """{"episodes":[{"id":"1271685003","ep":"E1"}]}""" to 200
+                }
+                "/mobile/hs/playlist.php" -> {
+                    assertEquals("1271685003", request.url.queryParameter("id"))
+                    """{"sources":[{"file":"https://cdn.invalid/season-two.m3u8?in=issued"}]}""" to 200
+                }
+                "/season-two.m3u8" -> "#EXTM3U\n#EXTINF:1,\nsegment.jpg" to 200
+                else -> throw AssertionError("Unexpected endpoint")
+            }
+        })
+        assertEquals("1271685003", resolver.resolve("Lanterns", "2026", "tv", 2, 1, "95350").contentId)
+    }
     @Test fun staleNetflixPlaylistFallsBackToExactPrimeIdentityWithoutCookies() = runBlocking {
         val seen = mutableListOf<Request>()
         val resolver = PublicPlaybackResolver(client(seen) { request ->

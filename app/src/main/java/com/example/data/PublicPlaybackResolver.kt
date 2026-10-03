@@ -240,7 +240,9 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             } else {
                 val data = providerDetails[showId to ott] ?: (json("${prefix(ott)}/post.php", "id" to showId) as? JSONObject) ?: throw IOException("Season catalog unavailable")
                 if (!PublicProviderIdentity.matches(data, title, "", "tv")) throw IOException("Provider show identity mismatch")
-                findEpisode(data.optJSONArray("episodes") ?: JSONArray(), season, episode)?.let { return it }
+                // A title page can default to its newest season. Untagged episodes
+                // are only safe after requesting the verified season-specific endpoint.
+                findEpisode(data.optJSONArray("episodes") ?: JSONArray(), season, episode, requireSeasonLabel = true)?.let { return it }
                 val rows = objects(data.optJSONArray("season") ?: data.optJSONArray("seasons") ?: JSONArray())
                     .filter { number(field(it, "s", "season", "name", "title")) == season }
                 rows.singleOrNull()?.let(::id)?.takeIf(String::isNotBlank) ?: throw IOException("Requested season ID is unavailable")
@@ -342,9 +344,9 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         private fun field(obj: JSONObject, vararg names: String) = names.firstNotNullOfOrNull { obj.optString(it).takeIf(String::isNotBlank) }.orEmpty()
         private fun id(obj: JSONObject) = field(obj, "id", "Id", "sid")
         private fun number(s: String) = Regex("\\d+").find(s)?.value?.toIntOrNull()
-        private fun findEpisode(rows: JSONArray, season: Int, episode: Int): String? = objects(rows).firstOrNull {
+        private fun findEpisode(rows: JSONArray, season: Int, episode: Int, requireSeasonLabel: Boolean = false): String? = objects(rows).firstOrNull {
             val label = field(it, "s", "season", "s_num")
-            (label.isBlank() || number(label) == season) && number(field(it, "ep", "episode", "e")) == episode
+            ((!requireSeasonLabel && label.isBlank()) || number(label) == season) && number(field(it, "ep", "episode", "e")) == episode
         }?.let(::id)?.takeIf(String::isNotBlank)
 
         internal fun parsePrimeSeasons(html: String, title: String): Map<Int, String> {
