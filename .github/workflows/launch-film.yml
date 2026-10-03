@@ -111,11 +111,12 @@ jobs:
       - run: python3 scripts/generate-native-assets.py --verify
       - run: npm ci
       - run: npx tsc --noEmit
-      - run: pip install numpy
+      - run: pip install numpy pillow
       - run: python3 scripts/soundtrack.py
       - name: Render representative frames in cloud
         run: |
           npx remotion render NetflixProLaunch1080 out/preview --frames=30,75,110,175,235,290,350,420,500,555,600,640,685,735,820,890,1010 --image-format=png --gl=swangle --concurrency=1 --timeout=120000
+      - run: python3 scripts/verify-preview.py out/preview
       - uses: actions/upload-artifact@v5
         with:
           name: launch-film-preview
