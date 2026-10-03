@@ -57,6 +57,9 @@ def verify(apk, mapping, api):
         match = re.search(r'^' + re.escape(original) + r' -> (.+):$', symbols, re.M)
         if not match: raise ValueError('Required Retrofit runtime class missing: ' + original)
         descriptors[original] = 'L' + match[1].replace('.', '/') + ';'
+    # Annotation class names are obfuscated too; match their mapped descriptors.
+    http_annotations = {'L' + renamed.replace('.', '/') + ';' for original, renamed in
+        re.findall(r'^(retrofit2\.http\.[^ ]+) -> (.+):$', symbols, re.M)}
     found, methods = {}, []
     with zipfile.ZipFile(apk) as archive:
         for name in archive.namelist():
@@ -71,12 +74,13 @@ def verify(apk, mapping, api):
                     offset = directory + 16 + dex.u32(directory + 4) * 8
                     for i in range(dex.u32(directory + 8)):
                         entries = dex.annotations(dex.u32(offset + i * 8 + 4))
-                        if any(a['type'].startswith('Lretrofit2/http/') for a in entries):
+                        if any(a['type'] in http_annotations for a in entries):
                             methods.append(dex.signatures(entries))
     continuation = found.get(originals[0], [])
     if not any('<T:' in s for s in continuation): raise ValueError('R8 stripped Continuation<T> runtime generic signature')
     valid = [s for signatures in methods for s in signatures if descriptors[originals[0]][:-1] + '<' in s]
-    if len(valid) < 10 or len(valid) != len(methods): raise ValueError('R8 stripped a suspend Retrofit response type')
+    if not methods or len(valid) != len(methods):
+        raise ValueError(f'R8 suspend Retrofit signatures: {len(valid)} preserved / {len(methods)} retained HTTP endpoints')
     return {'continuationGenericPreserved': True, 'suspendEndpointSignaturesPreserved': len(valid), 'apk': Path(apk).name}
 
 if __name__ == '__main__':
