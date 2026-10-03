@@ -3,14 +3,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readRelease } from '../assets/release-policy.mjs';
 
-const origin = 'https://netflixpro.vercel.app';
+const origin = 'https://npro-app.vercel.app';
 const current = channel => JSON.parse(readFileSync(new URL(`../updates/${channel}.json`, import.meta.url)));
 
-test('existing project APKs retain correct channel, build label and fingerprint', () => {
+test('published production APKs enable mandatory updates and same-origin downloads', () => {
   for (const channel of ['tv', 'mobile']) {
     const release = readRelease(current(channel), channel, origin);
-    assert.equal(release.buildType, 'debug');
-    assert.match(release.apkUrl, /^https:\/\/github.com\/alitrial2025\/netflix-tv\/raw\/[a-f0-9]{40}\//);
+    assert.equal(release.buildType, 'release');
+    assert.equal(release.supportsUpdateGate, true);
+    assert.equal(release.mandatory, true);
+    assert.ok(release.apkUrl.startsWith(origin + `/downloads/${channel}/`));
     assert.equal(release.signingCertificateSha256.length, 1);
   }
 });

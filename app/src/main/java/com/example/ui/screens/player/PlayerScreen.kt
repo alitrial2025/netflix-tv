@@ -503,7 +503,7 @@ fun PlayerScreen(
                 playbackError = "This title requires an active plan. Return to Details to unlock it."
                 return@LaunchedEffect
             }
-            if (!isTrailerPlayback && !viewModel.confirmPlaybackAccess(movie)) {
+            if (warm && !isTrailerPlayback && !viewModel.confirmPlaybackAccess(movie)) {
                 exoPlayer.stop()
                 exoPlayer.clearMediaItems()
                 playbackError = "Reconnect to verify your membership before watching."
@@ -1215,16 +1215,31 @@ fun PlayerScreen(
             resolving = isLoading || currentMediaId != initialTargetMediaId, buffering = isBuffering,
             startupBufferMs = 900, rebufferMs = 1_500)
         val showLoadingOverlay = playbackError == null && (isLoading || isBuffering || !isTargetMediaReady)
+        var slowLookup by remember(initialTargetMediaId, loadAttempt) { mutableStateOf(false) }
+        LaunchedEffect(initialTargetMediaId, loadAttempt, isLoading) {
+            slowLookup = false
+            if (isLoading) {
+                delay(15_000L)
+                slowLookup = true
+            }
+        }
+
         AnimatedVisibility(
             visible = showLoadingOverlay,
             enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
         ) {
-            PlayerLoadingOverlay(
-                isLoading = isLoading,
-                isTargetMediaReady = isTargetMediaReady,
-                percentage = loadingPercentage
-            )
+            Box(Modifier.fillMaxSize()) {
+                PlayerLoadingOverlay(
+                    isLoading = isLoading,
+                    isTargetMediaReady = isTargetMediaReady,
+                    percentage = loadingPercentage
+                )
+                if (slowLookup && isLoading) {
+                    androidx.tv.material3.Text("Still finding your video…", color = Color.White,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp))
+                }
+            }
         }
         if (playbackError != null) {
             PlayerErrorOverlay(

@@ -3,18 +3,20 @@
   "channel": "mobile",
   "packageName": "com.netflixpro.apk",
   "available": true,
-  "versionCode": 5,
-  "versionName": "1.4",
+  "buildType": "release",
+  "versionCode": 10,
+  "versionName": "1.9",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 44444859,
-  "sha256": "df46f8697379b652595e5c12b7c6c2e93fc96fe54f50b02e9020cef102a7a8b1",
+  "sizeBytes": 14111098,
+  "sha256": "8b6162ac1103f75d88b6fb991a02de09b03059261adb5464a8fb38cbd1021710",
   "signingCertificateSha256": [
-    "8fe8dba9926a17c17f22a5f080bdcc5c63611d3ef9c504fd3363b4a3fa25497c"
+    "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "https://github.com/alitrial2025/netflix-tv/raw/284fbfadfb45fa2501fb8104bf8de34862c2499f/NetflixPro-Mobile-debug.apk",
+  "apkUrl": "/downloads/mobile/10-8b6162ac1103f75d.apk",
+  "releaseNotes": "Faster playback startup and required updates downloaded inside the app. Slower video lookups continue automatically. Install this version once to enable future in-app updates. If you have an older debug build, Android may require uninstalling it first; a fresh installation can remove local app data.",
   "supportsUpdateGate": true,
-  "publishedAt": "2026-10-01T07:27:04.983044Z",
-  "releaseNotes": "Debug review build: Home scroll work reduced, provider-aware Smart Downloads, separate-audio offline HLS and clearer errors. Uses the Android debug certificate; compatible with earlier desktop debug builds, not a differently signed production installation.",
-  "buildType": "debug"
+  "mandatory": true,
+  "requiresFreshInstallFromDebug": true,
+  "publishedAt": "2026-10-03T09:00:42.903Z"
 }

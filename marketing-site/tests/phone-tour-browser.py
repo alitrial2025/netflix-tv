@@ -18,7 +18,7 @@ with sync_playwright() as p:
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(f'http://127.0.0.1:{server.server_port}',wait_until='domcontentloaded')
  page.wait_for_selector('[data-release-card="mobile"] [data-release-download][data-unavailable="false"]')
- assert page.locator('[data-release-card="mobile"] [data-release-download]').get_attribute('href').endswith('/NetflixPro-Mobile-debug.apk')
+ assert '/downloads/mobile/' in page.locator('[data-release-card="mobile"] [data-release-download]').get_attribute('href')
  page.locator('#phone-tour').scroll_into_view_if_needed()
  page.wait_for_selector('.phone-home')
  page.wait_for_timeout(500)

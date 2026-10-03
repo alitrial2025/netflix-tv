@@ -2706,10 +2706,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     suspend fun resolveStream(movie: Movie, season: Int = 1, episode: Int = 1, purpose: com.example.data.StreamPurpose = com.example.data.StreamPurpose.PLAYBACK): com.example.data.NetMirrorStream? {
         val ownerUid = authenticatedUid() ?: return null
         if (!_userSubscription.value.isTvAllowed || isMovieLocked(movie)) return null
-        if (!confirmPlaybackAccess(movie)) return null
-        // Count the wait for a pending warmup, session renewal, and manifest
-        // discovery together. A first Play must finish or fail within a minute.
-        return kotlinx.coroutines.withTimeoutOrNull(58_000L) {
+        // Account/device/screen validation and source lookup share one startup budget.
+        return kotlinx.coroutines.withTimeoutOrNull(45_000L) {
+            if (!confirmPlaybackAccess(movie)) return@withTimeoutOrNull null
             val stream = if (purpose == com.example.data.StreamPurpose.PLAYBACK) {
                 directCDNResolver.withForegroundSessionDemand { resolveStreamWithinDeadline(movie, season, episode, purpose) }
             } else resolveStreamWithinDeadline(movie, season, episode, purpose)
@@ -3090,9 +3089,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
     suspend fun confirmPlaybackAccess(movie: Movie): Boolean {
         val owner = authenticatedUid() ?: return false
-        com.example.data.DeviceAccessGuard.confirm(getApplication(), tv = true)
-        if (authenticatedUid() != owner || isMovieLocked(movie)) return false
-        com.example.data.ScreenLease.acquire(getApplication(), tv = true)
+        if (isMovieLocked(movie)) return false
+        // The slot transaction validates live subscription, bound device and screen count together.
+        kotlinx.coroutines.withTimeoutOrNull(15_000L) {
+            com.example.data.ScreenLease.acquire(getApplication(), tv = true)
+            true
+        } ?: throw com.example.data.MembershipCheckException()
         return authenticatedUid() == owner && !isMovieLocked(movie)
     }
 

@@ -69,7 +69,7 @@ export function readGateConfig(apk) {
   return null;
 }
 
-export function makeRelease({ channel, metadata, bytes, sha256, signers, apkUrl, notes = '', previous, gateEnabled }) {
+export function makeRelease({ channel, metadata, bytes, sha256, signers, apkUrl, notes = '', previous, gateEnabled, replaceDebugBaseline = false }) {
   if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > MAX_APK_BYTES || !/^[0-9a-f]{64}$/.test(sha256)) {
     throw new Error('Invalid APK size or SHA-256.');
   }
@@ -78,14 +78,16 @@ export function makeRelease({ channel, metadata, bytes, sha256, signers, apkUrl,
   if (notes.length > 2000) throw new Error('Release notes must be 2,000 characters or fewer.');
   if (previous?.available) {
     if (metadata.versionCode <= previous.versionCode) throw new Error('Increase versionCode before building the next release.');
-    if (JSON.stringify(signers) !== JSON.stringify([...previous.signingCertificateSha256].sort())) {
+    const debugTransition = replaceDebugBaseline && previous.buildType === 'debug';
+    if (!debugTransition && JSON.stringify(signers) !== JSON.stringify([...previous.signingCertificateSha256].sort())) {
       throw new Error('Signing key changed. Use the original release keystore.');
     }
   }
   return {
     schemaVersion: 1, channel, packageName: metadata.packageName, available: true, buildType: 'release',
     ...metadata, sizeBytes: bytes, sha256, signingCertificateSha256: signers,
-    apkUrl, releaseNotes: notes.trim(), supportsUpdateGate: gateEnabled,
+    apkUrl, releaseNotes: notes.trim(), supportsUpdateGate: gateEnabled, mandatory: gateEnabled,
+    requiresFreshInstallFromDebug: previous?.buildType === 'debug' && replaceDebugBaseline,
     publishedAt: new Date().toISOString()
   };
 }

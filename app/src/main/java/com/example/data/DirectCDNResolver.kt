@@ -105,7 +105,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     private val LAST_QURY_KEY = "last_qury_param"
     private val LAST_TOKEN_MODE_KEY = "last_token_mode"
     private val LAST_TOKEN_SUFFIX_KEY = "last_token_suffix"
-    private val REMOTE_CONFIG_URL = "https://netflixpro.vercel.app/updates/streaming.json"
+    private val REMOTE_CONFIG_URL = "https://npro-app.vercel.app/updates/streaming.json"
     private val REMOTE_CONFIG_KEY = "remote_config_cache"
     private val REMOTE_CONFIG_TTL_MS = 6 * 60 * 60 * 1000L // 6 hours
 

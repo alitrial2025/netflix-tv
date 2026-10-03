@@ -27,7 +27,10 @@ class UpdateGateScreenshotTest {
         rule.setContent {
             UpdateGateScreen(UpdateGateState(phase, release, .37f, message = "Local update test"), {}, {}, {}, {})
         }
-        rule.onNodeWithText("Update Gate").assertExists()
+        rule.onNodeWithText("Update required").assertExists()
+        rule.onNodeWithText("Later").assertDoesNotExist()
+        rule.onNodeWithText("Continue").assertDoesNotExist()
+        rule.onNodeWithText("Exit app").assertExists()
         val folder = File(System.getProperty("screenshot.output", "build/reports/update-screenshots")).apply { mkdirs() }
         rule.onRoot().captureRoboImage(File(folder, "$name.png").path)
     }
@@ -35,6 +38,16 @@ class UpdateGateScreenshotTest {
     @Test fun downloading() = show(UpdatePhase.DOWNLOADING, "downloading")
     @Test fun installPermission() = show(UpdatePhase.PERMISSION, "permission")
     @Test fun androidApproval() = show(UpdatePhase.APPROVAL, "approval")
+
+    @Test fun exitDoesNotOfferAnAppBypass() {
+        var exited = false
+        rule.setContent {
+            UpdateGateScreen(UpdateGateState(UpdatePhase.ERROR, release), { exited = true }, {}, {}, {})
+        }
+        rule.onNodeWithText("Later").assertDoesNotExist()
+        rule.onNodeWithText("Exit app").performClick()
+        assertTrue(exited)
+    }
 
     @Test fun retryInvokesRecoveryAction() {
         var retried = false

@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 /** Wraps existing screens without changing their layout. Home starts after the launch check. */
@@ -59,7 +61,7 @@ fun UpdateGateHost(content: @Composable () -> Unit) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(gate, activity, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && activity != null) gate.onResume(activity)
+            if (event == Lifecycle.Event.ON_RESUME && activity != null) gate.onResume(activity, checkForUpdates = true)
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
@@ -69,16 +71,26 @@ fun UpdateGateHost(content: @Composable () -> Unit) {
             gate.onResume(activity)
         }
     }
+    LaunchedEffect(gate, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                delay(15 * 60 * 1000L)
+                gate.refreshWhenCurrent()
+            }
+        }
+    }
+    if (state.phase != UpdatePhase.CONTINUE) {
+        BackHandler { activity?.finish() }
+    }
     if (state.phase == UpdatePhase.CONTINUE) {
         content()
     } else if (state.phase == UpdatePhase.CHECKING) {
         // Check before Splash without showing update controls on every launch.
         Box(Modifier.fillMaxSize().background(Color.Black))
     } else {
-        BackHandler { gate.later() }
         UpdateGateScreen(
             state = state,
-            onLater = gate::later,
+            onExit = { activity?.finish() },
             onRetry = gate::retry,
             onAllow = { activity?.let(gate::allowUpdates) },
             onApprove = { activity?.let(gate::openApproval) }
@@ -95,7 +107,7 @@ private fun Context.findActivity(): Activity? = when (this) {
 @Composable
 internal fun UpdateGateScreen(
     state: UpdateGateState,
-    onLater: () -> Unit,
+    onExit: () -> Unit,
     onRetry: () -> Unit,
     onAllow: () -> Unit,
     onApprove: () -> Unit
@@ -121,7 +133,7 @@ internal fun UpdateGateScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text("NETFLIXPRO", color = Color(0xFFE50914), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("Update Gate", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("Update required", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             state.release?.let {
                 Text("Version ${it.versionName} · ${"%.1f".format(it.sizeBytes / 1048576.0)} MB", color = Color.White.copy(alpha = .7f), fontSize = 14.sp)
                 if (it.notes.isNotBlank()) {
@@ -147,7 +159,7 @@ internal fun UpdateGateScreen(
                 if (action != null) GateButton(action.first, action.second, primaryFocus)
                 if (state.phase != UpdatePhase.INSTALLING) {
                     GateButton(
-                        if (state.phase == UpdatePhase.CHECKING) "Continue" else "Later", onLater,
+                        "Exit app", onExit,
                         if (action == null) primaryFocus else null
                     )
                 }
@@ -156,7 +168,7 @@ internal fun UpdateGateScreen(
                 Text("Android will replace the app. It may reopen automatically; otherwise launch it again.",
                     color = Color.White.copy(alpha = .6f), fontSize = 13.sp, textAlign = TextAlign.Center)
             } else if (state.phase == UpdatePhase.DOWNLOADING) {
-                Text("You can keep watching while the download finishes. Installation waits until the next launch.",
+                Text("Install this update to continue using NetflixPro. Your account and profiles are kept.",
                     color = Color.White.copy(alpha = .6f), fontSize = 13.sp, textAlign = TextAlign.Center)
             }
         }
