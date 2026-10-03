@@ -18,3 +18,9 @@ test('series latest-season years do not reject the matching show; movie remakes 
  assert.equal(matchesPartnerPage(page,'Other show',2022,'tv'),false);
  assert.equal(matchesPartnerPage(page,'House of the Dragon',2022,'movie'),false);
 });
+test('accented published paths retain their opaque id and canonical URL encoding',()=>{
+ const row=partnerRow('/movies/tár/HOTSTAR_DTH_MOVIE_1971309279');
+ assert.deepEqual(row,['movie','tar','1971309279','/movies/t%C3%A1r/HOTSTAR_DTH_MOVIE_1971309279']);
+ assert.deepEqual(partnerRow(row[3]),row);
+ assert.equal(partnerRow('/movies/unsafe%2Fpath/HOTSTAR_DTH_MOVIE_1971309279'),null);
+});

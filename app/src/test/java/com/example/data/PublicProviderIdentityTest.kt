@@ -10,6 +10,11 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicProviderIdentityTest {
+    @Test fun accentedPublishedPathsMatchCanonicalTitleAndRetainUrlEncoding() {
+        val path = "/movies/tár/HOTSTAR_DTH_MOVIE_1971309279"
+        assertEquals(listOf("1971309279" to "/movies/t%C3%A1r/HOTSTAR_DTH_MOVIE_1971309279"),
+            PublicProviderIdentity.partnerLinks("""<a href="$path">Tár</a>""", "Tár", "movie"))
+    }
     @Test fun seriesLandingYearAndPublishedBrowseLinksAllowMigratedAndNewTitles() {
         val path = "/tv-shows/house-of-the-dragon/HOTSTAR_DTH_TVSHOW_1971002877"
         val page = """<p id="banner-content-release-year">2026</p><script>{"@type":"VideoObject","name":"House Of The Dragon"}</script><a href="$path">Watch</a>"""

@@ -41,7 +41,7 @@ internal class PublicProviderCatalog(context: Context) {
                 val row = rows.optJSONArray(i) ?: continue
                 val type = row.optString(0); val tmdb = row.optString(1)
                 val ott = row.optString(2); val id = row.optString(3)
-                if (type !in listOf("movie", "tv") || !tmdb.matches(Regex("[1-9][0-9]*")) || !valid(ott, id)) continue
+                if (type !in listOf("movie", "tv") || !tmdb.matches(TMDB_ID) || !valid(ott, id)) continue
                 result.getOrPut("$type:$tmdb") { mutableListOf() }.add(id to ott)
             }
             result.mapValues { it.value.distinct() }
@@ -57,7 +57,7 @@ internal class PublicProviderCatalog(context: Context) {
                 val type = row.optString(0); val title = row.optString(1)
                 val id = row.optString(2); val path = row.optString(3)
                 if (type !in listOf("movie","tv") || title.isBlank() || !valid("hs",id) ||
-                    !path.matches(Regex("/(?:movies|tv-shows)/[a-z0-9-]+/HOTSTAR_DTH_(?:MOVIE|TVSHOW)_[0-9]{5,20}"))) continue
+                    !path.matches(PARTNER_PATH)) continue
                 result.getOrPut("$type:$title") { mutableListOf() }.add(id to path)
             }
             result.mapValues { it.value.distinct() }
@@ -126,14 +126,20 @@ internal class PublicProviderCatalog(context: Context) {
         catch (_: Exception) { output?.let(file::failWrite) }
     }
     private fun valid(ott: String, id: String) = when (ott) {
-        "nf", "hs" -> id.matches(Regex("[0-9]{5,20}"))
-        "pv" -> id.matches(Regex("[A-Z0-9]{10,30}"))
+        "nf", "hs" -> id.matches(NATIVE_ID)
+        "pv" -> id.matches(PRIME_ID)
         else -> false
     }
 
     internal data class Feed(val generatedAt: Long, val fetchedAt: Long,
         val native: Map<String, List<Pair<String, String>>>, val partner: Map<String, List<Pair<String, String>>>)
     companion object {
+        private const val PARTNER_SLUG = "(?:[a-z0-9-]|%[0-9A-Fa-f]{2})+"
+        private val PARTNER_PATH = Regex("/(?:movies|tv-shows)/$PARTNER_SLUG/HOTSTAR_DTH_(?:MOVIE|TVSHOW)_[0-9]{5,20}")
+        private val TMDB_ID = Regex("[1-9][0-9]*")
+        private val NATIVE_ID = Regex("[0-9]{5,20}")
+        private val PRIME_ID = Regex("[A-Z0-9]{10,30}")
+        private val NORMALIZED_TITLE = Regex("[a-z0-9]+")
         private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         internal const val FEED_URL = "https://raw.githubusercontent.com/alitrial2025/netflix-tv/main/catalogs/provider-identities.json"
         internal fun parseFeed(root: JSONObject, now: Long): Feed {
@@ -148,8 +154,8 @@ internal class PublicProviderCatalog(context: Context) {
             for (i in 0 until nativeRows.length()) {
                 val row = nativeRows.optJSONArray(i) ?: throw IOException("Invalid native identity")
                 val type = row.optString(0); val tmdb = row.optString(1); val ott = row.optString(2); val id = row.optString(3)
-                if (type !in listOf("movie", "tv") || !tmdb.matches(Regex("[1-9][0-9]*")) ||
-                    !(if (ott == "pv") id.matches(Regex("[A-Z0-9]{10,30}")) else ott in listOf("nf", "hs") && id.matches(Regex("[0-9]{5,20}"))))
+                if (type !in listOf("movie", "tv") || !tmdb.matches(TMDB_ID) ||
+                    !(if (ott == "pv") id.matches(PRIME_ID) else ott in listOf("nf", "hs") && id.matches(NATIVE_ID)))
                     throw IOException("Invalid native identity")
                 native.getOrPut("$type:$tmdb") { mutableListOf() }.add(id to ott)
             }
@@ -157,8 +163,8 @@ internal class PublicProviderCatalog(context: Context) {
                 val row = partnerRows.optJSONArray(i) ?: throw IOException("Invalid partner identity")
                 val type = row.optString(0); val title = row.optString(1); val id = row.optString(2); val path = row.optString(3)
                 val expected = if (type == "tv") "TVSHOW" else "MOVIE"
-                if (type !in listOf("movie", "tv") || !title.matches(Regex("[a-z0-9]+")) || !id.matches(Regex("[0-9]{5,20}")) ||
-                    !path.matches(Regex("/(?:movies|tv-shows)/[a-z0-9-]+/HOTSTAR_DTH_${expected}_${id}")) ||
+                if (type !in listOf("movie", "tv") || !title.matches(NORMALIZED_TITLE) || !id.matches(NATIVE_ID) ||
+                    !path.matches(PARTNER_PATH) || !path.endsWith("/HOTSTAR_DTH_${expected}_$id") ||
                     (type == "tv") != path.startsWith("/tv-shows/")) throw IOException("Invalid partner identity")
                 partner.getOrPut("$type:$title") { mutableListOf() }.add(id to path)
             }

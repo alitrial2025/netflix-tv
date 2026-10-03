@@ -3,9 +3,11 @@ export const normalizeTitle = s => String(s).normalize('NFKD').replace(/[\u0300-
 export function partnerRow(value) {
   let u; try { u = new URL(value, ORIGIN); } catch { return null; }
   if (u.origin !== ORIGIN || u.username || u.password || u.search || u.hash) return null;
-  const p = u.pathname.match(/^\/(tv-shows|movies)\/([a-z0-9-]+)\/HOTSTAR_DTH_(TVSHOW|MOVIE)_([0-9]{5,20})$/);
+  const p = u.pathname.match(/^\/(tv-shows|movies)\/((?:[a-z0-9-]|%[0-9a-f]{2})+)\/HOTSTAR_DTH_(TVSHOW|MOVIE)_([0-9]{5,20})$/i);
   if (!p || (p[1] === 'tv-shows') !== (p[3] === 'TVSHOW')) return null;
-  return [p[1] === 'tv-shows' ? 'tv' : 'movie', normalizeTitle(p[2]), p[4], u.pathname];
+  let slug; try {slug=decodeURIComponent(p[2]);} catch {return null;}
+  if(/[\/\\?#]/.test(slug)) return null;
+  return [p[1] === 'tv-shows' ? 'tv' : 'movie', normalizeTitle(slug), p[4], u.pathname];
 }
 export function publishedLinks(html) {
   const unescaped = html.replace(/\\\//g,'/').replace(/&amp;/g,'&');

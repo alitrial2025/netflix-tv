@@ -80,7 +80,7 @@ export class PublicCatalogFlow extends NoWarmFlow {
     else {
       const partnerIdentity = async rows => { for (const row of rows.slice(0,6)) {
         const [,,partnerId,path] = row;
-        if (!/^\/(?:movies|tv-shows)\/[a-z0-9-]+\/HOTSTAR_DTH_(?:MOVIE|TVSHOW)_\d{5,20}$/.test(path)) continue;
+        if (!partnerRow(path)) continue;
         const page = this.partnerPages.get(path) ?? await this.request('public_partner_identity', 'https://www.airtelxstream.in'+path);
         this.partnerPages.set(path,page);
         if (!matchesPartnerPage(page.body,t.title,t.year,t.type)) continue;

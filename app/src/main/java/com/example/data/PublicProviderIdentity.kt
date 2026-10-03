@@ -2,6 +2,7 @@ package com.example.data
 
 import org.json.JSONObject
 import java.text.Normalizer
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** Native IDs from public catalog metadata. This contains identities, never playback URLs or session tokens. */
 internal object PublicProviderIdentity {
@@ -62,9 +63,12 @@ internal object PublicProviderIdentity {
         val group = if (type == "tv") "tv-shows" else "movies"
         val namespace = if (type == "tv") "TVSHOW" else "MOVIE"
         val unescaped = html.replace("\\/", "/")
-        return Regex("""["'](?:https://www\.airtelxstream\.in)?(/$group/([a-z0-9-]+)/HOTSTAR_DTH_${namespace}_([0-9]{5,20}))["']""")
-            .findAll(unescaped).filter { normalize(it.groupValues[2]) == normalize(title) }
-            .map { it.groupValues[3] to it.groupValues[1] }.distinct().take(6).toList()
+        return Regex("""["'](?:https://www\.airtelxstream\.in)?(/$group/([^/"'\s<>\\]+)/HOTSTAR_DTH_${namespace}_([0-9]{5,20}))["']""")
+            .findAll(unescaped).mapNotNull {
+                val url = ("https://www.airtelxstream.in" + it.groupValues[1]).toHttpUrlOrNull() ?: return@mapNotNull null
+                if (normalize(url.pathSegments[1]) != normalize(title)) return@mapNotNull null
+                it.groupValues[3] to url.encodedPath
+            }.distinct().take(6).toList()
     }
     fun linkedHotstarIds(html: String): List<String> {
         val unescaped = html.replace("\\/","/")
