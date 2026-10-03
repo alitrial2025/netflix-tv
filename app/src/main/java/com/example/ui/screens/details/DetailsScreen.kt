@@ -402,7 +402,7 @@ fun DetailsScreen(
             try { modalUpRequester.requestFocus() } catch (e: Exception) {
                 android.util.Log.w("DetailsScreen", "modalUpRequester.requestFocus failed", e)
             }
-        } else {
+        } else if (lastModalCloseTime > 0L) {
             delay(240)
             val toFocus = lastFocusedSourceRequester ?: playButtonRequester
             try { toFocus.requestFocus() } catch (e: Exception) {
@@ -415,7 +415,7 @@ fun DetailsScreen(
     LaunchedEffect(focusSettleKey) {
         if (focusSettleKey == 0) {
             try {
-                delay(600)
+                androidx.compose.runtime.withFrameNanos { /* lay out the controls first */ }
                 playButtonRequester.requestFocus()
             } catch (e: Exception) {
                 android.util.Log.w("DetailsScreen", "initial playButtonRequester.requestFocus failed", e)

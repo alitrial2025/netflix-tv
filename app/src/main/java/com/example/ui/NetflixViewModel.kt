@@ -2534,6 +2534,11 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         expectedMediaKind: String? = null
     ): Movie? {
         if (id == null) return null
+        // Card navigation already caches the selected title. Validate that identity
+        // before scanning every row; movie and TV ids still have separate namespaces.
+        allMoviesMap[id]?.let { cached ->
+            findMovieByIdentity(listOf(cached), id, expectedTitle, expectedMediaKind)?.let { return it }
+        }
         if (expectedTitle.isNullOrBlank() && expectedMediaKind.isNullOrBlank()) {
             return allMoviesMap[id]
                 ?: continueWatchingList.value.find { it.movieId == id }?.toMovie()
