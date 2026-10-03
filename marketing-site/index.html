@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="icon" href="assets/netflix-n.svg" type="image/svg+xml" />
-<title>NetflixPro — Your TV. Your phone. Your NetflixPro.</title>
-<meta name="description" content="NetflixPro for Android TV and phone. Browse as a guest, pair your devices, and download the latest APK releases." />
+<link rel="icon" href="assets/project-mark.svg" type="image/svg+xml" />
+<title>NetflixPro — Independent Android app project</title>
+<link rel="canonical" href="https://npro-app.vercel.app/" />
+<meta name="description" content="Independent NetflixPro Android app project by mzazimhenga. Not affiliated with Netflix. Explore app previews and clearly labelled APK builds." />
 <style>
 /* =========================================================
    NetflixPro TV — Marketing site
@@ -1263,6 +1264,12 @@ h1,h2,h3,h4,p { margin: 0; }
 #releasesRetry { display:block; margin:20px auto 0; }
 #releasesRetry[hidden] { display:none; }
 @media(max-width:640px) { .releases { grid-template-columns:1fr; } .release { padding:24px; } }
+
+.project-notice { margin: 12px 0; max-width: 620px; padding: 12px 16px; border: 1px solid #5482ae; border-radius: 10px; background: rgba(10,29,49,.9); font-size: 14px; line-height: 1.6; color: #e2efff; }
+.project-notice a, .project-about a { text-decoration: underline; text-underline-offset: 3px; }
+.project-about { max-width: 920px; }
+.project-about p { color: #d0d5dd; line-height: 1.8; margin: 16px 0 24px; }
+.project-about h3 { font-size: 21px; margin-top: 30px; }
 </style>
 <link rel="stylesheet" href="assets/app-look.css" />
 <link rel="stylesheet" href="assets/mobile-tour.css" />
@@ -1271,7 +1278,7 @@ h1,h2,h3,h4,p { margin: 0; }
 
 <!-- Page loader (prevents FOUC, only if >300ms to interactive) -->
 <div class="page-loader" id="pageLoader" aria-hidden="true">
-  <div class="page-loader__n">N</div>
+  <div class="page-loader__n"><img src="assets/project-mark.svg" width="64" height="64" alt="" /></div>
 </div>
 
 <!-- Sentinel for back-to-top IntersectionObserver -->
@@ -1289,7 +1296,7 @@ h1,h2,h3,h4,p { margin: 0; }
       <a class="nav__link" href="#phone-tour">Phone tour</a>
       <a class="nav__link" href="#faq">FAQ</a>
     </div>
-    <a class="site-mark" href="#top" aria-label="Back to NetflixPro home"><img src="assets/netflix-n.svg" alt="" /></a>
+    <a class="site-mark" href="#top" aria-label="Back to NetflixPro home"><img src="assets/project-mark.svg" alt="" /></a>
   </div>
 </nav>
 
@@ -1300,9 +1307,10 @@ h1,h2,h3,h4,p { margin: 0; }
       <div class="hero__backdrop" id="heroBackdrop" aria-hidden="true"></div>
       <div class="billboard__scrim" aria-hidden="true"></div>
       <div class="hero__inner" id="heroInner">
-        <p class="hero__eyebrow"><img src="assets/netflix-n.svg" alt="" /> NETFLIXPRO · TV + MOBILE</p>
+        <p class="hero__eyebrow"><img src="assets/project-mark.svg" alt="" /> NETFLIXPRO · INDEPENDENT PROJECT</p>
         <h1 class="hero__title">Your TV.<br/>Your phone.<br/>Your NetflixPro.</h1>
         <div class="hero__meta"><div class="hero__meta-line"><span>Android 7.0+</span><span class="dot"></span><span>Guest previews</span><span class="dot"></span><span id="heroRelease">Latest releases below</span></div></div>
+        <p class="project-notice"><strong>Independent app by mzazimhenga.</strong> Not affiliated with, endorsed by, or sponsored by Netflix. <a href="#about">About this project</a></p>
         <p class="hero__sub">Find your next movie or show. Browse trailers as a guest, pair your phone with your TV, and bring your profiles, My List and watch history with you.</p>
         <div class="hero__ctas">
           <a class="cta cta--primary cta-download" href="#downloads"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 3h2v10l3-3 1.4 1.4L12 17l-5.4-5.6L8 10l3 3zM5 19h14v2H5z"/></svg><span class="cta-label">Download TV app</span></a>
@@ -1327,7 +1335,7 @@ h1,h2,h3,h4,p { margin: 0; }
 <section class="section section--dark" id="browse">
   <div class="container">
     <h2 class="section__title">Browse the Library</h2>
-    <p class="section__sub" style="text-align:left;color:var(--text-muted);margin:0 0 32px;font-size:14px">A taste of what's inside — thousands of titles, hand-curated rows.</p>
+    <p class="section__sub" style="text-align:left;color:var(--text-muted);margin:0 0 32px;font-size:14px">Illustrative app previews. The titles below are examples; availability and picture quality vary by source and device.</p>
 
     <div class="rail" data-rail="trending">
       <div class="rail__head">
@@ -1372,7 +1380,7 @@ h1,h2,h3,h4,p { margin: 0; }
           </svg>
         </div>
         <h3 class="feature__title">4K HDR Streaming</h3>
-        <p class="feature__desc">Watch in stunning detail. Supports Dolby Vision and HDR10+ on compatible displays.</p>
+        <p class="feature__desc">Picture quality depends on the available source and your device. 4K and HDR are available only where both support them.</p>
       </article>
 
       <article class="feature feature--green">
@@ -1447,7 +1455,7 @@ h1,h2,h3,h4,p { margin: 0; }
 <section class="section" id="downloads" aria-labelledby="downloadsTitle">
   <div class="container">
     <h2 class="section__title section__title--center" id="downloadsTitle">Your Next Release Starts Here</h2>
-    <p class="section__sub">Choose the APK for your device. Keep the app you love up to date.</p>
+    <p class="section__sub">Independent APKs from mzazimhenga, outside Google Play. Review the build type and file details before downloading.</p>
     <div class="releases">
       <article class="release" data-release-card="tv">
         <span class="release__badge" data-release-badge>Android TV &amp; Google TV</span>
@@ -1495,15 +1503,15 @@ h1,h2,h3,h4,p { margin: 0; }
         <div class="step">
           <div class="step__num">3</div>
           <div class="step__body">
-            <h3 class="step__title">Enable Unknown Sources</h3>
-            <p class="step__desc">Settings → Apps → Special access → Install unknown apps → your browser → Allow.</p>
+            <h3 class="step__title">Review Android’s install prompt</h3>
+            <p class="step__desc">These APKs are installed outside Google Play. Review the developer, build type and requested permissions. Keep Play Protect enabled; do not bypass a security warning.</p>
           </div>
         </div>
         <div class="step">
           <div class="step__num">4</div>
           <div class="step__body">
             <h3 class="step__title">Install and launch</h3>
-            <p class="step__desc">Open the APK and approve installation. Browse previews as a guest, or sign in and select your profile.</p>
+            <p class="step__desc">Install only if you trust this independent project. Browse previews as a guest or create a separate NetflixPro account. Never enter your Netflix password.</p>
           </div>
         </div>
       </div>
@@ -1624,7 +1632,7 @@ h1,h2,h3,h4,p { margin: 0; }
       <div class="carousel__track" id="track">
         <div class="shot shot--home" data-screen="Home" data-label="Home — cinematic artwork, genre cards, and rows made for your remote." role="button" tabindex="0" aria-label="Expand Home preview">
           <div class="app-ui app-home" aria-hidden="true">
-            <div class="app-nav"><div class="app-nav__profile"><img class="app-avatar" src="https://occ-0-8782-2219.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llxzg/AAAABQ-qpyR4ZQV8gJ34aN0mVfOwjMiuUQRYDoQl05M27vi7xTDX7Vj-LyVO6mj82q3QF5eMS6ncbkggYVcndKS-Y0_O_SVvRkp06Q.png?r=37e" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Alex</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-down"></use></svg></div><div class="app-nav__tabs"><span class="app-nav__tab"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-search"></use></svg></span><span class="app-nav__tab is-current">Home</span><span class="app-nav__tab">Series</span><span class="app-nav__tab">Films</span><span class="app-nav__tab">My Netflix</span></div><img class="app-n" src="assets/netflix-n.svg" alt="" /></div>
+            <div class="app-nav"><div class="app-nav__profile"><img class="app-avatar" src="assets/profile-preview.svg" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Alex</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-down"></use></svg></div><div class="app-nav__tabs"><span class="app-nav__tab"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-search"></use></svg></span><span class="app-nav__tab is-current">Home</span><span class="app-nav__tab">Series</span><span class="app-nav__tab">Films</span><span class="app-nav__tab">My Netflix</span></div><img class="app-n" src="assets/project-mark.svg" alt="" /></div>
             <div class="app-billboard">
               <img class="app-artwork" src="https://image.tmdb.org/t/p/w1280/ilRyazdMJwN05exqhwK4tMKBYZs.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
               <div class="app-billboard__scrim"></div>
@@ -1643,7 +1651,7 @@ h1,h2,h3,h4,p { margin: 0; }
         </div>
         <div class="shot shot--search" data-screen="Search" data-label="Search — a six-column keyboard, genre shortcuts, and a clear poster grid." role="button" tabindex="-1" aria-label="Expand Search preview" aria-hidden="true" inert>
           <div class="app-ui app-search" aria-hidden="true">
-            <div class="app-nav"><div class="app-nav__profile"><img class="app-avatar" src="https://occ-0-8782-2219.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llxzg/AAAABQ-qpyR4ZQV8gJ34aN0mVfOwjMiuUQRYDoQl05M27vi7xTDX7Vj-LyVO6mj82q3QF5eMS6ncbkggYVcndKS-Y0_O_SVvRkp06Q.png?r=37e" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Alex</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-down"></use></svg></div><div class="app-nav__tabs"><span class="app-nav__tab is-current"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-search"></use></svg></span><span class="app-nav__tab">Home</span><span class="app-nav__tab">Series</span><span class="app-nav__tab">Films</span><span class="app-nav__tab">My Netflix</span></div><img class="app-n" src="assets/netflix-n.svg" alt="" /></div>
+            <div class="app-nav"><div class="app-nav__profile"><img class="app-avatar" src="assets/profile-preview.svg" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Alex</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-down"></use></svg></div><div class="app-nav__tabs"><span class="app-nav__tab is-current"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-search"></use></svg></span><span class="app-nav__tab">Home</span><span class="app-nav__tab">Series</span><span class="app-nav__tab">Films</span><span class="app-nav__tab">My Netflix</span></div><img class="app-n" src="assets/project-mark.svg" alt="" /></div>
             <div class="app-search__layout">
               <div class="app-keyboard">
                 <div class="app-search-input"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-search"></use></svg><span>Search movies, TV shows...</span></div>
@@ -1659,9 +1667,9 @@ h1,h2,h3,h4,p { margin: 0; }
           <div class="app-ui app-details" aria-hidden="true">
             <img class="app-artwork" src="https://image.tmdb.org/t/p/w1280/nMKdUUepR0i5zn0y1T4CsSB5chy.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
             <div class="app-details__scrim"></div>
-            <div class="app-details__header"><img class="app-n" src="assets/netflix-n.svg" alt="" /></div>
+            <div class="app-details__header"><img class="app-n" src="assets/project-mark.svg" alt="" /></div>
             <div class="app-details__layout">
-              <div class="app-details__info"><div class="app-original"><img class="app-n" src="assets/netflix-n.svg" alt="" />FILM</div><div class="app-title">The Dark Knight</div>
+              <div class="app-details__info"><div class="app-original"><img class="app-n" src="assets/project-mark.svg" alt="" />FILM</div><div class="app-title">The Dark Knight</div>
                 <div class="app-metadata"><span>Movie</span><span>•</span><span>Action</span><span>•</span><span>2008</span><span>•</span><span>2h 32m</span><span class="app-badge">16+</span><span class="app-badge">CC</span></div>
                 <p class="app-synopsis">Batman raises the stakes in his war on crime. With the help of Lt. Jim Gordon and Harvey Dent, he sets out to dismantle the criminal organisations that plague Gotham.</p>
                 <div class="app-actions"><span class="app-action is-primary is-selected"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-play"></use></svg>Play</span><span class="app-circle-action"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-plus"></use></svg></span><span class="app-circle-action"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-thumb"></use></svg></span></div>
@@ -1685,13 +1693,13 @@ h1,h2,h3,h4,p { margin: 0; }
           <div class="app-ui app-profiles" aria-hidden="true">
             <img class="app-artwork" src="https://image.tmdb.org/t/p/w1280/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
             <div class="app-profiles__scrim"></div>
-            <div class="app-profiles__list"><img class="app-netflix" src="assets/netflix-logo.svg" alt="" /><h3>Who's watching?</h3>
-              <div class="app-profile is-selected"><span class="app-profile__edit"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-pencil"></use></svg></span><img class="app-avatar" src="https://occ-0-8782-2219.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llxzg/AAAABQ-qpyR4ZQV8gJ34aN0mVfOwjMiuUQRYDoQl05M27vi7xTDX7Vj-LyVO6mj82q3QF5eMS6ncbkggYVcndKS-Y0_O_SVvRkp06Q.png?r=37e" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Alex</span></div>
-              <div class="app-profile"><span class="app-profile__edit"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-pencil"></use></svg></span><img class="app-avatar" src="https://occ-0-8782-2219.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llxzg/AAAABTmqXTOMU-F0KZgOVnOOMmQgywysKJFFucBikFXp8sQHsvJeMMnNAymzlYZcH5nOt3j18egkX0cy5NQAZ3Yxiqq5v5ZI9wg42Q.png?r=8e0" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Sam</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-lock"></use></svg></div>
-              <div class="app-profile"><span class="app-profile__edit"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-pencil"></use></svg></span><img class="app-avatar" src="https://occ-0-8782-2219.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llxzg/AAAABc9Sea_6JFA55mL8Zu_I8jwJTDIuyP52A5_1UtzzjyRaZppmdul8CaUQk7O7k-nDJQqm_98Yz7CEDUo_ZB1rzliyl85QjYvEKw.png?r=c1a" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Kids</span></div>
+            <div class="app-profiles__list"><img class="app-netflix" src="assets/project-wordmark.svg" alt="" /><h3>Who's watching?</h3>
+              <div class="app-profile is-selected"><span class="app-profile__edit"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-pencil"></use></svg></span><img class="app-avatar" src="assets/profile-preview.svg" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Alex</span></div>
+              <div class="app-profile"><span class="app-profile__edit"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-pencil"></use></svg></span><img class="app-avatar" src="assets/profile-preview.svg" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Sam</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-lock"></use></svg></div>
+              <div class="app-profile"><span class="app-profile__edit"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-pencil"></use></svg></span><img class="app-avatar" src="assets/profile-preview.svg" alt="" loading="lazy" referrerpolicy="no-referrer" /><span>Kids</span></div>
               <div class="app-profile"><span class="app-profile__edit"></span><span class="app-profile__add"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-plus"></use></svg></span><span>Add Profile</span></div>
             </div>
-            <div class="app-profiles__feature"><div class="app-title">INTERSTELLAR</div><div class="app-original"><img class="app-n" src="assets/netflix-n.svg" alt="" />FILM</div><div class="app-metadata"><span>2014</span><span>Science Fiction</span><span class="app-badge">13+</span></div></div>
+            <div class="app-profiles__feature"><div class="app-title">INTERSTELLAR</div><div class="app-original"><img class="app-n" src="assets/project-mark.svg" alt="" />FILM</div><div class="app-metadata"><span>2014</span><span>Science Fiction</span><span class="app-badge">13+</span></div></div>
           </div>
         </div>
         <div class="shot shot--edit" data-screen="Edit profile" data-label="Edit profile — change your icon, language, kids experience, and profile lock." role="button" tabindex="-1" aria-label="Expand Edit profile preview" aria-hidden="true" inert>
@@ -1699,7 +1707,7 @@ h1,h2,h3,h4,p { margin: 0; }
             <div class="app-edit__menu"><h3>Edit profile</h3><p class="app-edit__sub">Select what you want to change.</p><div class="app-edit__options">
               <div class="app-edit-option is-selected"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-person"></use></svg><span>Name</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-right"></use></svg></div><div class="app-edit-option"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-face"></use></svg><span>Icon</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-right"></use></svg></div><div class="app-edit-option"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-family"></use></svg><span>Kids experience (OFF)</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-right"></use></svg></div><div class="app-edit-option"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-game"></use></svg><span>Game handle</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-right"></use></svg></div><div class="app-edit-option"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-globe"></use></svg><span>Language</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-right"></use></svg></div><div class="app-edit-option"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-lock"></use></svg><span>Profile lock (PIN Off)</span><svg class="app-icon" aria-hidden="true"><use href="#app-icon-right"></use></svg></div>
             </div><span class="app-edit__maturity">All maturity ratings</span><div class="app-edit__buttons"><span class="app-action">Done</span><span class="app-edit__delete"><svg class="app-icon" aria-hidden="true"><use href="#app-icon-delete"></use></svg>Delete Profile</span></div></div>
-            <div class="app-edit__identity"><img class="app-avatar" src="https://occ-0-8782-2219.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llxzg/AAAABQ-qpyR4ZQV8gJ34aN0mVfOwjMiuUQRYDoQl05M27vi7xTDX7Vj-LyVO6mj82q3QF5eMS6ncbkggYVcndKS-Y0_O_SVvRkp06Q.png?r=37e" alt="" loading="lazy" referrerpolicy="no-referrer" /><strong>Alex</strong></div>
+            <div class="app-edit__identity"><img class="app-avatar" src="assets/profile-preview.svg" alt="" loading="lazy" referrerpolicy="no-referrer" /><strong>Alex</strong></div>
           </div>
         </div>
         <div class="shot shot--pin" data-screen="PIN" data-label="PIN — pure black, white pill keys and a clear remote focus outline." role="button" tabindex="-1" aria-label="Expand PIN preview" aria-hidden="true" inert>
@@ -1755,15 +1763,18 @@ h1,h2,h3,h4,p { margin: 0; }
     <div class="faq" id="faqList">
       <!-- generated below -->
     </div>
-    <div class="faq__contact">
-      <a class="faq__contact-btn" href="mailto:support@netflixpro.tv" aria-label="Contact support via email">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="5" width="18" height="14" rx="2"/>
-          <path d="m3 7 9 6 9-6"/>
-        </svg>
-        <span>Contact Support</span>
-      </a>
-    </div>
+  </div>
+</section>
+
+<section class="section" id="about" aria-labelledby="aboutTitle">
+  <div class="container project-about">
+    <h2 class="section__title" id="aboutTitle">About this independent project</h2>
+    <p>NetflixPro is an independent Android app project maintained by mzazimhenga. It is not Netflix, Inc. and is not affiliated with, endorsed by, or sponsored by Netflix or any streaming service.</p>
+    <h3>Website privacy</h3>
+    <p>This marketing page does not ask for passwords, payment details, or Netflix account information. The interactive tours use temporary demo state in your browser and do not sign you into an account. This page has no advertising or analytics scripts. Vercel receives normal hosting requests; TMDB receives requests for illustrative artwork. GitHub hosts the APK files and receives requests when you download them.</p>
+    <h3>App downloads and plans</h3>
+    <p>APK downloads are provided by this project, outside Google Play. Review each build’s version and build type before choosing to download. Keep browser and Android security protections enabled.</p>
+    <p>Downloading the app is free. Guest access offers browsing and trailers. Full playback requires a NetflixPro plan selected in the phone app; its price and device limit are shown before payment. A NetflixPro plan is separate from subscriptions to other streaming services. Content availability varies.</p>
   </div>
 </section>
 
@@ -1773,7 +1784,7 @@ h1,h2,h3,h4,p { margin: 0; }
     <div class="footer__grid">
       <div class="footer__col">
         <div class="footer__about">
-          <span class="brand__n" aria-hidden="true"><img src="assets/netflix-n.svg" alt="" /></span>
+          <span class="brand__n" aria-hidden="true"><img src="assets/project-mark.svg" alt="" /></span>
           <span class="brand__word">NetflixPro</span>
         </div>
         <p class="footer__tag">Your next watch, on TV and on your phone.</p>
@@ -1792,10 +1803,7 @@ h1,h2,h3,h4,p { margin: 0; }
         <h4>Support</h4>
         <ul>
           <li><a href="#faq">FAQ</a></li>
-          <li><a href="#">Contact</a></li>
-          <li><a href="#">GitHub</a></li>
-          <li><a href="#">Discord</a></li>
-          <li><a href="#">Status</a></li>
+          <li><a href="#about">About &amp; website privacy</a></li>
         </ul>
       </div>
     </div>
@@ -1832,442 +1840,7 @@ h1,h2,h3,h4,p { margin: 0; }
   </div>
 </div>
 
-<script>
-(function () {
-  'use strict';
-
-  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
-  const T = { fast: 130, micro: 234, row: 260, feature: 286, toast: 390, intro: 520 };
-
-  /* ─── Nav scroll state ─── */
-  const nav = document.getElementById('nav');
-  const onScroll = () => {
-    if (window.scrollY > 50) nav.classList.add('scrolled');
-    else nav.classList.remove('scrolled');
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-
-  /* ─── IntersectionObserver: feature cards stagger ─── */
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry, i) => {
-        if (entry.isIntersecting) {
-          const delay = i * 100;
-          entry.target.style.transitionDelay = delay + 'ms';
-          entry.target.classList.add('is-in');
-          io.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.15 });
-    document.querySelectorAll('.feature').forEach(el => io.observe(el));
-  } else {
-    document.querySelectorAll('.feature').forEach(el => el.classList.add('is-in'));
-  }
-
-  /* ─── IntersectionObserver: section titles scale-in on scroll ─── */
-  if ('IntersectionObserver' in window) {
-    const titleIO = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-in');
-          titleIO.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.3 });
-    document.querySelectorAll('.section__title').forEach(el => titleIO.observe(el));
-  } else {
-    document.querySelectorAll('.section__title').forEach(el => el.classList.add('is-in'));
-  }
-
-  /* ─── Stagger poster cards (50ms between each, 800ms duration) ─── */
-  if (!prefersReduced) {
-    document.querySelectorAll('.rail .poster').forEach((el, i) => {
-      el.style.animationDelay = (i * 50) + 'ms';
-    });
-  }
-
-  /* ─── Back to top button (IntersectionObserver sentinel) ─── */
-  (function () {
-    const sentinel = document.getElementById('scrollTopSentinel');
-    const btn = document.getElementById('backToTop');
-    if (!sentinel || !btn) return;
-    btn.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: prefersReduced ? 'auto' : 'smooth' });
-    });
-    if ('IntersectionObserver' in window) {
-      const obs = new IntersectionObserver((entries) => {
-        entries.forEach(e => {
-          if (e.isIntersecting) btn.classList.remove('is-visible');
-          else btn.classList.add('is-visible');
-        });
-      }, { threshold: 0 });
-      obs.observe(sentinel);
-    } else {
-      // Fallback: scroll listener
-      const onScrollBTT = () => {
-        if (window.scrollY > 600) btn.classList.add('is-visible');
-        else btn.classList.remove('is-visible');
-      };
-      window.addEventListener('scroll', onScrollBTT, { passive: true });
-      onScrollBTT();
-    }
-  })();
-
-  /* ─── Page loader: hide once interactive, only show if >300ms ─── */
-  (function () {
-    const loader = document.getElementById('pageLoader');
-    if (!loader) return;
-    let shown = false;
-    const showTimer = setTimeout(() => {
-      shown = true;
-      loader.classList.add('is-active');
-    }, 300);
-    const hide = () => {
-      clearTimeout(showTimer);
-      // Wait one frame for layout, then fade out
-      requestAnimationFrame(() => {
-        if (shown) {
-          loader.classList.add('is-hidden');
-        } else {
-          loader.style.display = 'none';
-        }
-      });
-    };
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      // DOM ready; just hide
-      setTimeout(hide, 0);
-    } else {
-      document.addEventListener('DOMContentLoaded', () => setTimeout(hide, 50));
-    }
-    // Safety: hide after 2.5s no matter what
-    setTimeout(hide, 2500);
-  })();
-
-  /* ─── FAQ accordion ─── */
-  const faqData = [
-    ['Is this the official Netflix app?', 'No, NetflixPro TV is a third-party client that streams from public sources. It is not affiliated with, endorsed by, or sponsored by Netflix, Inc.'],
-    ['Is it free?', 'The APK is free to download. Guests can browse and watch trailers. Full playback requires an active plan; choose and pay for your plan on the phone.'],
-    ['What devices are supported?', 'Use the TV APK on Android TV or Google TV, and the phone APK on Android phones. Both require Android 7.0 or newer. Playback capabilities depend on your device and the available stream.'],
-    ['Does it support 4K?', 'Playback quality depends on the available stream, your plan, connection and device. A 4K-capable display does not guarantee that every title has a 4K source.'],
-    ['Can I use a VPN?', 'Yes, the app works with any VPN that tunnels your Android TV’s traffic. No special configuration needed.'],
-    ['Is my data safe?', 'Your watch history and My List are stored locally on your TV and synced to your private account. We do not sell data to third parties.'],
-    ['How do I update?', 'Install a release with Update Gate once. On later launches, the app checks for a newer release, downloads it and verifies it before installation. Android may ask you to allow this app to install updates or confirm the install. It may reopen automatically; otherwise open it from your launcher. You can also download the APK here.'],
-    ['How does my phone connect to TV?', 'Use the TV pairing option on your phone to sign in on the TV. Your account profiles, My List and watch history are shared between the apps. Available profiles and playback access depend on your plan.'],
-    ['Does it support subtitles?', 'Choose from the subtitle tracks provided by the available stream. Subtitle languages and availability vary by title.'],
-    ['How do I report a bug?', 'Include your app version, device model and the steps that caused the problem when contacting support. Avoid sending your password, PIN or payment credentials.']
-  ];
-  const faqList = document.getElementById('faqList');
-  const chevronSVG = '<svg class="faq__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>';
-  faqData.forEach(([q, a]) => {
-    const item = document.createElement('div');
-    item.className = 'faq__item';
-    item.innerHTML = `
-      <button class="faq__q" type="button" aria-expanded="false">
-        <span>${q}</span>
-        ${chevronSVG}
-      </button>
-      <div class="faq__a"><div class="faq__a-inner">${a}</div></div>
-    `;
-    faqList.appendChild(item);
-  });
-  faqList.addEventListener('click', (e) => {
-    const q = e.target.closest('.faq__q');
-    if (!q) return;
-    const item = q.parentElement;
-    const open = item.classList.toggle('is-open');
-    q.setAttribute('aria-expanded', open ? 'true' : 'false');
-  });
-
-  /* App tour: explicit screen selection, swipe navigation, and a keyboard viewer. */
-  const track = document.getElementById('track');
-  const shots = Array.from(track.querySelectorAll('.shot'));
-  const dots = document.getElementById('dots');
-  const tourCaption = document.getElementById('tourCaption');
-  const lightbox = document.getElementById('lightbox');
-  const lbContent = document.getElementById('lbContent');
-  const lbCaption = document.getElementById('lbCaption');
-  const lbClose = document.getElementById('lbClose');
-  const lbPrev = document.getElementById('lbPrev');
-  const lbNext = document.getElementById('lbNext');
-  let active = 0;
-  let viewerOpen = false;
-  let viewerTrigger = null;
-  let touchStart = null;
-  let lastSwipeAt = 0;
-  const inertBeforeViewer = new Map();
-
-  shots.forEach((shot, index) => {
-    const button = document.createElement('button');
-    button.className = 'shot__dot';
-    button.type = 'button';
-    button.textContent = shot.dataset.screen;
-    button.setAttribute('aria-label', 'Show ' + shot.dataset.screen);
-    button.setAttribute('aria-controls', 'track');
-    button.addEventListener('click', () => goTo(index));
-    dots.appendChild(button);
-    shot.addEventListener('click', () => {
-      if (Date.now() - lastSwipeAt > 600) openLightbox(index, shot);
-    });
-    shot.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        openLightbox(index, shot);
-      }
-    });
-  });
-
-  function warmPreview(index) {
-    const preview = shots[(index + shots.length) % shots.length];
-    preview.querySelectorAll('img').forEach(image => { image.loading = 'eager'; });
-  }
-
-  function updateTour() {
-    shots.forEach((shot, index) => {
-      const selected = index === active;
-      shot.classList.toggle('is-active', selected);
-      shot.inert = !selected;
-      shot.setAttribute('aria-hidden', String(!selected));
-      shot.tabIndex = selected ? 0 : -1;
-      const button = dots.children[index];
-      button.classList.toggle('is-active', selected);
-      button.setAttribute('aria-pressed', String(selected));
-    });
-    tourCaption.textContent = shots[active].dataset.label;
-    warmPreview(active);
-    warmPreview(active + 1);
-  }
-
-  function goTo(index) {
-    active = (index + shots.length) % shots.length;
-    updateTour();
-  }
-
-  document.getElementById('tourPrev').addEventListener('click', () => goTo(active - 1));
-  document.getElementById('tourNext').addEventListener('click', () => goTo(active + 1));
-  document.getElementById('tourExpand').addEventListener('click', event => openLightbox(active, event.currentTarget));
-  track.addEventListener('pointerdown', event => {
-    if (event.pointerType === 'touch') touchStart = { x: event.clientX, y: event.clientY };
-  }, { passive: true });
-  track.addEventListener('pointerup', event => {
-    if (!touchStart) return;
-    const dx = event.clientX - touchStart.x;
-    const dy = event.clientY - touchStart.y;
-    touchStart = null;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.25) {
-      lastSwipeAt = Date.now();
-      goTo(active + (dx < 0 ? 1 : -1));
-    }
-  }, { passive: true });
-  track.addEventListener('pointercancel', () => { touchStart = null; }, { passive: true });
-  updateTour();
-
-  function renderViewer() {
-    const source = shots[active];
-    const clone = source.cloneNode(true);
-    clone.classList.add('lightbox__shot', 'is-active');
-    clone.inert = false;
-    clone.removeAttribute('tabindex');
-    clone.removeAttribute('aria-hidden');
-    clone.setAttribute('role', 'img');
-    clone.setAttribute('aria-label', source.dataset.label);
-    clone.querySelectorAll('img').forEach(image => { image.loading = 'eager'; });
-    lbContent.replaceChildren(clone);
-    lbCaption.textContent = source.dataset.label;
-    warmPreview(active - 1);
-    warmPreview(active + 1);
-  }
-
-  function openLightbox(index, trigger) {
-    active = index;
-    viewerTrigger = trigger;
-    renderViewer();
-    viewerOpen = true;
-    lightbox.classList.add('is-open');
-    lightbox.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    Array.from(document.body.children).forEach(element => {
-      if (element !== lightbox && element.tagName !== 'SCRIPT') {
-        inertBeforeViewer.set(element, element.inert);
-        element.inert = true;
-      }
-    });
-    lbClose.focus({ preventScroll: true });
-  }
-
-  function closeLightbox() {
-    viewerOpen = false;
-    lightbox.classList.remove('is-open');
-    lightbox.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    inertBeforeViewer.forEach((wasInert, element) => { element.inert = wasInert; });
-    inertBeforeViewer.clear();
-    goTo(active);
-    const trigger = viewerTrigger && !viewerTrigger.inert ? viewerTrigger : shots[active];
-    trigger.focus({ preventScroll: true });
-  }
-
-  function navLightbox(delta) {
-    active = (active + delta + shots.length) % shots.length;
-    renderViewer();
-  }
-  lbClose.addEventListener('click', closeLightbox);
-  lbPrev.addEventListener('click', () => navLightbox(-1));
-  lbNext.addEventListener('click', () => navLightbox(1));
-  lightbox.addEventListener('click', event => { if (event.target === lightbox) closeLightbox(); });
-  document.addEventListener('keydown', event => {
-    if (!viewerOpen) {
-      if (event.target.closest('#carousel') && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-        event.preventDefault();
-        goTo(active + (event.key === 'ArrowRight' ? 1 : -1));
-      }
-      return;
-    }
-    if (event.key === 'Escape') { event.preventDefault(); closeLightbox(); }
-    if (event.key === 'ArrowLeft') { event.preventDefault(); navLightbox(-1); }
-    if (event.key === 'ArrowRight') { event.preventDefault(); navLightbox(1); }
-    if (event.key === 'Tab') {
-      const buttons = [lbClose, lbPrev, lbNext];
-      const index = buttons.indexOf(document.activeElement);
-      if ((event.shiftKey && index <= 0) || (!event.shiftKey && index === buttons.length - 1)) {
-        event.preventDefault();
-        buttons[event.shiftKey ? buttons.length - 1 : 0].focus();
-      }
-    }
-  });
-
-
-  /* ─── Smooth-scroll for in-page anchors (offset for sticky nav) ─── */
-  document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', (e) => {
-      const id = a.getAttribute('href');
-      // Release loading can turn this anchor into a real HTTPS APK link.
-      if (!id || !id.startsWith('#') || id.length < 2) return;
-      const target = document.getElementById(id.slice(1));
-      if (!target) return;
-      e.preventDefault();
-      const navH = nav.getBoundingClientRect().height;
-      const top = target.getBoundingClientRect().top + window.pageYOffset - navH - 12;
-      window.scrollTo({ top, behavior: prefersReduced ? 'auto' : 'smooth' });
-    });
-  });
-
-  /* ─── TMDB image wiring ───
-     Image CDN is allowed (host policy blocks scripts/fetches, not <img>).
-     Curated hardcoded dataset; no API calls.
-  */
-  const TMDB_IMG = 'https://image.tmdb.org/t/p';
-
-  // 24 titles split across 3 rails
-  const TITLES_TRENDING = [
-    { title: 'Fight Club',          type: 'movie', year: 1999, rating: 8.4, poster: '/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg', backdrop: '/52AfXWuXCHn3UjD17rBruA9f5qb.jpg', overview: 'An insomniac office worker forms an underground fight club with a soap maker.' },
-    { title: 'Pulp Fiction',        type: 'movie', year: 1994, rating: 8.5, poster: '/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg', backdrop: '/suaEOtk1N1sgg2MTM7oZd2cfVp3.jpg', overview: 'The lives of two mob hitmen, a boxer, a gangster and his wife intertwine in four tales of violence and redemption.' },
-    { title: 'The Dark Knight',     type: 'movie', year: 2008, rating: 8.5, poster: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg', backdrop: '/nMKdUUepR0i5zn0y1T4CsSB5chy.jpg', overview: 'Batman raises the stakes in his war on crime with the help of Lt. Jim Gordon and DA Harvey Dent.' },
-    { title: 'Inception',           type: 'movie', year: 2010, rating: 8.4, poster: '/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg', backdrop: '/s3TBrRGB1iav7gFOCNx3H31MoES.jpg', overview: 'A thief who steals corporate secrets through dream-sharing technology is given a final job.' },
-    { title: 'Breaking Bad',        type: 'tv',    year: 2008, rating: 8.9, poster: '/ggFHVNu6YYI5L9pCfOacjizRGt.jpg', backdrop: '/tsRy63Mu5cu022Q9DZ54ubdkdAW.jpg', overview: 'A chemistry teacher diagnosed with cancer teams with a former student to cook crystal meth.' },
-    { title: 'Stranger Things',     type: 'tv',    year: 2016, rating: 8.6, poster: '/49WJfeN0moxb9IPfGn8AIqMGskD.jpg', backdrop: '/56v2KjBlU4XaOv9rVYEQypROD7P.jpg', overview: 'A group of kids in a small town uncover a government conspiracy and a portal to a strange dimension.' },
-    { title: 'The Matrix',          type: 'movie', year: 1999, rating: 8.2, poster: '/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg', backdrop: '/fNG7i7RqMEr3qhY9dBEAnnfoXBI.jpg', overview: 'A hacker discovers reality is a simulation and joins a rebellion against its machines.' },
-    { title: 'Interstellar',        type: 'movie', year: 2014, rating: 8.4, poster: '/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', backdrop: '/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg', overview: 'A team of explorers travels through a wormhole in space to ensure humanity’s survival.' }
-  ];
-
-  const TITLES_CONTINUE = [
-    { title: 'Game of Thrones',     type: 'tv',    year: 2011, rating: 8.4, poster: '/u3bZgnGQ9T01sWNhyveQzIzW4PR.jpg', backdrop: '/2OMB0ynKlyIenMJWI2Dy9IWT4c.jpg', overview: 'Nine noble families wage war for control of the Iron Throne while an ancient enemy returns.' },
-    { title: 'The Crown',           type: 'tv',    year: 2016, rating: 8.6, poster: '/1M876KPjulVwppEpldhdc8V4o68.jpg', backdrop: '/7k7oKVjvLNXdf75CezvcXKynZ7P.jpg', overview: 'The political rivalries and romance of Queen Elizabeth II’s reign from the 1940s onward.' },
-    { title: 'Severance',           type: 'tv',    year: 2022, rating: 8.7, poster: '/lXglP6jRdklunwMqOiZ4v0aMTFz.jpg', backdrop: '/lXglP6jRdklunwMqOiZ4v0aMTFz.jpg', overview: 'Employees of Lumon Industries undergo a procedure separating their work and personal memories.' },
-    { title: 'The Boys',            type: 'tv',    year: 2019, rating: 8.7, poster: '/stTEycfG9928NWGEcPyiK1DO4Fd.jpg', backdrop: '/mGVrYUgi2eToJHP0d8qxpYfqA6M.jpg', overview: 'A group of vigilantes set out to take down corrupt superheroes who abuse their powers.' },
-    { title: 'Better Call Saul',    type: 'tv',    year: 2015, rating: 8.9, poster: '/fC2HDm5t0lHl1m00qecM9pSe34E.jpg', backdrop: '/1yeVJox3rjo2jBKrrihIMj7uoS9.jpg', overview: 'The trials and tribulations of attorney Jimmy McGill in the years before he becomes Saul Goodman.' },
-    { title: 'Dark',                type: 'tv',    year: 2017, rating: 8.8, poster: '/apbrbWs8d9c1OK9xvKBx4mTJ4ty.jpg', backdrop: '/3lBDg3i6nn5R2NKFCJ6oKyUo2N5.jpg', overview: 'A German town’s children vanish, exposing time-travel conspiracies spanning four families.' },
-    { title: 'The Wire',            type: 'tv',    year: 2002, rating: 8.7, poster: '/zN80RkEsVuQ1J4e9X4nWp0SwF3t.jpg', backdrop: '/7pyh4D9Ut89htZQBZgNx2K8uVR8.jpg', overview: 'The Baltimore drug scene seen through the eyes of dealers, law enforcement, and schools.' },
-    { title: 'House of the Dragon', type: 'tv',    year: 2022, rating: 8.4, poster: '/7QMsOTMUswlwxJP0rTTZfmz2tX2.jpg', backdrop: '/etj8E2o0Bud0HkONVQPjyCkIvpv.jpg', overview: 'A Targaryen civil war erupts two centuries before the events of Game of Thrones.' }
-  ];
-
-  const TITLES_ACCLAIMED = [
-    { title: 'The Shawshank Redemption', type: 'movie', year: 1994, rating: 8.7, poster: '/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', backdrop: '/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg', overview: 'Two imprisoned men bond over a number of years, finding solace and eventual redemption.' },
-    { title: 'The Godfather',           type: 'movie', year: 1972, rating: 8.7, poster: '/3bhkrj58Vtu7enYsRolD1fZdja1.jpg', backdrop: '/tmU7GeKVybMWFButWEGl2M4GeiP.jpg', overview: 'The aging patriarch of an organized crime dynasty transfers control to his reluctant son.' },
-    { title: '12 Angry Men',            type: 'movie', year: 1957, rating: 8.5, poster: '/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg', backdrop: '/qqHQsStV6exghCM7zbObuYBiYxw.jpg', overview: 'A jury holdout attempts to prevent a miscarriage of justice by forcing his colleagues to reconsider.' },
-    { title: 'Schindler’s List',  type: 'movie', year: 1993, rating: 8.6, poster: '/sF1U4EUQS8YHUYjNl3pMGNIQyr0.jpg', backdrop: '/loRmRzQXZeqG78TqZuyvSlEQfZb.jpg', overview: 'In German-occupied Poland, Oskar Schindler saves the lives of more than a thousand Jewish refugees.' },
-    { title: 'Parasite',                type: 'movie', year: 2019, rating: 8.5, poster: '/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg', backdrop: '/TU9NIjwzjoKPwQHoHshkFcQUCG.jpg', overview: 'A poor family schemes to become employed by a wealthy family by infiltrating their household.' },
-    { title: 'The Lord of the Rings: The Return of the King', type: 'movie', year: 2003, rating: 8.5, poster: '/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg', backdrop: '/8BPZO0Bf8TeAy8znF43z8soK3ys.jpg', overview: 'Gandalf and Aragorn lead the World of Men against Sauron’s army to save Middle-earth.' },
-    { title: 'Forrest Gump',            type: 'movie', year: 1994, rating: 8.5, poster: '/arw2vcBveWOVZr6pxd9XTd1TdQa.jpg', backdrop: '/yE5d3BUhE8hCnkMUJOo1QDoOGNz.jpg', overview: 'The presidencies of Kennedy and Johnson, Vietnam, and more—all from the eyes of an Alabama man.' },
-    { title: 'Spirited Away',           type: 'movie', year: 2001, rating: 8.5, poster: '/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg', backdrop: '/Ab8mkHmkYADjU7wQiOkia9BzGvS.jpg', overview: 'During her family’s move to the suburbs, a sullen 10-year-old discovers a world of gods and spirits.' }
-  ];
-
-  // Build a poster card
-  function posterCard(t) {
-    return `
-      <a class="poster g1" href="#${t.type}-${encodeURIComponent(t.title)}" aria-label="Watch ${t.title} (${t.year})">
-        <img class="tmdb" src="${TMDB_IMG}/w780${t.backdrop}" alt="${t.title} artwork" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.classList.add('img-failed')" />
-        <div class="poster__shade"></div>
-        <img class="poster__n" src="assets/netflix-n.svg" alt="" />
-        <span class="poster__rating-badge">★ ${t.rating.toFixed(1)}</span>
-        <p class="poster__overview">${t.overview}</p>
-        <div class="poster__title">${t.title}</div>
-      </a>
-    `;
-  }
-
-  function renderRail(name, list) {
-    const rail = document.querySelector('.rail[data-rail="' + name + '"] .rail__scroller');
-    if (!rail) return;
-    rail.innerHTML = list.map(posterCard).join('');
-    if (name === 'continue') rail.querySelectorAll('.poster').forEach(card => card.insertAdjacentHTML('beforeend', '<span class="poster__continue" aria-hidden="true"></span>'));
-  }
-
-  renderRail('trending', TITLES_TRENDING);
-  renderRail('continue', TITLES_CONTINUE);
-  renderRail('acclaimed', TITLES_ACCLAIMED);
-
-  // Wire hero backdrop (Blade Runner 2049 — TMDB id 335983)
-  (function () {
-    var heroEl = document.getElementById('heroBackdrop');
-    if (!heroEl) return;
-    // Original quality is large; use w1280 for size/quality balance
-    heroEl.style.backgroundImage = 'url(' + TMDB_IMG + '/w1280/ilRyazdMJwN05exqhwK4tMKBYZs.jpg)';
-  })();
-
-  // Share the existing sample catalogue with the TV layouts; no extra API requests.
-  const appIcon = name => '<svg class="app-icon" aria-hidden="true"><use href="#app-icon-' + name + '"></use></svg>';
-  const appGenres = [
-    ['Dramas', 'Compelling stories', 'film', '#CC8CAA', '#29222a'],
-    ['Comedies', 'Feel-good favourites', 'comedy', '#E1B576', '#29251f'],
-    ['Action', 'High-stakes stories', 'bolt', '#E78C77', '#2c2220'],
-    ['Romance', 'Love & connection', 'heart', '#E89BB8', '#2b232b'],
-    ['Anime', 'Bold new worlds', 'star', '#ADA5EA', '#252431'],
-    ['Kids & Family', 'Watch together', 'family', '#88C9C2', '#1e2a2b'],
-    ['Sci-Fi', 'Beyond our world', 'rocket', '#8CC6E5', '#202832'],
-    ['Thrillers', 'On the edge', 'eye', '#B1C59D', '#242922'],
-    ['Documentaries', 'Real stories', 'globe', '#D2BD94', '#28271f'],
-    ['Horror', 'After dark', 'moon', '#C493AC', '#29232b'],
-    ['Fantasy', 'A little wonder', 'magic', '#C1A6DF', '#272330']
-  ];
-  const escapeMarkup = value => value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-  document.querySelectorAll('[data-app-categories]').forEach(rail => {
-    rail.innerHTML = appGenres.map(([title, caption, icon, accent, surface]) =>
-      '<div class="app-category"><span class="app-category__name">' + escapeMarkup(title) + '</span></div>'
-    ).join('');
-  });
-  document.querySelectorAll('[data-app-keyboard]').forEach(grid => {
-    grid.innerHTML = Array.from('abcdefghijklmnopqrstuvwxyz1234567890').map(key => '<span class="app-key">' + key + '</span>').join('');
-  });
-  document.querySelectorAll('[data-app-landscape]').forEach(rail => {
-    rail.innerHTML = TITLES_TRENDING.slice(0, 4).map(title =>
-      '<div class="app-landscape"><img src="' + TMDB_IMG + '/w780' + title.backdrop + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /><img class="app-n app-landscape__n" src="assets/netflix-n.svg" alt="" /><span class="app-landscape__title">' + escapeMarkup(title.title) + '</span></div>'
-    ).join('');
-  });
-  document.querySelectorAll('[data-app-search-grid]').forEach(grid => {
-    grid.innerHTML = TITLES_TRENDING.slice(0, 8).map(title =>
-      '<div class="app-search-card"><img src="' + TMDB_IMG + '/w342' + title.poster + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></div>'
-    ).join('');
-  });
-  // The installation illustration shows the same Home layout as the tour.
-  const installScreen = document.querySelector('.tv__screen');
-  if (installScreen) installScreen.appendChild(shots[0].querySelector('.app-ui').cloneNode(true));
-  updateTour();
-
-
-})();
-</script>
+<script type="module" src="assets/homepage.mjs"></script>
 
 <script type="module" src="assets/updates.mjs"></script>
 <script type="module" src="assets/app-look.mjs"></script>

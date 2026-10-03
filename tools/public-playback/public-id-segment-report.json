@@ -1,0 +1,251 @@
+{
+  "at": "2026-10-02T17:21:57.959Z",
+  "cookieFree": true,
+  "results": [
+    {
+      "ott": "hs",
+      "title": "Game of Thrones",
+      "year": 2011,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "nativeId": "1971002880",
+      "identitySource": "https://www.hotstar.com/in/shows/game-of-thrones/1971002880",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1971002880",
+      "yearVerified": false,
+      "seasonSource": "provider_catalog",
+      "seasonId": "1971009174",
+      "episodeTitle": "Winter Is Coming",
+      "contentId": "1971035002",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 9852,
+      "events": [
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2273,
+          "elapsedMs": 1824
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2273,
+          "elapsedMs": 546
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/hs/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 1332,
+          "elapsedMs": 499
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 446
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1971035002.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 981,
+          "elapsedMs": 470
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 11448,
+          "elapsedMs": 2404
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/720p/9827_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 793
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/a/2/2.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 11005,
+          "elapsedMs": 2270
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/a/2/9827_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 591
+        }
+      ]
+    },
+    {
+      "ott": "hs",
+      "title": "Lanterns",
+      "year": 2026,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "nativeId": "1271680756",
+      "identitySource": "https://www.airtelxstream.in/tv-shows/lanterns/HOTSTAR_DTH_TVSHOW_1271680756",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1271680756",
+      "yearVerified": true,
+      "contentId": "1271684191",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 6347,
+      "events": [
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2013,
+          "elapsedMs": 1234
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2013,
+          "elapsedMs": 415
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 451
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1271684191.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 838,
+          "elapsedMs": 681
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 35376,
+          "elapsedMs": 877
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/720p/3066_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 676
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 20518,
+          "elapsedMs": 1258
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/a/0/3066_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 748
+        }
+      ]
+    }
+  ]
+}

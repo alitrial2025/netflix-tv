@@ -48,7 +48,7 @@ internal suspend fun OkHttpClient.fetchHeaders(request: Request): HttpHeaderResp
         })
     }
 
-internal suspend fun OkHttpClient.fetchText(request: Request): HttpTextResponse =
+internal suspend fun OkHttpClient.fetchText(request: Request, maxResponseBytes: Long = Long.MAX_VALUE): HttpTextResponse =
     suspendCancellableCoroutine { continuation ->
         val call = newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
@@ -61,7 +61,14 @@ internal suspend fun OkHttpClient.fetchText(request: Request): HttpTextResponse 
                 try {
                     val result = response.use {
                         if (!continuation.isActive) return
-                        HttpTextResponse(it.request, it.code, it.headers, it.body?.string().orEmpty())
+                        val body = it.body
+                        val text = if (body == null) "" else if (maxResponseBytes == Long.MAX_VALUE) body.string() else {
+                            val source = body.source()
+                            source.request(maxResponseBytes + 1)
+                            if (source.buffer.size > maxResponseBytes) throw IOException("Playback response is too large")
+                            body.string()
+                        }
+                        HttpTextResponse(it.request, it.code, it.headers, text)
                     }
                     continuation.resume(result)
                 } catch (e: Exception) {

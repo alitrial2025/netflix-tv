@@ -996,7 +996,205 @@ class Diagnosis {
       await this.testFullPlayback(cdnUrlForTest);
     }
 
+    // Stage 9: Cookie protection boundary analysis
+    if (cdnUrlForTest) {
+      await this.testCookieBoundary(cdnUrlForTest, show, contentId);
+    }
+
     return this.generateReport();
+  }
+
+  // ─── STAGE 9: Cookie Protection Boundary ──────────────────────────
+  async testCookieBoundary(cdnUrl, show, contentId) {
+    console.log('\n🔬 STAGE 9: Cookie Protection Boundary Analysis 🔬');
+    console.log('Testing what requires cookies vs what the ?in= token alone covers\n');
+
+    const cookieHeader = this.cookieHeader(show.ott, show.id, contentId);
+
+    // 1. CDN manifest — WITH cookies
+    console.log('  [1/8] CDN manifest WITH cookies...');
+    try {
+      const res1 = await httpRequest(cdnUrl, {
+        headers: {
+          'User-Agent': UA,
+          'Origin': `https://${this.activeDomain}`,
+          'Referer': `https://${this.activeDomain}/`,
+          'Cookie': cookieHeader
+        }
+      });
+      const isHls = res1.body.includes('#EXTM3U');
+      this.log('cookie_boundary', isHls ? 'OK' : 'FAIL', {
+        test: 'cdn_manifest_with_cookie', httpStatus: res1.status, bytes: res1.body.length,
+        isHls, message: `CDN manifest WITH cookies: HTTP ${res1.status} | HLS=${isHls} | ${res1.body.length}B`
+      });
+    } catch (e) {
+      this.log('cookie_boundary', 'FAIL', { test: 'cdn_manifest_with_cookie', error: e.message });
+    }
+
+    // 2. CDN manifest — WITHOUT cookies (token only)
+    console.log('  [2/8] CDN manifest WITHOUT cookies (token only)...');
+    try {
+      const res2 = await httpRequest(cdnUrl, {
+        headers: {
+          'User-Agent': UA,
+          'Origin': `https://${this.activeDomain}`,
+          'Referer': `https://${this.activeDomain}/`
+        }
+      });
+      const isHls = res2.body.includes('#EXTM3U');
+      this.log('cookie_boundary', isHls ? 'OK' : 'FAIL', {
+        test: 'cdn_manifest_no_cookie', httpStatus: res2.status, bytes: res2.body.length,
+        isHls, message: `CDN manifest NO cookies: HTTP ${res2.status} | HLS=${isHls} | ${res2.body.length}B`
+      });
+
+      // If manifest works without cookies, test segments too
+      if (isHls) {
+        const mediaUrls = res2.body.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+        const masterBaseUrl = cdnUrl.substring(0, cdnUrl.lastIndexOf('/') + 1);
+
+        // Pick a media playlist or segment
+        let mediaManifestUrl = null;
+        for (const line of mediaUrls) {
+          const url = line.startsWith('http') ? line : new URL(line.trim(), masterBaseUrl).href;
+          if (url.endsWith('.m3u8')) {
+            mediaManifestUrl = url;
+            break;
+          }
+        }
+
+        if (mediaManifestUrl) {
+          // 3. Media sub-manifest — WITHOUT cookies
+          console.log('  [3/8] Media sub-manifest WITHOUT cookies...');
+          try {
+            const res3 = await httpRequest(mediaManifestUrl, {
+              headers: {
+                'User-Agent': UA,
+                'Origin': `https://${this.activeDomain}`,
+                'Referer': `https://${this.activeDomain}/`
+              }
+            });
+            const isHls3 = res3.body.includes('#EXTM3U');
+            this.log('cookie_boundary', isHls3 ? 'OK' : 'FAIL', {
+              test: 'media_manifest_no_cookie', httpStatus: res3.status, bytes: res3.body.length,
+              isHls: isHls3, message: `Media manifest NO cookies: HTTP ${res3.status} | HLS=${isHls3} | ${res3.body.length}B`
+            });
+
+            if (isHls3) {
+              const segLines = res3.body.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+              const segBaseUrl = mediaManifestUrl.substring(0, mediaManifestUrl.lastIndexOf('/') + 1);
+
+              if (segLines.length > 0) {
+                const firstSeg = segLines[0].startsWith('http') ? segLines[0] : new URL(segLines[0].trim(), segBaseUrl).href;
+
+                // 4. Segment — WITHOUT cookies, WITHOUT Origin/Referer (bare request)
+                console.log('  [4/8] Segment BARE request (no cookies, no Origin)...');
+                try {
+                  const res4 = await httpRequest(firstSeg, {
+                    binary: true, maxBytes: 65536,
+                    headers: { 'User-Agent': UA }
+                  });
+                  const kind4 = segmentKind(res4.body);
+                  const ok4 = ['mpeg_ts', 'iso_bmff'].includes(kind4);
+                  this.log('cookie_boundary', ok4 ? 'OK' : 'FAIL', {
+                    test: 'segment_bare', httpStatus: res4.status, bytes: res4.body.length,
+                    kind: kind4, message: `Segment BARE: ${kind4} | HTTP ${res4.status} | ${res4.body.length}B`
+                  });
+                } catch (e) {
+                  this.log('cookie_boundary', 'FAIL', { test: 'segment_bare', error: e.message });
+                }
+
+                // 5. Segment — WITHOUT cookies, WITH Origin/Referer
+                console.log('  [5/8] Segment with Origin (no cookies)...');
+                try {
+                  const res5 = await httpRequest(firstSeg, {
+                    binary: true, maxBytes: 65536,
+                    headers: {
+                      'User-Agent': UA,
+                      'Origin': `https://${this.activeDomain}`,
+                      'Referer': `https://${this.activeDomain}/`
+                    }
+                  });
+                  const kind5 = segmentKind(res5.body);
+                  const ok5 = ['mpeg_ts', 'iso_bmff'].includes(kind5);
+                  this.log('cookie_boundary', ok5 ? 'OK' : 'FAIL', {
+                    test: 'segment_origin_no_cookie', httpStatus: res5.status, bytes: res5.body.length,
+                    kind: kind5, message: `Segment Origin+Referer: ${kind5} | HTTP ${res5.status} | ${res5.body.length}B`
+                  });
+                } catch (e) {
+                  this.log('cookie_boundary', 'FAIL', { test: 'segment_origin_no_cookie', error: e.message });
+                }
+
+                // 6. Segment — WITH cookies
+                console.log('  [6/8] Segment WITH cookies...');
+                try {
+                  const res6 = await httpRequest(firstSeg, {
+                    binary: true, maxBytes: 65536,
+                    headers: {
+                      'User-Agent': UA,
+                      'Origin': `https://${this.activeDomain}`,
+                      'Referer': `https://${this.activeDomain}/`,
+                      'Cookie': cookieHeader
+                    }
+                  });
+                  const kind6 = segmentKind(res6.body);
+                  const ok6 = ['mpeg_ts', 'iso_bmff'].includes(kind6);
+                  this.log('cookie_boundary', ok6 ? 'OK' : 'FAIL', {
+                    test: 'segment_with_cookie', httpStatus: res6.status, bytes: res6.body.length,
+                    kind: kind6, message: `Segment WITH cookies: ${kind6} | HTTP ${res6.status} | ${res6.body.length}B`
+                  });
+                } catch (e) {
+                  this.log('cookie_boundary', 'FAIL', { test: 'segment_with_cookie', error: e.message });
+                }
+              }
+            }
+          } catch (e) {
+            this.log('cookie_boundary', 'FAIL', { test: 'media_manifest_no_cookie', error: e.message });
+          }
+        }
+      }
+    } catch (e) {
+      this.log('cookie_boundary', 'FAIL', { test: 'cdn_manifest_no_cookie', error: e.message });
+    }
+
+    // 7. Net52 search — WITHOUT cookies
+    console.log('  [7/8] Net52 search WITHOUT cookies...');
+    try {
+      const searchUrl = `https://${this.activeDomain}/mobile/search.php?s=avatar&t=${Math.floor(Date.now()/1000)}`;
+      const res7 = await httpRequest(searchUrl, {
+        headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const hasResults = res7.body.includes('searchResult') || res7.body.includes('"id"');
+      this.log('cookie_boundary', hasResults ? 'OK' : 'FAIL', {
+        test: 'search_no_cookie', httpStatus: res7.status, bytes: res7.body.length,
+        hasResults, message: `Search NO cookies: HTTP ${res7.status} | results=${hasResults} | ${res7.body.length}B`
+      });
+    } catch (e) {
+      this.log('cookie_boundary', 'FAIL', { test: 'search_no_cookie', error: e.message });
+    }
+
+    // 8. Net52 HLS (master) — WITHOUT cookies
+    console.log('  [8/8] Net52 HLS master WITHOUT cookies...');
+    try {
+      const token = buildToken(FREECDN_HASH1, createHash('md5').update(Math.floor(Date.now()/1000).toString() + contentId).digest('hex'), Math.floor(Date.now()/1000).toString(), 'ek', 'm');
+      const hlsUrl = `https://${this.activeDomain}/mobile/hls/${contentId}.m3u8?in=${token}&hd=off&lang=eng&hp=yes`;
+      const res8 = await httpRequest(hlsUrl, {
+        headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const isHls8 = res8.body.includes('#EXTM3U');
+      this.log('cookie_boundary', isHls8 ? 'OK' : 'FAIL', {
+        test: 'net52_hls_no_cookie', httpStatus: res8.status, bytes: res8.body.length,
+        isHls: isHls8, message: `Net52 HLS NO cookies: HTTP ${res8.status} | HLS=${isHls8} | ${res8.body.length}B`
+      });
+    } catch (e) {
+      this.log('cookie_boundary', 'FAIL', { test: 'net52_hls_no_cookie', error: e.message });
+    }
+
+    // Print summary
+    console.log('\n  Cookie Boundary Summary:');
+    const cookieTests = this.results.filter(r => r.stage === 'cookie_boundary');
+    for (const t of cookieTests) {
+      console.log(`    ${t.status === 'OK' ? '✅' : '❌'} ${t.test}: ${t.message || t.error}`);
+    }
   }
 
   generateReport() {
@@ -1054,6 +1252,10 @@ class Diagnosis {
       cdnTokenAcceptance: cdnTests.map(t => ({
         mode: t.name, shape: t.tokenShape, accepted: t.status === 'OK',
         httpStatus: t.httpStatus, bytes: t.bodyBytes,
+      })),
+      cookieBoundary: this.results.filter(r => r.stage === 'cookie_boundary').map(t => ({
+        test: t.test, passed: t.status === 'OK',
+        message: t.message || t.error,
       })),
       detailedResults: this.results,
     };

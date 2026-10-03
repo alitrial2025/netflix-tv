@@ -102,9 +102,25 @@ fun PlayerScreen(
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn = viewModel.isUserLoggedIn()
     val userSubscription by viewModel.userSubscription.collectAsStateWithLifecycle()
-    val isTrailerPlayback = trailerOnly || !isLoggedIn
+    var trailerChosen by remember(movie.id) { mutableStateOf(false) }
+    val isTrailerPlayback = trailerOnly || !isLoggedIn || trailerChosen
     val playbackAccessLocked = remember(movie, userSubscription, isTrailerPlayback) {
         !isTrailerPlayback && viewModel.isMovieLocked(movie)
+    }
+    if (playbackAccessLocked) {
+        com.example.ui.screens.details.UpgradePlanModal(
+            currentPlanName = userSubscription.planName,
+            lockReason = viewModel.getLockReason(movie),
+            onDismiss = onBack,
+            onUpgradeConfirm = { planId, planName -> viewModel.upgradePlan(planId, planName) },
+            onWatchTrailer = { trailerChosen = true }
+        )
+        BackHandler(onBack = onBack)
+        return
+    }
+    DisposableEffect(movie.id, isTrailerPlayback) {
+        if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title)
+        onDispose { if (!isTrailerPlayback) viewModel.stopStreamHeartbeat() }
     }
     val playbackOwner = remember(movie.id, movie.title, movie.type) { "player:${java.util.UUID.randomUUID()}" }
     val sharedPlaybackOwner by viewModel.sharedPlaybackOwner.collectAsStateWithLifecycle()
@@ -485,6 +501,12 @@ fun PlayerScreen(
         try {
             if (playbackAccessLocked) {
                 playbackError = "This title requires an active plan. Return to Details to unlock it."
+                return@LaunchedEffect
+            }
+            if (!isTrailerPlayback && !viewModel.confirmPlaybackAccess(movie)) {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+                playbackError = "Reconnect to verify your membership before watching."
                 return@LaunchedEffect
             }
             // Details uses the full source, so changing screens can keep the decoder.

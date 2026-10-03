@@ -36,8 +36,8 @@ android {
         applicationId = "com.netflixprotv.apk"
         minSdk = 24
         targetSdk = 35
-        versionCode = 29092032
-        versionName = "1.10.2026.5"
+        versionCode = 29092033
+        versionName = "2.10.2026.1"
         buildConfigField("String", "TMDB_API_KEY", "\"8baba8ab6b8bbe247645bcae7df63d0d\"")
     }
 
@@ -56,7 +56,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             if (releaseSigningReady) signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

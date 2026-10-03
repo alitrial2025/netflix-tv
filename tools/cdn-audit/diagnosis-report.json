@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-01T09:50:18.284Z",
+  "timestamp": "2026-10-02T08:26:21.768Z",
   "target": {
     "title": "Smallville",
     "year": 2001,
@@ -9,8 +9,8 @@
     "episode": 8
   },
   "summary": {
-    "totalTests": 31,
-    "passed": 22,
+    "totalTests": 35,
+    "passed": 26,
     "warnings": 3,
     "failed": 6,
     "failedStages": [
@@ -87,44 +87,66 @@
       "bytes": 44
     }
   ],
+  "cookieBoundary": [
+    {
+      "test": "cdn_manifest_with_cookie",
+      "passed": true,
+      "message": "CDN manifest WITH cookies: HTTP 200 | HLS=true | 8141B"
+    },
+    {
+      "test": "cdn_manifest_no_cookie",
+      "passed": true,
+      "message": "CDN manifest NO cookies: HTTP 200 | HLS=true | 8141B"
+    },
+    {
+      "test": "search_no_cookie",
+      "passed": true,
+      "message": "Search NO cookies: HTTP 200 | results=true | 914B"
+    },
+    {
+      "test": "net52_hls_no_cookie",
+      "passed": true,
+      "message": "Net52 HLS NO cookies: HTTP 200 | HLS=true | 482B"
+    }
+  ],
   "detailedResults": [
     {
       "stage": "domain_probe",
       "status": "OK",
-      "timestamp": "2026-10-01T09:49:25.513Z",
+      "timestamp": "2026-10-02T08:25:28.925Z",
       "domain": "net52.cc",
       "httpStatus": 200,
       "hasAddhash": true,
       "bodyKind": "html",
-      "elapsedMs": 775,
-      "message": "net52.cc → HTTP 200, addhash=true, 775ms"
+      "elapsedMs": 1361,
+      "message": "net52.cc → HTTP 200, addhash=true, 1361ms"
     },
     {
       "stage": "domain_probe",
       "status": "WARN",
-      "timestamp": "2026-10-01T09:49:26.128Z",
+      "timestamp": "2026-10-02T08:25:29.808Z",
       "domain": "netmirror.app",
       "httpStatus": 301,
       "hasAddhash": false,
       "bodyKind": "http_error_301",
-      "elapsedMs": 614,
-      "message": "netmirror.app → HTTP 301, addhash=false, 614ms"
+      "elapsedMs": 882,
+      "message": "netmirror.app → HTTP 301, addhash=false, 882ms"
     },
     {
       "stage": "domain_probe",
       "status": "WARN",
-      "timestamp": "2026-10-01T09:49:26.787Z",
+      "timestamp": "2026-10-02T08:25:30.522Z",
       "domain": "netmirror.gg",
       "httpStatus": 404,
       "hasAddhash": false,
       "bodyKind": "http_error_404",
-      "elapsedMs": 658,
-      "message": "netmirror.gg → HTTP 404, addhash=false, 658ms"
+      "elapsedMs": 714,
+      "message": "netmirror.gg → HTTP 404, addhash=false, 714ms"
     },
     {
       "stage": "domain_probe",
       "status": "FAIL",
-      "timestamp": "2026-10-01T09:49:26.860Z",
+      "timestamp": "2026-10-02T08:25:30.796Z",
       "domain": "mobidetects.com",
       "error": "getaddrinfo ENOTFOUND mobidetects.com",
       "message": "mobidetects.com → getaddrinfo ENOTFOUND mobidetects.com"
@@ -132,28 +154,28 @@
     {
       "stage": "domain_probe",
       "status": "WARN",
-      "timestamp": "2026-10-01T09:49:28.163Z",
+      "timestamp": "2026-10-02T08:25:31.918Z",
       "domain": "mobidetect.art",
       "httpStatus": 404,
       "hasAddhash": false,
       "bodyKind": "http_error_404",
-      "elapsedMs": 1303,
-      "message": "mobidetect.art → HTTP 404, addhash=false, 1303ms"
+      "elapsedMs": 1122,
+      "message": "mobidetect.art → HTTP 404, addhash=false, 1122ms"
     },
     {
       "stage": "handshake_addhash",
       "status": "OK",
-      "timestamp": "2026-10-01T09:49:28.430Z",
+      "timestamp": "2026-10-02T08:25:32.122Z",
       "domain": "net52.cc",
       "httpStatus": 200,
       "addhashParts": 4,
-      "elapsedMs": 266,
+      "elapsedMs": 203,
       "message": "addhash: 4 parts (need ≥3), HTTP 200"
     },
     {
       "stage": "handshake_params",
       "status": "OK",
-      "timestamp": "2026-10-01T09:49:28.431Z",
+      "timestamp": "2026-10-02T08:25:32.123Z",
       "quryParam": "ffr455",
       "vsiteSubdomain": "userver",
       "verifyEndpoint": "/mobile/verify2.php",
@@ -162,21 +184,21 @@
     {
       "stage": "handshake_trigger",
       "status": "OK",
-      "timestamp": "2026-10-01T09:49:28.878Z",
+      "timestamp": "2026-10-02T08:25:32.876Z",
       "message": "Triggered userver.net52.cc"
     },
     {
       "stage": "handshake_verify",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:06.028Z",
+      "timestamp": "2026-10-02T08:26:08.573Z",
       "attempt": 25,
-      "elapsedMs": 35947,
-      "message": "t_hash_t received on attempt 25 (35947ms)"
+      "elapsedMs": 34489,
+      "message": "t_hash_t received on attempt 25 (34489ms)"
     },
     {
       "stage": "search_match",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:06.431Z",
+      "timestamp": "2026-10-02T08:26:08.857Z",
       "id": "70155584",
       "title": "Smallville",
       "year": "",
@@ -187,7 +209,7 @@
     {
       "stage": "search_match",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:06.733Z",
+      "timestamp": "2026-10-02T08:26:09.079Z",
       "id": "70155584",
       "title": "Smallville",
       "year": "",
@@ -198,21 +220,21 @@
     {
       "stage": "post_detail",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:06.992Z",
+      "timestamp": "2026-10-02T08:26:09.391Z",
       "seasonCount": 10,
       "message": "post.php returned 10 seasons"
     },
     {
       "stage": "season_find",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:06.992Z",
+      "timestamp": "2026-10-02T08:26:09.391Z",
       "seasonId": "70037632",
       "message": "Season 4 ID: 70037632"
     },
     {
       "stage": "episodes_page",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:07.255Z",
+      "timestamp": "2026-10-02T08:26:09.799Z",
       "page": 1,
       "count": 10,
       "nextPageShow": 1,
@@ -221,7 +243,7 @@
     {
       "stage": "episode_match",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:07.255Z",
+      "timestamp": "2026-10-02T08:26:09.800Z",
       "episodeContentId": "82171151",
       "rawEp": "E8",
       "message": "S4E8 content ID: 82171151"
@@ -229,7 +251,7 @@
     {
       "stage": "playlist_php",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:07.506Z",
+      "timestamp": "2026-10-02T08:26:09.998Z",
       "sourceCount": 2,
       "trackCount": 3,
       "message": "playlist.php → 2 sources, 3 subtitle tracks"
@@ -237,7 +259,7 @@
     {
       "stage": "source_analysis",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:07.507Z",
+      "timestamp": "2026-10-02T08:26:09.999Z",
       "file": "/mobile/hls/82171151.m3u8",
       "hasToken": true,
       "tokenIsUnknown": false,
@@ -250,7 +272,7 @@
     {
       "stage": "source_analysis",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:07.507Z",
+      "timestamp": "2026-10-02T08:26:09.999Z",
       "file": "/mobile/hls/82171151.m3u8",
       "hasToken": true,
       "tokenIsUnknown": false,
@@ -263,7 +285,7 @@
     {
       "stage": "master_token_test",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:08.072Z",
+      "timestamp": "2026-10-02T08:26:10.308Z",
       "name": "ek_m (current TV hardcoded)",
       "tokenMode": "ek::m",
       "httpStatus": 200,
@@ -282,7 +304,7 @@
     {
       "stage": "master_token_test",
       "status": "FAIL",
-      "timestamp": "2026-10-01T09:50:08.834Z",
+      "timestamp": "2026-10-02T08:26:11.006Z",
       "name": "su_m (su mode with m suffix)",
       "tokenMode": "su::m",
       "httpStatus": 200,
@@ -299,13 +321,13 @@
     {
       "stage": "rate_limit",
       "status": "FAIL",
-      "timestamp": "2026-10-01T09:50:08.834Z",
+      "timestamp": "2026-10-02T08:26:11.006Z",
       "message": "Rate limited! Stopping master token tests."
     },
     {
       "stage": "cdn_token_probe",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:09.674Z",
+      "timestamp": "2026-10-02T08:26:11.826Z",
       "name": "provider_original",
       "tokenShape": "ek::myes",
       "httpStatus": 200,
@@ -318,7 +340,7 @@
     {
       "stage": "cdn_token_probe",
       "status": "FAIL",
-      "timestamp": "2026-10-01T09:50:10.693Z",
+      "timestamp": "2026-10-02T08:26:12.825Z",
       "name": "su_myes (reconstruct)",
       "tokenShape": "su::myes",
       "httpStatus": 200,
@@ -331,7 +353,7 @@
     {
       "stage": "cdn_token_probe",
       "status": "FAIL",
-      "timestamp": "2026-10-01T09:50:11.749Z",
+      "timestamp": "2026-10-02T08:26:13.831Z",
       "name": "su_only",
       "tokenShape": "su",
       "httpStatus": 200,
@@ -344,7 +366,7 @@
     {
       "stage": "cdn_token_probe",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:12.886Z",
+      "timestamp": "2026-10-02T08:26:14.933Z",
       "name": "ek_myes",
       "tokenShape": "ek::myes",
       "httpStatus": 200,
@@ -357,7 +379,7 @@
     {
       "stage": "cdn_token_probe",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:13.918Z",
+      "timestamp": "2026-10-02T08:26:15.945Z",
       "name": "ek_only",
       "tokenShape": "ek",
       "httpStatus": 200,
@@ -370,7 +392,7 @@
     {
       "stage": "cdn_token_probe",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:15.029Z",
+      "timestamp": "2026-10-02T08:26:16.981Z",
       "name": "ek_m (TV master formula)",
       "tokenShape": "ek::m",
       "httpStatus": 200,
@@ -383,7 +405,7 @@
     {
       "stage": "cdn_token_probe",
       "status": "FAIL",
-      "timestamp": "2026-10-01T09:50:16.162Z",
+      "timestamp": "2026-10-02T08:26:18.003Z",
       "name": "sumyes (no separator)",
       "tokenShape": "sumyes",
       "httpStatus": 200,
@@ -396,7 +418,7 @@
     {
       "stage": "media_manifest",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:17.308Z",
+      "timestamp": "2026-10-02T08:26:19.020Z",
       "segmentCount": 256,
       "hasEndList": true,
       "message": "Media manifest: 256 segments, endlist=true"
@@ -404,7 +426,7 @@
     {
       "stage": "segment_probe",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:17.825Z",
+      "timestamp": "2026-10-02T08:26:19.468Z",
       "segmentKind": "mpeg_ts",
       "bytes": 262144,
       "httpStatus": 206,
@@ -413,11 +435,51 @@
     {
       "stage": "segment_probe",
       "status": "OK",
-      "timestamp": "2026-10-01T09:50:18.280Z",
+      "timestamp": "2026-10-02T08:26:19.922Z",
       "segmentKind": "mpeg_ts",
       "bytes": 262144,
       "httpStatus": 206,
       "message": "Segment: mpeg_ts | 262144B | HTTP 206"
+    },
+    {
+      "stage": "cookie_boundary",
+      "status": "OK",
+      "timestamp": "2026-10-02T08:26:20.558Z",
+      "test": "cdn_manifest_with_cookie",
+      "httpStatus": 200,
+      "bytes": 8141,
+      "isHls": true,
+      "message": "CDN manifest WITH cookies: HTTP 200 | HLS=true | 8141B"
+    },
+    {
+      "stage": "cookie_boundary",
+      "status": "OK",
+      "timestamp": "2026-10-02T08:26:21.164Z",
+      "test": "cdn_manifest_no_cookie",
+      "httpStatus": 200,
+      "bytes": 8141,
+      "isHls": true,
+      "message": "CDN manifest NO cookies: HTTP 200 | HLS=true | 8141B"
+    },
+    {
+      "stage": "cookie_boundary",
+      "status": "OK",
+      "timestamp": "2026-10-02T08:26:21.528Z",
+      "test": "search_no_cookie",
+      "httpStatus": 200,
+      "bytes": 914,
+      "hasResults": true,
+      "message": "Search NO cookies: HTTP 200 | results=true | 914B"
+    },
+    {
+      "stage": "cookie_boundary",
+      "status": "OK",
+      "timestamp": "2026-10-02T08:26:21.764Z",
+      "test": "net52_hls_no_cookie",
+      "httpStatus": 200,
+      "bytes": 482,
+      "isHls": true,
+      "message": "Net52 HLS NO cookies: HTTP 200 | HLS=true | 482B"
     }
   ]
 }

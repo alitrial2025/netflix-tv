@@ -390,14 +390,14 @@ data class UserSubscription(
         isTrendingOrVip: Boolean = false,
         isTvDevice: Boolean = false
     ): String {
-        if (isGuest) return "Guest Mode: Watch Official Trailer or Sign In to stream full title."
+        if (isGuest) return "Subscribe to a plan to watch the full movie or show."
         if (isInGracePeriod) return "Please update your payment method to keep streaming."
         if (isPastDue) return "Your last payment failed. Please update your payment method to resume streaming."
         if (isCancelledButNotExpired) {
             val days = daysRemaining
             return "Your subscription ends in $days day(s). Renew to keep streaming."
         }
-        if (!isActive) return "Subscription Expired: Please renew to continue streaming."
+        if (!isActive) return "An active plan is needed to watch the full movie or show. Subscribe or renew on your phone."
         val normalizedPlan = planId.lowercase()
         val normalizedName = planName.lowercase()
 

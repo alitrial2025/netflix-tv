@@ -1,6 +1,8 @@
 package com.example.ui.screens.details
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,9 +38,9 @@ fun UpgradePlanModal(
     onUpgradeConfirm: (planId: String, planName: String) -> Unit,
     onWatchTrailer: () -> Unit
 ) {
-    var selectedPlanId by remember { mutableStateOf("plan_standard") }
+    var selectedPlanId by remember { mutableStateOf(if (currentPlanName == "Guest") "plan_basic" else "plan_standard") }
     val plans = remember {
-        SubscriptionPlans.PLANS.filter { it.id == "plan_standard" || it.id == "plan_premium" }
+        SubscriptionPlans.PLANS.filter { it.id != "plan_mobile" }
     }
     val initialPlanFocusRequester = remember { FocusRequester() }
 
@@ -47,7 +49,7 @@ fun UpgradePlanModal(
         try { initialPlanFocusRequester.requestFocus() } catch (_: Exception) {}
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.85f)),
@@ -66,11 +68,11 @@ fun UpgradePlanModal(
             ),
             modifier = Modifier
                 .width(520.dp)
-                .wrapContentHeight()
-                .padding(24.dp)
+                .heightIn(max = maxHeight - 32.dp)
+                .padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(
@@ -84,7 +86,7 @@ fun UpgradePlanModal(
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = stringResource(R.string.upgrade_modal_title),
+                        text = "Subscribe to watch the full story",
                         color = Color.White,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
@@ -94,7 +96,7 @@ fun UpgradePlanModal(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = lockReason,
+                    text = "$lockReason\nChoose a plan in the NetflixPro mobile app using this account. Or continue with the official trailer.",
                     color = Color.LightGray,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center
@@ -205,7 +207,7 @@ fun UpgradePlanModal(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.upgrade_modal_cta),
+                                text = "Subscribe on your phone",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
@@ -236,7 +238,7 @@ fun UpgradePlanModal(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.upgrade_modal_watch_trailer),
+                                text = "Continue with trailer",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold

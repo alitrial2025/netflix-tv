@@ -1,0 +1,1605 @@
+{
+  "at": "2026-10-02T18:19:33.208Z",
+  "cookieFree": true,
+  "handshakes": 0,
+  "scope": "Bounded HLS video/audio container samples; Android decoding and complete-title availability are not proven.",
+  "results": [
+    {
+      "ott": "nf",
+      "title": "Glass Onion: A Knives Out Mystery",
+      "year": 2022,
+      "type": "movie",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "81458416",
+      "yearVerified": false,
+      "contentId": "81458416",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 3721,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 106,
+          "elapsedMs": 780
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 956,
+          "elapsedMs": 272
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/81458416.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "status": 200,
+          "sampledBytes": 2900,
+          "elapsedMs": 259
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s20.freecdn1.top",
+          "path": "/files/81458416/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 26749,
+          "elapsedMs": 1256
+        },
+        {
+          "stage": "video_sample",
+          "host": "s20.freecdn1.top",
+          "path": "/files/81458416/720p/2362_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 155
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s20.freecdn1.top",
+          "path": "/files/81458416/a/2/2.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 25818,
+          "elapsedMs": 796
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s20.freecdn1.top",
+          "path": "/files/81458416/a/2/2362_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 193
+        }
+      ],
+      "requestedCatalog": "nf",
+      "actualCatalog": "nf"
+    },
+    {
+      "ott": "pv",
+      "title": "Road House",
+      "year": 2024,
+      "type": "movie",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "0O70LSZ5KT12QBNQRUQGGRIWDP",
+      "yearVerified": true,
+      "contentId": "0O70LSZ5KT12QBNQRUQGGRIWDP",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 3759,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 31,
+          "elapsedMs": 338
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 263
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 219,
+          "elapsedMs": 251
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 5400,
+          "elapsedMs": 264
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0O70LSZ5KT12QBNQRUQGGRIWDP.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "status": 200,
+          "sampledBytes": 3737,
+          "elapsedMs": 242
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s14.freecdn2.top",
+          "path": "/files/0O70LSZ5KT12QBNQRUQGGRIWDP/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 23319,
+          "elapsedMs": 1186
+        },
+        {
+          "stage": "video_sample",
+          "host": "s14.freecdn2.top",
+          "path": "/files/0O70LSZ5KT12QBNQRUQGGRIWDP/720p/5013_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 126
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s14.freecdn2.top",
+          "path": "/files/0O70LSZ5KT12QBNQRUQGGRIWDP/a/3/3.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 22874,
+          "elapsedMs": 940
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s14.freecdn2.top",
+          "path": "/files/0O70LSZ5KT12QBNQRUQGGRIWDP/a/3/5013_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 145
+        }
+      ],
+      "requestedCatalog": "pv",
+      "actualCatalog": "pv"
+    },
+    {
+      "ott": "pv",
+      "title": "Mr. Robot",
+      "year": 2015,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "0L52QDYY6OG738LB7ILP0VB7R4",
+      "yearVerified": true,
+      "seasonSource": "verified_mapping_input",
+      "mappingSource": "https://www.primevideo.com/detail/0L52QDYY6OG738LB7ILP0VB7R4",
+      "seasonId": "0L52QDYY6OG738LB7ILP0VB7R4",
+      "episodeTitle": "eps1.0_hellofriend.mov",
+      "contentId": "0RZED4V5SOLKXX2U04B6XONCIM",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 4597,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 31,
+          "elapsedMs": 332
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 260
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 135,
+          "elapsedMs": 286
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 1610,
+          "elapsedMs": 253
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 583,
+          "elapsedMs": 254
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0RZED4V5SOLKXX2U04B6XONCIM.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "status": 200,
+          "sampledBytes": 2701,
+          "elapsedMs": 266
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s10.freecdn43.top",
+          "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 12416,
+          "elapsedMs": 1023
+        },
+        {
+          "stage": "video_sample",
+          "host": "s10.freecdn43.top",
+          "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/720p/4028_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 511
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s10.freecdn43.top",
+          "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/a/2/2.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 12143,
+          "elapsedMs": 896
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s10.freecdn43.top",
+          "path": "/files/0RZED4V5SOLKXX2U04B6XONCIM/a/2/4028_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 510
+        }
+      ],
+      "requestedCatalog": "pv",
+      "actualCatalog": "pv"
+    },
+    {
+      "ott": "hs",
+      "title": "Special Ops",
+      "year": 2020,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1260022894",
+      "yearVerified": true,
+      "seasonSource": "provider_catalog",
+      "seasonId": "1260022897",
+      "episodeTitle": "Kaagaz Ke Phool",
+      "contentId": "1260022902",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 7080,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 31,
+          "elapsedMs": 336
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 256
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 231,
+          "elapsedMs": 247
+        },
+        {
+          "stage": "tmdb_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/search/tv",
+          "queryKeys": [
+            "api_key",
+            "query"
+          ],
+          "status": 200,
+          "sampledBytes": 9914,
+          "elapsedMs": 542
+        },
+        {
+          "stage": "tmdb_external_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/100612/external_ids",
+          "queryKeys": [
+            "api_key"
+          ],
+          "status": 200,
+          "sampledBytes": 192,
+          "elapsedMs": 180
+        },
+        {
+          "stage": "public_native_identity",
+          "host": "www.wikidata.org",
+          "path": "/wiki/Special:EntityData/Q86751099.json",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 12926,
+          "elapsedMs": 1790
+        },
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2245,
+          "elapsedMs": 261
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2245,
+          "elapsedMs": 268
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/hs/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 1169,
+          "elapsedMs": 251
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 258
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1260022902.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 1414,
+          "elapsedMs": 260
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 9752,
+          "elapsedMs": 902
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/720p/9209_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 146
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 9375,
+          "elapsedMs": 1044
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/a/0/9209_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 334
+        }
+      ],
+      "requestedCatalog": "hs",
+      "actualCatalog": "hs"
+    },
+    {
+      "ott": "dp",
+      "title": "Andor",
+      "year": 2022,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1260103701",
+      "yearVerified": false,
+      "seasonSource": "provider_catalog",
+      "seasonId": "1260103758",
+      "episodeTitle": "Kassa",
+      "contentId": "1260103764",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 7069,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 80,
+          "elapsedMs": 329
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 252
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 210,
+          "elapsedMs": 242
+        },
+        {
+          "stage": "tmdb_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/search/tv",
+          "queryKeys": [
+            "api_key",
+            "query"
+          ],
+          "status": 200,
+          "sampledBytes": 3200,
+          "elapsedMs": 428
+        },
+        {
+          "stage": "tmdb_external_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/83867/external_ids",
+          "queryKeys": [
+            "api_key"
+          ],
+          "status": 200,
+          "sampledBytes": 223,
+          "elapsedMs": 148
+        },
+        {
+          "stage": "public_native_identity",
+          "host": "www.wikidata.org",
+          "path": "/wiki/Special:EntityData/Q60462338.json",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 92348,
+          "elapsedMs": 2020
+        },
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2316,
+          "elapsedMs": 256
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2316,
+          "elapsedMs": 266
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/hs/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 1282,
+          "elapsedMs": 264
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 1179,
+          "elapsedMs": 255
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1260103764.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 982,
+          "elapsedMs": 251
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260103764/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 7640,
+          "elapsedMs": 904
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260103764/720p/5484_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 287
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260103764/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 7346,
+          "elapsedMs": 905
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260103764/a/0/5484_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 261
+        }
+      ],
+      "requestedCatalog": "dp",
+      "actualCatalog": "hs"
+    },
+    {
+      "ott": "hb",
+      "title": "The Penguin",
+      "year": 2024,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "tmdbId": "194764",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1971003606",
+      "yearVerified": true,
+      "contentId": "1971117507",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 8841,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 148,
+          "elapsedMs": 1163
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 351
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 76,
+          "elapsedMs": 233
+        },
+        {
+          "stage": "public_partner_identity",
+          "host": "www.airtelxstream.in",
+          "path": "/tv-shows/the-penguin/HOTSTAR_DTH_TVSHOW_1971003606",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 852325,
+          "elapsedMs": 2690
+        },
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2056,
+          "elapsedMs": 233
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2056,
+          "elapsedMs": 232
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 221
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1971117507.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 1267,
+          "elapsedMs": 231
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 12856,
+          "elapsedMs": 964
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/720p/5424_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 542
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 12358,
+          "elapsedMs": 1378
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971117507/a/0/5424_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 458
+        }
+      ],
+      "requestedCatalog": "hb",
+      "actualCatalog": "hs"
+    },
+    {
+      "ott": "atp",
+      "title": "Slow Horses",
+      "year": 2022,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "0MEYJKN34E2DBOY4OY7Z31N4Q4",
+      "yearVerified": true,
+      "seasonSource": "verified_mapping_input",
+      "mappingSource": "https://www.primevideo.com/detail/0MEYJKN34E2DBOY4OY7Z31N4Q4",
+      "seasonId": "0MEYJKN34E2DBOY4OY7Z31N4Q4",
+      "episodeTitle": "Failure\u2019s Contagious",
+      "contentId": "0LJR5CFZYHXPDPVS240PDG6WQ8",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 4947,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 31,
+          "elapsedMs": 359
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 279
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 137,
+          "elapsedMs": 248
+        },
+        {
+          "stage": "public_seasons",
+          "host": "www.primevideo.com",
+          "path": "/detail/0MEYJKN34E2DBOY4OY7Z31N4Q4",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 403307,
+          "elapsedMs": 976
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 992,
+          "elapsedMs": 254
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 5925,
+          "elapsedMs": 256
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0LJR5CFZYHXPDPVS240PDG6WQ8.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "status": 200,
+          "sampledBytes": 1867,
+          "elapsedMs": 250
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 10761,
+          "elapsedMs": 1020
+        },
+        {
+          "stage": "video_sample",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/720p/8278_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 163
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/a/1/1.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 10544,
+          "elapsedMs": 820
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/a/1/8278_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 282
+        }
+      ],
+      "requestedCatalog": "atp",
+      "actualCatalog": "pv"
+    },
+    {
+      "ott": "pm",
+      "title": "Top Gun: Maverick",
+      "year": 2022,
+      "type": "movie",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "81198910",
+      "yearVerified": false,
+      "contentId": "81198910",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 3314,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 90,
+          "elapsedMs": 339
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 956,
+          "elapsedMs": 246
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/81198910.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "status": 200,
+          "sampledBytes": 1978,
+          "elapsedMs": 252
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s00021.freecdn4.top",
+          "path": "/s21.freecdn4.top/files/81198910/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 24789,
+          "elapsedMs": 684
+        },
+        {
+          "stage": "video_sample",
+          "host": "s00021.freecdn4.top",
+          "path": "/s21.freecdn4.top/files/81198910/720p/6028_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 1043
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s00021.freecdn4.top",
+          "path": "/s21.freecdn4.top/files/81198910/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 23964,
+          "elapsedMs": 340
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s00021.freecdn4.top",
+          "path": "/s21.freecdn4.top/files/81198910/a/0/6028_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 408
+        }
+      ],
+      "requestedCatalog": "pm",
+      "actualCatalog": "nf"
+    },
+    {
+      "ott": "pc",
+      "title": "Twisted Metal",
+      "year": 2023,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "success": false,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": false,
+      "guessedIds": false,
+      "failedStage": "public_native_identity",
+      "error": "verified_public_identity_unavailable",
+      "elapsedMs": 3110,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 31,
+          "elapsedMs": 320
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 914,
+          "elapsedMs": 258
+        },
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 76,
+          "elapsedMs": 253
+        },
+        {
+          "stage": "tmdb_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/search/tv",
+          "queryKeys": [
+            "api_key",
+            "query"
+          ],
+          "status": 200,
+          "sampledBytes": 841,
+          "elapsedMs": 628
+        },
+        {
+          "stage": "tmdb_external_identity",
+          "host": "api.themoviedb.org",
+          "path": "/3/tv/133748/external_ids",
+          "queryKeys": [
+            "api_key"
+          ],
+          "status": 200,
+          "sampledBytes": 193,
+          "elapsedMs": 205
+        },
+        {
+          "stage": "public_native_identity",
+          "host": "www.wikidata.org",
+          "path": "/wiki/Special:EntityData/Q112223638.json",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 36868,
+          "elapsedMs": 1446
+        }
+      ],
+      "requestedCatalog": "pc",
+      "actualCatalog": "pc"
+    },
+    {
+      "ott": "hlu",
+      "title": "Palm Springs",
+      "year": 2020,
+      "type": "movie",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "81032100",
+      "yearVerified": false,
+      "contentId": "81032100",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 2175,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 85,
+          "elapsedMs": 323
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 956,
+          "elapsedMs": 246
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hls/81032100.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang",
+            "hp"
+          ],
+          "status": 200,
+          "sampledBytes": 472,
+          "elapsedMs": 249
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s20.freecdn1.top",
+          "path": "/files/81032100/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 17137,
+          "elapsedMs": 1100
+        },
+        {
+          "stage": "video_sample",
+          "host": "s20.freecdn1.top",
+          "path": "/files/81032100/720p/7260_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 254
+        }
+      ],
+      "requestedCatalog": "hlu",
+      "actualCatalog": "nf"
+    },
+    {
+      "ott": "hs",
+      "title": "Game of Thrones",
+      "year": 2011,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "tmdbId": "1399",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1971002880",
+      "yearVerified": false,
+      "seasonSource": "provider_catalog",
+      "seasonId": "1971009174",
+      "episodeTitle": "Winter Is Coming",
+      "contentId": "1971035002",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 3867,
+      "events": [
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2274,
+          "elapsedMs": 257
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2273,
+          "elapsedMs": 265
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/hs/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 1332,
+          "elapsedMs": 255
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 284
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1971035002.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 981,
+          "elapsedMs": 260
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 11448,
+          "elapsedMs": 969
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/720p/9827_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 279
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/a/2/2.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 11005,
+          "elapsedMs": 950
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1971035002/a/2/9827_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 346
+        }
+      ],
+      "requestedCatalog": "hs",
+      "actualCatalog": "hs"
+    },
+    {
+      "ott": "hs",
+      "title": "Lanterns",
+      "year": 2026,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "tmdbId": "95350",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1271680756",
+      "yearVerified": true,
+      "contentId": "1271684191",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 3081,
+      "events": [
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2013,
+          "elapsedMs": 257
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2013,
+          "elapsedMs": 254
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 257
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1271684191.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 838,
+          "elapsedMs": 244
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 35376,
+          "elapsedMs": 956
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/720p/3066_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 243
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 20518,
+          "elapsedMs": 736
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1271684191/a/0/3066_000.js",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 130
+        }
+      ],
+      "requestedCatalog": "hs",
+      "actualCatalog": "hs"
+    }
+  ],
+  "successCount": 11
+}

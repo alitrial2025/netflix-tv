@@ -1,0 +1,255 @@
+{
+  "at": "2026-10-02T17:45:01.345Z",
+  "cookieFree": true,
+  "results": [
+    {
+      "ott": "pv",
+      "title": "Slow Horses",
+      "year": 2022,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "0MEYJKN34E2DBOY4OY7Z31N4Q4",
+      "yearVerified": true,
+      "seasonSource": "verified_mapping_input",
+      "mappingSource": "https://www.primevideo.com/detail/0MEYJKN34E2DBOY4OY7Z31N4Q4",
+      "seasonId": "0MEYJKN34E2DBOY4OY7Z31N4Q4",
+      "episodeTitle": "Failure’s Contagious",
+      "contentId": "0LJR5CFZYHXPDPVS240PDG6WQ8",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 4728,
+      "events": [
+        {
+          "stage": "search",
+          "host": "net52.cc",
+          "path": "/mobile/pv/search.php",
+          "queryKeys": [
+            "s"
+          ],
+          "status": 200,
+          "sampledBytes": 137,
+          "elapsedMs": 1460
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/pv/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 992,
+          "elapsedMs": 314
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/pv/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 5925,
+          "elapsedMs": 291
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/pv/hls/0LJR5CFZYHXPDPVS240PDG6WQ8.m3u8",
+          "queryKeys": [
+            "in",
+            "hd",
+            "lang"
+          ],
+          "status": 200,
+          "sampledBytes": 1867,
+          "elapsedMs": 279
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 10761,
+          "elapsedMs": 1264
+        },
+        {
+          "stage": "video_sample",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/720p/8278_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 369
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/a/1/1.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 10544,
+          "elapsedMs": 374
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s11.nm-cdn8.top",
+          "path": "/files/0LJR5CFZYHXPDPVS240PDG6WQ8/a/1/8278_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 367
+        }
+      ]
+    },
+    {
+      "ott": "hs",
+      "title": "Special Ops",
+      "year": 2020,
+      "type": "tv",
+      "season": 1,
+      "episode": 1,
+      "nativeId": "1260022894",
+      "success": true,
+      "handshakes": 0,
+      "authenticationCookiesSent": false,
+      "tokenGeneration": true,
+      "guessedIds": false,
+      "providerId": "1260022894",
+      "yearVerified": true,
+      "seasonSource": "provider_catalog",
+      "seasonId": "1260022897",
+      "episodeTitle": "Kaagaz Ke Phool",
+      "contentId": "1260022902",
+      "masterRequestMode": "existing_app_public_ek_m",
+      "videoSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "audioSample": {
+        "kind": "mpeg_ts",
+        "bytes": 65536
+      },
+      "evidence": "hls_and_bounded_media_container_sample",
+      "elapsedMs": 3887,
+      "events": [
+        {
+          "stage": "public_identity_validation",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2245,
+          "elapsedMs": 300
+        },
+        {
+          "stage": "season_catalog",
+          "host": "net52.cc",
+          "path": "/mobile/hs/post.php",
+          "queryKeys": [
+            "id"
+          ],
+          "status": 200,
+          "sampledBytes": 2245,
+          "elapsedMs": 252
+        },
+        {
+          "stage": "episodes",
+          "host": "net52.cc",
+          "path": "/mobile/hs/episodes.php",
+          "queryKeys": [
+            "s",
+            "series"
+          ],
+          "status": 200,
+          "sampledBytes": 1169,
+          "elapsedMs": 368
+        },
+        {
+          "stage": "playlist",
+          "host": "net52.cc",
+          "path": "/mobile/hs/playlist.php",
+          "queryKeys": [
+            "id",
+            "t",
+            "tm"
+          ],
+          "status": 200,
+          "sampledBytes": 657,
+          "elapsedMs": 250
+        },
+        {
+          "stage": "video_manifest",
+          "host": "net52.cc",
+          "path": "/mobile/hs/hls/1260022902.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 1414,
+          "elapsedMs": 253
+        },
+        {
+          "stage": "video_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/720p/720p.m3u8",
+          "queryKeys": [
+            "in"
+          ],
+          "status": 200,
+          "sampledBytes": 9752,
+          "elapsedMs": 788
+        },
+        {
+          "stage": "video_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/720p/9209_000.jpg",
+          "queryKeys": [],
+          "status": 206,
+          "sampledBytes": 65536,
+          "elapsedMs": 427
+        },
+        {
+          "stage": "audio_manifest",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/a/0/0.m3u8",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 9375,
+          "elapsedMs": 841
+        },
+        {
+          "stage": "audio_sample",
+          "host": "s30.freecdn31.top",
+          "path": "/files/1260022902/a/0/9209_000.js",
+          "queryKeys": [],
+          "status": 200,
+          "sampledBytes": 65536,
+          "elapsedMs": 402
+        }
+      ]
+    }
+  ]
+}

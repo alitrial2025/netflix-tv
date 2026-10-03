@@ -83,7 +83,7 @@ export function makeRelease({ channel, metadata, bytes, sha256, signers, apkUrl,
     }
   }
   return {
-    schemaVersion: 1, channel, packageName: metadata.packageName, available: true,
+    schemaVersion: 1, channel, packageName: metadata.packageName, available: true, buildType: 'release',
     ...metadata, sizeBytes: bytes, sha256, signingCertificateSha256: signers,
     apkUrl, releaseNotes: notes.trim(), supportsUpdateGate: gateEnabled,
     publishedAt: new Date().toISOString()

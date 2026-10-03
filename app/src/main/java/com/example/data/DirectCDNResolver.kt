@@ -119,6 +119,9 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         .followSslRedirects(true)
         .build()
 
+    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context))
+    val requiresWarmSession: Boolean get() = false
+
     private val SEC_CH_UA = "\"Not(A:Brand\";v=\"99\", \"Android WebView\";v=\"133\", \"Chromium\";v=\"133\""
     private val X_REQUESTED_WITH = "app.netmirror.netmirrornew"
 
@@ -2275,53 +2278,28 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
             resolveStreamForPurpose(movie, season, episode, purpose)
         }
 
-    private suspend fun resolveStreamForPurpose(movie: Movie, season: Int, episode: Int, purpose: StreamPurpose): NetMirrorStream {
-        // Retire naturally expired state before capturing a request generation.
-        hasValidSession()
-        val t0 = System.currentTimeMillis()
-        com.example.ui.util.AppDiagnosticsLogger.event("Stream", "▶️ Start resolving: \"${movie.title}\" (tmdbId=${movie.id}, S${season}E${episode})")
-        repeat(2) { attempt ->
-            val generation = sessionGeneration.get()
-            try {
-                val result = resolveStreamOnce(movie, season, episode, purpose).copy(sessionVersion = generation)
-                currentCoroutineContext().ensureActive()
-                synchronized(sessionStateLock) {
-                    if (generation != sessionGeneration.get()) throw SessionChangedException()
-                    val type = movie.catalogMediaKind()
-                    val key = "${type}_${movie.id}_${season}_${episode}"
-                    putTransientCache(streamCache, if (purpose == StreamPurpose.PLAYBACK) key else "${purpose.name}_$key", result, 32)
-                }
-                com.example.ui.util.AppDiagnosticsLogger.performance(
-                    "StreamResolve",
-                    System.currentTimeMillis() - t0,
-                    1500L,
-                    "Resolved \"${movie.title}\" -> ${result.sourceId}"
-                )
-                return result
-            } catch (routeRejected: CdnRouteRejectedException) {
-                // Refresh one route with the existing session. Authenticated provider rejection
-                // still follows the ordinary renewal path on the retry.
-                invalidateStream(movie.id, movie.catalogMediaKind(), season, episode)
-                if (attempt == 1) throw routeRejected
-            } catch (expired: SessionRejectedException) {
-                synchronized(sessionStateLock) {
-                    if (generation == sessionGeneration.get()) invalidateSessionByCookie(expired.cookie)
-                }
-                com.example.ui.util.AppDiagnosticsLogger.error("Stream", "Session expired during resolution for \"${movie.title}\", renewing session...", expired)
-                if (attempt == 1) throw expired
-                Log.d("DirectCDN", "Renewing an expired playback session")
-            } catch (changed: SessionChangedException) {
-                if (attempt == 1) throw changed
-            } catch (limited: PlaybackRateLimitedException) {
-                // A busy service is not an expired cookie. Never start another
-                // handshake or immediately repeat the same limited request.
-                throw limited
-            }
+    private suspend fun resolveStreamForPurpose(movie: Movie, season: Int, episode: Int, purpose: StreamPurpose): NetMirrorStream = withTimeoutOrNull(45_000L) {
+        checkPlaybackCooldown()
+        val generation = sessionGeneration.get()
+        if (cachedSourceRevision != PlaybackServiceGate.sourceRevision) {
+            streamCache.clear()
+            cachedSourceRevision = PlaybackServiceGate.sourceRevision
         }
-        com.example.ui.util.AppDiagnosticsLogger.error("Stream", "❌ Failed to renew playback session for \"${movie.title}\"")
-        throw java.io.IOException("Playback session could not be renewed")
-    }
+        val type = movie.catalogMediaKind()
+        val key = "${type}_${movie.id}_${season}_${episode}"
+        streamCache[key]?.takeIf { it.sessionVersion == generation && it.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS }?.let { return@withTimeoutOrNull it }
+        val info = getTmdbInfo(movie.id, type, movie.title, movie.year)
+        val source = publicPlayback.resolve(info.title, info.year, type, season, episode, movie.id)
+        val stream = NetMirrorStream(source.url, source.headers, source.captions, "Public HLS [${source.ott.uppercase()}]", source.expiresAt, info.title, sessionVersion = generation)
+        currentCoroutineContext().ensureActive()
+        synchronized(sessionStateLock) {
+            if (generation != sessionGeneration.get()) throw SessionChangedException()
+            putTransientCache(streamCache, key, stream, 32)
+        }
+        stream
+    } ?: throw java.io.IOException("Playback resolution timed out")
 
+    // Legacy session implementation retained for migration diagnostics; playback uses publicPlayback.
     private suspend fun resolveStreamOnce(movie: Movie, season: Int, episode: Int, purpose: StreamPurpose): NetMirrorStream = withContext(Dispatchers.IO) {
         checkPlaybackCooldown()
         if (cachedSourceRevision != PlaybackServiceGate.sourceRevision) {
@@ -2515,38 +2493,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         }
     }
 
-    suspend fun fetchSubtitlesForEpisode(movie: Movie, season: Int, episode: Int): List<Caption> = withContext(Dispatchers.IO) {
-        try {
-            val tmdbId = movie.id
-            val type = movie.catalogMediaKind()
-            val tmdbInfo = getTmdbInfo(tmdbId, type, movie.title, movie.year)
-            val effectiveTitle = tmdbInfo.title.ifBlank { movie.title }
-            val effectiveYear = tmdbInfo.year.ifBlank { movie.year }
-            val titleKey = "${type}_${tmdbId}"
-            val searchResult = contentIdCache[titleKey] ?: searchContentId(effectiveTitle, effectiveYear) ?: return@withContext emptyList()
-            val showId = searchResult.id
-            val ott = searchResult.ott
-            var contentId = showId
-            if (type == "tv" && season > 0 && episode > 0) {
-                val episodes = fetchAndCacheEpisodeList(showId, effectiveTitle, ott, targetSeason = season, targetEpisode = episode)
-                val match = episodes.find { it.first == season && it.second == episode }
-                if (match != null) {
-                    contentId = match.third
-                }
-            }
-            val cached = contentSubtitlesCache[contentId]
-            if (!cached.isNullOrEmpty()) return@withContext cached
+    suspend fun fetchSubtitlesForEpisode(movie: Movie, season: Int, episode: Int): List<Caption> =
+        resolveStream(movie, season, episode).captions
 
-            val fetched = fetchPlaylistSubtitles(contentId, effectiveTitle, showId, ott)
-            if (fetched.isNotEmpty()) {
-                contentSubtitlesCache[contentId] = fetched
-                return@withContext fetched
-            }
-
-            generateDirectSubtitles(contentId)
-        } catch (e: Exception) { rethrowControlFailure(e);
-            Log.w("DirectCDN", "fetchSubtitlesForEpisode failed: ${e.message}")
-            emptyList()
-        }
-    }
 }

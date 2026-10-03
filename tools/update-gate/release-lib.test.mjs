@@ -13,6 +13,7 @@ test('a newer release preserves package, signer and update gate metadata', () =>
   const release = makeRelease(input());
   assert.equal(release.versionCode, 2);
   assert.equal(release.supportsUpdateGate, true);
+  assert.equal(release.buildType, 'release');
   assert.deepEqual(release.signingCertificateSha256, [signer]);
 });
 test('an update cannot replace the installed signing key', () => {

@@ -86,7 +86,7 @@ test('legacy reminder migration cannot overwrite a concurrent disable', {timeout
  assert.equal((await getDoc(doc(phone,path))).data().enabled,false);
 });
 
-test('integrated rules preserve existing owned app data and supplied TV pairing permissions', async()=> {
+test('owned app data remains private and removed anonymous TV pairing is denied', async()=> {
  const alice=db('alice');const bob=db('bob');
  for(const path of ['users/alice','users/alice/profiles/home','users/alice/profiles/home/watch_history/tv_1',
   'users/alice/history/movie_1','users/alice/profiles/home/preferences/player','subscriptions/alice']) {
@@ -96,6 +96,56 @@ test('integrated rules preserve existing owned app data and supplied TV pairing 
   await assertFails(setDoc(doc(bob,path),{fixture:false}));
  }
  const publicPairing=env.unauthenticatedContext().firestore();
- await assertSucceeds(setDoc(doc(publicPairing,'tv_sessions/session'),{fixture:true}));
- await assertSucceeds(setDoc(doc(publicPairing,'tv_sessions/session/remote_commands/command'),{fixture:true}));
+ await assertFails(setDoc(doc(publicPairing,'tv_sessions/session'),{fixture:true}));
+ await assertFails(setDoc(doc(publicPairing,'tv_sessions/session/remote_commands/command'),{fixture:true}));
+});
+
+// Membership documents are seeded with administrative privileges; payment remains a client flow.
+const deviceA='a'.repeat(64), deviceB='b'.repeat(64);
+async function paidAccount(plan='plan_basic') {
+ await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),{planId:plan,status:'ACTIVE',expiresAt:Date.now()+86400000}));
+}
+const bindingRef=store=>doc(store,'users/alice/device_binding/current');
+const bindingData=device=>({deviceId:device,deviceType:'mobile',boundAt:serverTimestamp()});
+const slotData=(device,kind='mobile')=>({deviceId:device,deviceType:kind,lastHeartbeat:serverTimestamp(),released:false,leaseToken:'11111111-1111-4111-8111-111111111111'});
+test('first-device binding is immutable and private',async()=>{
+ await paidAccount();const alice=db('alice');
+ await assertSucceeds(setDoc(bindingRef(alice),bindingData(deviceA)));
+ await assertFails(setDoc(bindingRef(alice),bindingData(deviceB)));
+ await assertFails(deleteDoc(bindingRef(alice)));
+ await assertFails(getDoc(bindingRef(db('bob'))));
+});
+test('only one racing first device can bind a Basic plan',async()=>{
+ await paidAccount();const store=db('alice');
+ const results=await Promise.allSettled([setDoc(bindingRef(store),bindingData(deviceA)),setDoc(bindingRef(store),bindingData(deviceB))]);
+ assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+});
+test('Basic playback enforces binding and the single slot',async()=>{
+ await paidAccount();const store=db('alice');await setDoc(bindingRef(store),bindingData(deviceA));
+ await assertSucceeds(setDoc(doc(store,'users/alice/stream_slots/0'),slotData(deviceA)));
+ await assertFails(setDoc(doc(store,'users/alice/stream_slots/0'),slotData(deviceB)));
+ await assertFails(setDoc(doc(store,'users/alice/stream_slots/1'),slotData(deviceA)));
+});
+test('Mobile cannot bind or stream on TV and guests cannot claim slots',async()=>{
+ await paidAccount('plan_mobile');const store=db('alice');
+ await assertFails(setDoc(bindingRef(store),{...bindingData(deviceA),deviceType:'tv'}));
+ await setDoc(bindingRef(store),bindingData(deviceA));
+ await assertFails(setDoc(doc(store,'users/alice/stream_slots/0'),slotData(deviceA,'tv')));
+ await assertFails(setDoc(doc(db('bob'),'users/bob/stream_slots/0'),slotData(deviceB)));
+});
+test('Standard cannot steal a live slot or forge heartbeat timestamps',async()=>{
+ await paidAccount('plan_standard');const store=db('alice');const ref=doc(store,'users/alice/stream_slots/0');
+ await setDoc(ref,slotData(deviceA));
+ await assertFails(setDoc(ref,slotData(deviceB)));
+ await assertFails(setDoc(doc(store,'users/alice/stream_slots/2'),slotData(deviceA)));
+ await assertFails(setDoc(ref,{...slotData(deviceA),lastHeartbeat:new Date(Date.now()+100000)}));
+ await setDoc(ref,{...slotData(deviceA),released:true});
+ await assertSucceeds(setDoc(ref,slotData(deviceB)));
+});
+test('expired and suspended memberships cannot claim playback',async()=>{
+ const store=db('alice');
+ for(const sub of [{planId:'plan_premium',status:'SUSPENDED',expiresAt:Date.now()+86400000},{planId:'plan_premium',status:'ACTIVE',expiresAt:Date.now()-3*86400000}]){
+  await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),sub));
+  await assertFails(setDoc(doc(store,'users/alice/stream_slots/0'),slotData(deviceA)));
+ }
 });
