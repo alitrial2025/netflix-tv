@@ -1236,7 +1236,7 @@ fun PlayerScreen(
                     percentage = loadingPercentage
                 )
                 if (slowLookup && isLoading) {
-                    Text("Still finding your video…", color = Color.White,
+                    androidx.tv.material3.Text("Still finding your video…", color = Color.White,
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp))
                 }
             }
