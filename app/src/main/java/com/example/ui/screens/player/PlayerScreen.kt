@@ -102,6 +102,7 @@ fun PlayerScreen(
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn = viewModel.isUserLoggedIn()
     val userSubscription by viewModel.userSubscription.collectAsStateWithLifecycle()
+    val playbackAccessError by viewModel.playbackAccessError.collectAsStateWithLifecycle()
     var trailerChosen by remember(movie.id) { mutableStateOf(false) }
     val isTrailerPlayback = trailerOnly || !isLoggedIn || trailerChosen
     val playbackAccessLocked = remember(movie, userSubscription, isTrailerPlayback) {
@@ -192,6 +193,17 @@ fun PlayerScreen(
         PlayerJobHolder()
     }
     val resolutionJobHolder = remember(initialTargetMediaId) { PlayerJobHolder() }
+
+    LaunchedEffect(playbackAccessError, ownsPlayback, isTrailerPlayback) {
+        val error = playbackAccessError
+        if (error != null && !isTrailerPlayback && viewModel.ownsSharedPlayback(playbackOwner)) {
+            resolutionJobHolder.job?.cancel()
+            fallbackJobHolder.job?.cancel()
+            isLoading = false
+            isBuffering = false
+            playbackError = error
+        }
+    }
 
     var showSubtitleModal by remember { mutableStateOf(false) }
     val selectedSubLang by viewModel.selectedSubtitleLanguage.collectAsStateWithLifecycle()
@@ -541,6 +553,7 @@ fun PlayerScreen(
                 pendingResumePositionMs = null
                 isLoading = false
                 isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING
+                if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title)
                 exoPlayer.play()
                 isPlaying = true
                 return@LaunchedEffect
@@ -585,6 +598,7 @@ fun PlayerScreen(
                 return@LaunchedEffect
             }
             activeStream = stream
+            if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title)
             exoPlayer.setMediaSource(playbackMediaSource(context, stream, targetMediaId, selectedSubLang), startMs)
             pendingResumePositionMs = null
             exoPlayer.prepare()
@@ -596,7 +610,7 @@ fun PlayerScreen(
             playbackError = "Playback is temporarily rate limited.\nPlease wait and press Retry."
         } catch (e: Exception) {
             android.util.Log.e("PlayerScreen", "Stream load exception", e)
-            playbackError = "This title could not be played."
+            playbackError = viewModel.playbackAccessError.value ?: "This title could not be played."
         } finally {
             if (resolutionJobHolder.job === thisAttempt) resolutionJobHolder.job = null
             if (isActive && viewModel.ownsSharedPlayback(playbackOwner)) isLoading = false
@@ -1243,9 +1257,16 @@ fun PlayerScreen(
         }
         if (playbackError != null) {
             PlayerErrorOverlay(
+                message = playbackError ?: "Unable to play this title",
                 onRetry = {
                     if (!viewModel.ownsSharedPlayback(playbackOwner)) return@PlayerErrorOverlay
                     sessionRecoveryAttempts = 0
+                    if (!isTrailerPlayback && viewModel.playbackAccessError.value != null) {
+                        // Recheck the lease without discarding a valid provider URL.
+                        viewModel.startStreamHeartbeat(movie.title)
+                        restartPlaybackResolution()
+                        return@PlayerErrorOverlay
+                    }
                     // Resolver verification handles revoked cookies. A missing
                     // title or CDN failure alone must not force a fresh handshake.
                     if (!isTrailerPlayback && playbackError?.contains("rate limited", ignoreCase = true) == true) {
