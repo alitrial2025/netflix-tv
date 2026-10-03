@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 11,
-  "versionName": "1.10",
+  "versionCode": 12,
+  "versionName": "1.11",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14127489,
-  "sha256": "99d4522c1b12bde532fe977e321bcc7946aef78fe6c6e94c04ad2ea37d69373b",
+  "sizeBytes": 14128068,
+  "sha256": "ad3704a5e8224a24ea5aa30ca35b14af9afb4056b811c0c07732bbbea9bdc63c",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/11-99d4522c1b12bde5.apk",
-  "releaseNotes": "Improved movie and show matching, including official title aliases, Netflix release dates and season names. New title discovery runs automatically, with faster cached lookups and stricter season and episode checks. This update is required to continue using the app.",
+  "apkUrl": "/downloads/mobile/12-ad3704a5e8224a24.apk",
+  "releaseNotes": "Faster movie and episode lookup, improved title matching, and recovery from outdated playback IDs. Public playback no longer waits for session warming. Existing accounts and app data are preserved when installing this update.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-03T12:27:06.756Z"
+  "publishedAt": "2026-10-03T18:19:11.920Z"
 }

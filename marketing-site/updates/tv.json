@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092036,
-  "versionName": "3.10.2026.2",
+  "versionCode": 29092037,
+  "versionName": "3.10.2026.3",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7562870,
-  "sha256": "6d8411db4bd067ee245da3a3087adb53c2d604ecfeb5da3e3955f6a7966a6397",
+  "sizeBytes": 7579835,
+  "sha256": "53fee93afa38d4c6e5b262d6e655f631b5e71640c65ec8d2c2398d0a5ab7a466",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092036-6d8411db4bd067ee.apk",
-  "releaseNotes": "Improved movie and show matching, including official title aliases, Netflix release dates and season names. New title discovery runs automatically, with faster cached lookups and stricter season and episode checks. This update is required to continue using the TV app.",
+  "apkUrl": "/downloads/tv/29092037-53fee93afa38d4c6.apk",
+  "releaseNotes": "Faster movie and episode lookup, improved title matching, and recovery from outdated playback IDs. Public playback no longer waits for session warming. Existing accounts and app data are preserved when installing this update.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-03T12:25:21.808Z"
+  "publishedAt": "2026-10-03T18:12:56.888Z"
 }
