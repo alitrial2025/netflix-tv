@@ -20,6 +20,20 @@ test('sitemap must be complete, correctly namespaced and contain only published 
   }
 });
 
+test('complete mixed Netflix indexes skip verified non-title map families without weakening origin checks',() => {
+  const extra = ['games/81951995','collection/2653','main','main/signup_regform','main/gift-cards']
+    .map(path => `<sitemap><loc>https://www.netflix.com/sitemap/${path}</loc></sitemap>`).join('');
+  const mixed = sitemap(['80000001','80000002']).replace('</sitemapindex>',extra+'</sitemapindex>');
+  assert.deepEqual(parseNetflixSitemap(mixed,{minimum:1}),['80000001','80000002']);
+  for (const invalid of [mixed.replace('/sitemap/main/signup_regform','/sitemap/private/secret'),
+    mixed.replace('https://www.netflix.com/sitemap/games','https://evil.example/sitemap/games'),
+    mixed.replace('/sitemap/collection/2653','/sitemap/collection/../../title/80000001'),
+    mixed.replace('</sitemapindex>','')]) {
+    assert.throws(() => parseNetflixSitemap(invalid,{minimum:1}));
+  }
+  assert.throws(() => parseNetflixSitemap(sitemap([]).replace('</sitemapindex>',extra+'</sitemapindex>'),{minimum:1}));
+});
+
 test('Netflix Movie year comes from its own valid release metadata, never nested trailer dates or TV guesses',() => {
   assert.deepEqual(netflixMovieMetadata(page('80000002'),'80000002'),{title:'A New Release',year:'2026',netflixId:'80000002'});
   assert.equal(netflixMovieMetadata(page('80000002','Film','2026',{dateCreated:undefined,trailer:{uploadDate:'2026-08-27'}}),'80000002'),null);

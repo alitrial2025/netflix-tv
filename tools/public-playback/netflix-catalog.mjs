@@ -23,8 +23,15 @@ export function parseNetflixSitemap(xml, {minimum = 1000, maximum = 100000} = {}
     offset = item.lastIndex;
     let url; try { url = new URL(match[1]); } catch { throw Error('Invalid Netflix sitemap URL'); }
     const id = url.pathname.match(/^\/sitemap\/title\/([0-9]{5,20})$/)?.[1];
-    if (url.origin !== 'https://www.netflix.com' || url.username || url.password || url.search || url.hash || !id)
+    if (url.origin !== 'https://www.netflix.com' || url.username || url.password || url.search || url.hash)
       throw Error('Unexpected Netflix sitemap URL');
+    if (!id) {
+      // The advertised index also contains games, collections and main-site maps.
+      // Validate their published path families, but do not fetch or treat them as title IDs.
+      const knownOtherMap = /^\/sitemap\/(?:games\/[0-9]{5,20}|collection\/[0-9]{1,20}|main(?:\/(?:signup_regform|signup_planform|gift-cards|signup_registration|redeem|ads-plan|login|signup))?)$/.test(url.pathname);
+      if (!knownOtherMap) throw Error('Unexpected Netflix sitemap URL');
+      continue;
+    }
     ids.add(id);
     if (ids.size > maximum) throw Error('Netflix sitemap budget exceeded');
   }
