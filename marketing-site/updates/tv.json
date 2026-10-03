@@ -3,18 +3,20 @@
   "channel": "tv",
   "packageName": "com.netflixprotv.apk",
   "available": true,
-  "versionCode": 29092029,
-  "versionName": "1.10.2026.2",
+  "buildType": "release",
+  "versionCode": 29092035,
+  "versionName": "3.10.2026.1",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 33165079,
-  "sha256": "958a5a388b02381a687f9dc9f723a02e8191b876905dfcb37d1c1d2e1a895eb1",
+  "sizeBytes": 7562872,
+  "sha256": "348c5f34969b7b1589d87b3fedbd8d8d7f4e497740b843df082a08b653965189",
   "signingCertificateSha256": [
-    "8fe8dba9926a17c17f22a5f080bdcc5c63611d3ef9c504fd3363b4a3fa25497c"
+    "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "https://github.com/alitrial2025/netflix-tv/raw/284fbfadfb45fa2501fb8104bf8de34862c2499f/NetflixPro-TV-debug.apk",
+  "apkUrl": "/downloads/tv/29092035-348c5f34969b7b15.apk",
+  "releaseNotes": "Faster playback startup, refreshed title matching and required updates downloaded inside the app. Slower video lookups continue automatically. Install this version once to enable future in-app updates. If you have an older debug build, Android may require uninstalling it first; a fresh installation can remove local app data.",
   "supportsUpdateGate": true,
-  "publishedAt": "2026-10-01T07:27:04.989821Z",
-  "releaseNotes": "Debug review build: warm-session/CDN renewal fixes, independent CDN requests, preserved audio signatures and Smallville route parity. Uses the Android debug certificate; compatible with earlier desktop debug builds, not a differently signed production installation.",
-  "buildType": "debug"
+  "mandatory": true,
+  "requiresFreshInstallFromDebug": true,
+  "publishedAt": "2026-10-03T09:00:49.520Z"
 }

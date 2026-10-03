@@ -6,11 +6,13 @@ import { readRelease } from '../assets/release-policy.mjs';
 const origin = 'https://npro-app.vercel.app';
 const current = channel => JSON.parse(readFileSync(new URL(`../updates/${channel}.json`, import.meta.url)));
 
-test('existing project APKs retain correct channel, build label and fingerprint', () => {
+test('published production APKs enable mandatory updates and same-origin downloads', () => {
   for (const channel of ['tv', 'mobile']) {
     const release = readRelease(current(channel), channel, origin);
-    assert.ok(['debug', 'release'].includes(release.buildType));
-    assert.ok(release.apkUrl.startsWith(origin + '/downloads/') || release.apkUrl.startsWith('https://github.com/alitrial2025/'));
+    assert.equal(release.buildType, 'release');
+    assert.equal(release.supportsUpdateGate, true);
+    assert.equal(release.mandatory, true);
+    assert.ok(release.apkUrl.startsWith(origin + `/downloads/${channel}/`));
     assert.equal(release.signingCertificateSha256.length, 1);
   }
 });

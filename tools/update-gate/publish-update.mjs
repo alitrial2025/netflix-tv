@@ -60,7 +60,7 @@ async function main() {
   if (release.requiresFreshInstallFromDebug) {
     process.stderr.write('Replacing the debug baseline with a production release. Debug installations need a fresh install; production signing-key checks remain enforced.\n');
   }
-  if (!args['--apk-url'] && info.size > 10 * 1024 * 1024) {
+  if (!args['--apk-url'] && config?.siteUrl && new URL(config.siteUrl).hostname.endsWith('netlify.app') && info.size > 10 * 1024 * 1024) {
     process.stderr.write('Netlify warns that files over 10 MB may fail deployment. You can use --apk-url with another HTTPS file host.\n');
   }
   if (!gateEnabled) process.stderr.write('Legacy APK: it does not contain Update Gate or the latest source changes.\n');
