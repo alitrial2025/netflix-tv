@@ -54,9 +54,9 @@ class PublicPlaybackResolverTest {
         assertEquals(1,seen.count { it.url.encodedPath == "/mobile/playlist.php" })
         assertFalse(seen.any { it.header("Cookie") != null || it.header("Authorization") != null })
     }
-    private val html = """<script type="application/ld+json">{"@type":"TVSeries","name":"Smallville"}</script><select name="seasonSelect"><option value="60031634">Season 1</option><option value="70037632">Season 4</option></select><a href="/title/99999">Recommendation</a>"""
+    private val html = """<script type="application/ld+json">{"@type":"TVSeries","name":"Smallville","first_air_date":"2001-10-16"}</script><select name="seasonSelect"><option value="60031634">Season 1</option><option value="70037632">Season 4</option></select><a href="/title/99999">Recommendation</a>"""
     private fun client(seen: MutableList<Request>, body: (Request) -> Pair<String, Int>) = OkHttpClient.Builder().addInterceptor { chain ->
-        val request = chain.request(); seen += request
+        val request = chain.request(); synchronized(seen) { seen += request }
         assertNull(request.header("Cookie")); assertNull(request.header("Authorization"))
         val (text, code) = body(request)
         Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("fixture")
@@ -198,9 +198,9 @@ class PublicPlaybackResolverTest {
         val resolver = PublicPlaybackResolver(client(seen) { request ->
             when (request.url.encodedPath) {
                 "/search.php", "/mobile/search.php" -> """{"searchResult":[{"id":"70155584","t":"Fixture Series","y":"2026","type":"t"}]}""" to 200
-                "/title/70155584" -> """<script type="application/ld+json">{"@type":"TVSeries","name":"Fixture Series"}</script><select name="seasonSelect"><option value="60031634">Season 1</option></select>""" to 200
+                "/title/70155584" -> """<script type="application/ld+json">{"@type":"TVSeries","name":"Fixture Series","first_air_date":"2022-01-01"}</script><select name="seasonSelect"><option value="60031634">Season 1</option></select>""" to 200
                 "/mobile/pv/search.php" -> """{"searchResult":[{"id":"0SERIES123456789","t":"Fixture Series","type":"t"}]}""" to 200
-                "/detail/0SERIES123456789" -> """<script>{"init":{"preparations":{"body":{"atf":{"state":{"detail":{"headerDetail":{"show":{"titleType":"season","title":"Fixture Series - Season 2"}}},"seasons":{"show":[{"sequenceNumber":2,"seasonLink":"/detail/0SEASON2123456789"}]}}}}}}}</script>""" to 200
+                "/detail/0SERIES123456789" -> """<script>{"init":{"preparations":{"body":{"atf":{"state":{"detail":{"headerDetail":{"show":{"titleType":"season","title":"Fixture Series - Season 2","first_air_date":"2022-01-01"}}},"seasons":{"show":[{"sequenceNumber":2,"seasonLink":"/detail/0SEASON2123456789"}]}}}}}}}</script>""" to 200
                 "/mobile/pv/episodes.php" -> {
                     assertEquals("0SEASON2123456789", request.url.queryParameter("s"))
                     """{"episodes":[{"id":"0EPISODE123456789","s":"S2","ep":"E1"}]}""" to 200
@@ -222,11 +222,12 @@ class PublicPlaybackResolverTest {
         val resolver = PublicPlaybackResolver(client(seen) { request ->
             when (request.url.encodedPath) {
                 "/search.php", "/mobile/search.php", "/mobile/pv/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
+                "/3/tv/999999001", "/sparql" -> "{}" to 200
                 "/tv-shows" -> """<a href="$path">Brand New Show</a>""" to 200
-                path -> """<p id="banner-content-release-year">2026</p><script>{"@type":"VideoObject","name":"Brand New Show"}</script>""" to 200
+                path -> """<p id="banner-content-release-year">2026</p><script>{"@type":"VideoObject","name":"Brand New Show","first_air_date":"2025-01-01"}</script>""" to 200
                 "/mobile/hs/post.php" -> {
                     assertEquals("1971999001", request.url.queryParameter("id"))
-                    """{"status":"y","title":"Brand New Show","year":"2026","type":"t","episodes":[{"id":"1971999011","s":"S1","ep":"E1"}]}""" to 200
+                    """{"status":"y","title":"Brand New Show","year":"2026","first_air_date":"2025-01-01","type":"t","episodes":[{"id":"1971999011","s":"S1","ep":"E1"}]}""" to 200
                 }
                 "/mobile/hs/playlist.php" -> """{"sources":[{"file":"https://cdn.example/master.m3u8?in=issued"}]}""" to 200
                 "/master.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts" to 200

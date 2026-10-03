@@ -10,6 +10,21 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
 class PublicProviderCatalogTest {
+    @Test fun liveCandidateCacheSurvivesRestartExpiresAndKeepsOnlyValidTypedIds() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val key = "tv:999998001"
+        val store = PublicProviderCatalog(context)
+        store.saveDiscovered(key, listOf("0REQUESTED123456" to "pv", "https://evil.example" to "nf"),
+            listOf("Fixture Show", "Original Fixture Show"), 100_000L)
+        val restored = PublicProviderCatalog(context).discovered(key, 100_001L)!!
+        assertEquals(listOf("0REQUESTED123456" to "pv"), restored.ids)
+        assertEquals(listOf("Fixture Show", "Original Fixture Show"), restored.aliases)
+        assertNull(PublicProviderCatalog(context).discovered(key, 100_000L + 86_400_000L))
+        store.save("fixture-alias-cache", "0REQUESTED123456", "pv", 100_000L, restored.aliases)
+        assertEquals(restored.aliases, PublicProviderCatalog(context).verifiedAliases("fixture-alias-cache"))
+        store.evict("fixture-alias-cache")
+    }
+
     @Test fun joinedCatalogUsesMediaTypeAndTmdbIdentityAndCacheSurvivesRestart() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val store = PublicProviderCatalog(context)
