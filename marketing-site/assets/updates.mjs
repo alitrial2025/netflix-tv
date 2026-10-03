@@ -37,28 +37,28 @@ async function loadChannel(channel) {
     if (release) {
       summary.textContent = releaseSummary(release);
       notes.textContent = release.releaseNotes || 'Download the latest published release.';
-      badge.textContent = release.supportsUpdateGate ? 'Update Gate included' : 'Existing release · manual updates';
-      link.textContent = channel === 'tv' ? 'Download TV APK' : 'Download phone APK';
+      badge.textContent = release.buildType === 'debug' ? 'Debug review build · outside Google Play' : 'Release build · outside Google Play';
+      link.textContent = `Download ${channel === 'tv' ? 'TV' : 'phone'} ${release.buildType === 'debug' ? 'debug ' : ''}APK`;
+      let details = card.querySelector('.release__identity');
+      if (!details) {
+        details = document.createElement('details');
+        details.className = 'release__identity';
+        card.insertBefore(details, link);
+      }
+      details.replaceChildren();
+      const heading = document.createElement('summary');
+      heading.textContent = 'File source and verification details';
+      const identity = document.createElement('p');
+      identity.textContent = `Developer: mzazimhenga · Source: ${new URL(release.apkUrl).hostname}\nPackage: ${release.packageName}\nSHA-256: ${release.sha256}\nSigning certificate SHA-256: ${release.signingCertificateSha256.join(', ')}`;
+      identity.style.whiteSpace = 'pre-line';
+      details.append(heading, identity);
     } else {
       summary.textContent = 'The next release is being prepared.';
       notes.textContent = 'The download will appear here when a signed APK is published.';
       badge.textContent = 'Coming soon';
       link.textContent = 'Release coming soon';
     }
-    if (channel === 'tv') {
-      document.querySelectorAll('.cta-download').forEach(cta => {
-        cta.href = release?.apkUrl || '#downloads';
-        if (release) cta.setAttribute('download', `NetflixPro-tv-${release.versionCode}.apk`);
-        else cta.removeAttribute('download');
-      });
-    }
-    if (channel === 'mobile') {
-      document.querySelectorAll('.cta-download-mobile').forEach(cta => {
-        cta.href = release?.apkUrl || '#downloads';
-        if (release) cta.setAttribute('download', `NetflixPro-mobile-${release.versionCode}.apk`);
-        else cta.removeAttribute('download');
-      });
-    }
+    // Hero links stay on the download section, where build context is visible.
     const heroReleaseEl = document.getElementById('heroRelease');
     if (heroReleaseEl) {
       const tvCard = document.querySelector('[data-release-card="tv"] [data-release-summary]');

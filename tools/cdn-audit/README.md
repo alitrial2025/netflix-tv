@@ -1,5 +1,40 @@
 # Direct CDN timing probe
 
+The Android apps use the public resolver in `tools/public-playback`; the normal-session diagnostics below are standalone historical tools. `season-probe.mjs` now delegates to the catalog audit instead of scanning nearby numeric IDs. `zero-cookie-test.mjs` delegates to the bounded public flow for Smallville S4E8, preserving issuer-provided CDN URLs and normal TLS verification. Set `TMDB_API_KEY` or pass `--tmdb-config`; reports omit credentials and signed query values.
+
+## Season discovery and catalog reuse
+
+`season-catalog-audit.mjs` collects season IDs only from a normal authenticated
+show catalog. It samples the first episode page for each returned season,
+rejects explicit authorization errors and conflicting season labels, and saves
+a cache scoped to provider origin, OTT catalog, show ID and a 24-hour TTL.
+It does not guess nearby IDs, forge tokens, click advertisements, or claim that
+a season label alone proves show identity. Show provenance comes from the
+authenticated catalog response for the requested show.
+
+```bash
+node tools/cdn-audit/season-catalog-audit.mjs \
+  --session-file /private/valid-session.json \
+  --private-dir /private/catalog-audit \
+  --catalog /private/smallville-catalog.json --report /private/catalog-report.json
+node tools/cdn-audit/season-catalog-audit.mjs --reuse-cache \
+  --catalog /private/smallville-catalog.json --report /private/cache-report.json
+node --test tools/cdn-audit/season-catalog-audit.test.mjs
+```
+
+The second command reads metadata offline, with no handshake or network calls.
+Only the first page of each season is sampled; `hasMorePages` must be respected.
+This standalone diagnostic does not change Android behavior or establish
+cookie-free playback.
+
+On 2026-10-02 a four-request, no-cookie check confirmed root `/search.php`
+returned the exact Smallville show, mobile search returned Top Searches,
+`/mobile/post.php` returned Invalid User, and the previously known season ID
+70037632 returned ten S4 episodes beginning with Crusade, with another page.
+The normal-session audit failed before catalog discovery: verification kept
+returning "Waiting for your ads click" and issued no session cookie. All ten
+season mappings and a fully cookie-free discovery flow remain unverified.
+
 Requirements: Node 20+, curl; ffmpeg for optional sample decoding. Uses the app's normal mobile handshake, authenticated search, exact season/episode lookup, provider route discovery, then direct CDN playlists and segment bytes. Default targets are Mr. Robot S1E1 and Smallville S4E8.
 
 ```bash

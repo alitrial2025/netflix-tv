@@ -113,7 +113,7 @@ export class Probe {
     return { ...event, body, bytes, headersText, privateBodyFile: bodyFile, url: metrics.url_effective || url };
   }
   async cookie(name) {
-    const lines = (await readFile(this.jar, 'utf8')).split('\n');
+    const lines = (await readFile(this.jar, 'utf8')).split(/\r?\n/);
     const host = new URL(this.base).hostname;
     return lines.filter(x => x && (!x.startsWith('#') || x.startsWith('#HttpOnly_'))).map(x => x.replace(/^#HttpOnly_/, '').split('\t')).find(x => x[5] === name && (host === x[0].replace(/^\./, '') || host.endsWith(x[0])) && (!Number(x[4]) || Number(x[4]) * 1000 > Date.now()))?.[6] || '';
   }

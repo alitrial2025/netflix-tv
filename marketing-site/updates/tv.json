@@ -15,5 +15,6 @@
   "apkUrl": "https://github.com/alitrial2025/netflix-tv/raw/284fbfadfb45fa2501fb8104bf8de34862c2499f/NetflixPro-TV-debug.apk",
   "supportsUpdateGate": true,
   "publishedAt": "2026-10-01T07:27:04.989821Z",
-  "releaseNotes": "Debug review build: warm-session/CDN renewal fixes, independent CDN requests, preserved audio signatures and Smallville route parity. Uses the Android debug certificate; compatible with earlier desktop debug builds, not a differently signed production installation."
+  "releaseNotes": "Debug review build: warm-session/CDN renewal fixes, independent CDN requests, preserved audio signatures and Smallville route parity. Uses the Android debug certificate; compatible with earlier desktop debug builds, not a differently signed production installation.",
+  "buildType": "debug"
 }

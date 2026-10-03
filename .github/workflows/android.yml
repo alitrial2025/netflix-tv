@@ -29,6 +29,9 @@ jobs:
       - name: Validate update release rules
         if: ${{ github.repository == 'alitrial2025/netflix-tv' }}
         run: node --test tools/update-gate/release-lib.test.mjs
+      - name: Validate marketing and playback diagnostics
+        if: ${{ github.repository == 'alitrial2025/netflix-tv' }}
+        run: node --test marketing-site/tests/release-policy.test.mjs tools/cdn-audit/season-catalog-audit.test.mjs tools/cdn-audit/probe.test.mjs tools/cdn-audit/audit-profiles.test.mjs tools/public-playback/public-catalog-flow.test.mjs
       - name: Build debug APK
         run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug
       - name: Run unit tests

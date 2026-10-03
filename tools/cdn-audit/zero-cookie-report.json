@@ -1,0 +1,82 @@
+{
+  "timestamp": "2026-10-02T08:33:33.942Z",
+  "results": [
+    {
+      "step": "search",
+      "status": "FAIL",
+      "msg": "Search returned \"Top Searches\" (status=n) — NOT real results. Cookie needed for search. 20 items returned but none match."
+    },
+    {
+      "step": "search_fallback",
+      "status": "WARN",
+      "msg": "Using known show ID 70155584 to test remaining chain WITHOUT cookies"
+    },
+    {
+      "step": "post_php",
+      "status": "FAIL",
+      "msg": "post.php → 0 seasons | HTTP 200 | 37B"
+    },
+    {
+      "step": "season_find",
+      "status": "FAIL",
+      "msg": "Season 4 not found in 0 seasons"
+    },
+    {
+      "step": "season_fallback",
+      "status": "WARN",
+      "msg": "Using known season ID 70037632 to continue testing"
+    },
+    {
+      "step": "episodes_php",
+      "status": "OK",
+      "msg": "episodes.php → 10 episodes | HTTP 200 | 901B"
+    },
+    {
+      "step": "episode_find",
+      "status": "FAIL",
+      "msg": "Episode 8 not found in 10 episodes"
+    },
+    {
+      "step": "episode_fallback",
+      "status": "WARN",
+      "msg": "Using known content ID 82171151 to continue testing"
+    },
+    {
+      "step": "token_build",
+      "status": "OK",
+      "msg": "Built master token: 235ca315...::c5d17825...::1790930010::ek::m"
+    },
+    {
+      "step": "net52_master",
+      "status": "OK",
+      "msg": "Net52 HLS: HTTP 200 | HLS=true | waiting=false | 482B | CDN URLs found: YES"
+    },
+    {
+      "step": "cdn_manifest",
+      "status": "OK",
+      "msg": "CDN manifest: HTTP 200 | HLS=true | rejected=false | 8141B"
+    },
+    {
+      "step": "media_manifest",
+      "status": "FAIL",
+      "msg": "Media manifest: HTTP 200 | HLS=false | segments=1923 | endlist=false"
+    },
+    {
+      "step": "segment",
+      "status": "FAIL",
+      "msg": "Segment #1 [BARE (UA only)]: unknown | 155B | HTTP 400 ⛔ NOT VIDEO"
+    },
+    {
+      "step": "segment",
+      "status": "FAIL",
+      "msg": "Segment #2 [Origin+Referer]: unknown | 155B | HTTP 400 ⛔ NOT VIDEO"
+    },
+    {
+      "step": "segment",
+      "status": "FAIL",
+      "msg": "Segment #3 [NO headers at all]: unknown | 155B | HTTP 400 ⛔ NOT VIDEO"
+    }
+  ],
+  "videoSegments": 0,
+  "verdict": "COOKIES_REQUIRED"
+}

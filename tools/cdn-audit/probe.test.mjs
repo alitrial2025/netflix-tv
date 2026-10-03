@@ -1,10 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Probe, classify, segmentKind, playlistEntries } from './probe.mjs';
+
+test('curl cookie jars preserve values with Windows CRLF and Unix LF line endings', async () => {
+  const probe = new Probe({baseUrl:'https://provider.invalid'});
+  await probe.init();
+  for (const newline of ['\r\n','\n']) {
+    await writeFile(probe.jar, ['# Netscape HTTP Cookie File',
+      'provider.invalid\tFALSE\t/\tFALSE\t0\taddhash\tExact%2BValue',
+      '#HttpOnly_provider.invalid\tFALSE\t/\tFALSE\t0\tt_hash_t\tCaseSensitive',
+      ''].join(newline));
+    assert.equal(await probe.cookie('addhash'),'Exact%2BValue');
+    assert.equal(await probe.cookie('t_hash_t'),'CaseSensitive');
+  }
+});
 
 test('HLS and container checks reject successful HTML and malformed payloads', () => {
   assert.equal(classify('<html>please log in</html>', 200), 'html');

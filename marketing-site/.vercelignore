@@ -1,0 +1,10 @@
+tests/
+.env*
+.vercel/
+README.md
+SECURITY-REVIEW.md
+netlify.toml
+_headers
+downloads/
+assets/netflix-n.svg
+assets/netflix-logo.svg
