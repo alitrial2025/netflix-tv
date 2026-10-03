@@ -20,16 +20,17 @@ internal data class PublicPlaybackResult(
 )
 
 /** TMDB title -> exact provider identity -> requested episode -> issued HLS, without a session. */
-internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "https://net52.cc", private val catalog: PublicProviderCatalog? = null) {
+internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "https://net52.cc", private val catalog: PublicProviderCatalog? = null,
+    private val backgroundCatalogRefresh: Boolean = true) {
     private val base = baseUrl.toHttpUrl()
     private val http = client.newBuilder().cookieJar(CookieJar.NO_COOKIES)
         .followRedirects(false).followSslRedirects(false)
-        .connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS)
-        .callTimeout(15, TimeUnit.SECONDS).build()
+        .connectTimeout(4, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS)
+        .callTimeout(6, TimeUnit.SECONDS).build()
     private data class SeasonCache(val expiresAt: Long, val seasons: Map<Int, String>)
     private val netflixSeasons = ConcurrentHashMap<String, SeasonCache>()
 
-    suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String = ""): PublicPlaybackResult = withTimeout(45_000L) {
+    suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String = ""): PublicPlaybackResult = withTimeout(28_000L) {
         if (title.isBlank() || type !in listOf("movie", "tv") || type == "tv" && (season < 1 || episode < 1))
             throw IOException("Invalid title or episode selection")
         Run().resolve(title, year, type, season, episode, tmdbId)
@@ -38,6 +39,10 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
     private inner class Run {
         private var requests = 0
         private val attempted = mutableSetOf<Pair<String, String>>()
+        private val publicPages = mutableMapOf<Pair<String, String>, String>()
+        private val providerDetails = mutableMapOf<Pair<String, String>, JSONObject>()
+        private var liveBrowseChecked = false
+        private var forcedRefresh = false
         private var selected: Pair<String, String>? = null
         private fun key(tmdb: String, type: String, title: String, year: String) = "$base:$type:$tmdb:${normalize(title)}:$year"
         private val mediaHeaders = mapOf("User-Agent" to USER_AGENT, "Origin" to base.toString().trimEnd('/'),
@@ -78,23 +83,45 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             } } catch (e: org.json.JSONException) { throw IOException("Invalid playback metadata", e) }
         }
 
-        private suspend fun publicIdentity(tmdbId: String, type: String, title: String, year: String): Pair<String, String>? {
+        private suspend fun publicIdentity(tmdbId: String, type: String, title: String, year: String, includeDiscovery: Boolean = true): Pair<String, String>? {
             if (!tmdbId.matches(Regex("\\d+"))) return null
             val seeded = PublicProviderIdentity.seed(tmdbId, type, year)
+            if (seeded != null) validateCandidates(listOf(seeded to "hs").filter { it !in attempted }, title, year, type)?.let { return it }
             val indexed = catalog?.candidates(type, tmdbId).orEmpty()
             validateCandidates(indexed.filter { it !in attempted }, title, year, type)?.let { return it }
-            for ((partnerId, path) in catalog?.hotstarTitles(type,title).orEmpty().take(3)) {
+            suspend fun partnerIdentity(partnerCandidates: List<Pair<String, String>>): Pair<String, String>? {
+              for ((partnerId, path) in partnerCandidates.distinct().take(6)) {
+                // A short partner ID may translate to a separate native ID on the title page.
                 try {
-                    val page = text(("https://www.airtelxstream.in" + path).toHttpUrl(), publicNetflix = true)
-                    requireSuccess(page)
-                    if (!PublicProviderIdentity.matchesAirtel(page.body,title,year)) continue
-                    // Series partner IDs can retain older working native IDs; movie partner IDs often cannot.
+                    val html = publicPages[path to "partner"] ?: text(("https://www.airtelxstream.in" + path).toHttpUrl(), publicNetflix = true)
+                        .also(::requireSuccess).body.also { publicPages[path to "partner"] = it }
+                    if (!PublicProviderIdentity.matchesAirtel(html,title,year,type)) continue
                     val nativeIds = (if (partnerId.length >= 10) listOf(partnerId) else emptyList()) +
-                        PublicProviderIdentity.linkedHotstarIds(page.body)
+                        PublicProviderIdentity.linkedHotstarIds(html)
                     validateCandidates(nativeIds.distinct().map { it to "hs" }.filter { it !in attempted },title,year,type)?.let { return it }
                 } catch (rate: PlaybackRateLimitedException) { throw rate }
                 catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-                catch (_: IOException) { }
+                catch (e: IOException) { if (e.message == "Playback metadata requires authorization") throw e }
+              }
+              return null
+            }
+            partnerIdentity(catalog?.hotstarTitles(type,title).orEmpty())?.let { return it }
+            if (!includeDiscovery) return null
+            if (!liveBrowseChecked) {
+                liveBrowseChecked = true
+                val partnerCandidates = mutableListOf<Pair<String, String>>()
+                val section = if (type == "tv") "tv-shows" else "movies"
+                val languagePage = if (type == "tv") "english-tv-shows" else "english-movies"
+                for (path in listOf("/$section", "/$section/$languagePage")) {
+                    try {
+                        val page = text(("https://www.airtelxstream.in" + path).toHttpUrl(), publicNetflix = true)
+                        requireSuccess(page)
+                        partnerCandidates += PublicProviderIdentity.partnerLinks(page.body, title, type)
+                        partnerIdentity(partnerCandidates)?.let { return it }
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                    catch (e: IOException) { if (e.message == "Playback metadata requires authorization") throw e }
+                }
+                partnerIdentity(partnerCandidates)?.let { return it }
             }
             val ids = if (seeded != null) listOf(seeded) else {
                 val externalUrl = "https://api.themoviedb.org/3/$type/$tmdbId/external_ids".toHttpUrl().newBuilder()
@@ -114,23 +141,26 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
 
         private suspend fun validateCandidates(candidates: List<Pair<String, String>>, title: String, year: String, type: String): Pair<String, String>? {
             for ((id, ott) in candidates.distinct().take(6)) {
+                attempted.add(id to ott)
                 try {
                     val matches = when (ott) {
-                        "nf" -> PublicProviderIdentity.matchesNetflix(netflixPage(id), title, year, type)
+                        "nf" -> (type == "tv" && netflixSeasons["$id:${normalize(title)}"]?.let { it.expiresAt > System.currentTimeMillis() } == true) ||
+                            PublicProviderIdentity.matchesNetflix(netflixPage(id), title, year, type)
                         "pv" -> {
-                            val page = text("https://www.primevideo.com/detail/$id".toHttpUrl(), publicNetflix = true)
-                            requireSuccess(page)
-                            PublicProviderIdentity.matchesPrime(page.body, title, year, type)
+                            val html = publicPages[id to ott] ?: text("https://www.primevideo.com/detail/$id".toHttpUrl(), publicNetflix = true)
+                                .also(::requireSuccess).body.also { publicPages[id to ott] = it }
+                            PublicProviderIdentity.matchesPrime(html, title, year, type)
                         }
-                        "hs" -> (json("/mobile/hs/post.php", "id" to id) as? JSONObject)?.let {
-                            PublicProviderIdentity.matches(it, title, year, type)
+                        "hs" -> (json("/mobile/hs/post.php", "id" to id) as? JSONObject)?.let { details ->
+                            providerDetails[id to ott] = details
+                            PublicProviderIdentity.matches(details, title, year, type)
                         } == true
                         else -> false
                     }
                     if (matches) return id to ott
                 } catch (rate: PlaybackRateLimitedException) { throw rate }
                 catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-                catch (_: IOException) { }
+                catch (e: IOException) { if (e.message == "Playback metadata requires authorization") throw e }
                 catch (_: org.json.JSONException) { }
             }
             return null
@@ -140,9 +170,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             catalog?.verified(key(tmdbId, type, title, year), System.currentTimeMillis())
                 ?.takeIf { it !in attempted }?.let { return it }
             // Known public mappings avoid cookie-gated search. Other titles use TMDB -> Wikidata identifiers.
-            PublicProviderIdentity.seed(tmdbId, type, year)?.let {
-                publicIdentity(tmdbId, type, title, year)?.let { match -> return match }
-            }
+            publicIdentity(tmdbId, type, title, year, includeDiscovery = false)?.let { return it }
             for (ott in listOf("nf", "pv")) {
                 val paths = if (ott == "nf") listOf("/search.php", "/mobile/search.php") else listOf("${prefix(ott)}/search.php")
                 for (path in paths) {
@@ -158,10 +186,14 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                         val suffix = Regex("\\s*\\((\\d{4})\\)\\s*$").find(raw)
                         val comparable = if (suffix?.groupValues?.get(1) == year) raw.substring(0, suffix.range.first) else raw
                         val rowYear = field(row, "y", "year", "Y", "Year")
-                        normalize(comparable) == normalize(title) && (rowYear.isBlank() || rowYear == year) && (id(row) to ott) !in attempted
+                        val rowType = field(row, "type", "media_type").lowercase(java.util.Locale.ROOT)
+                        val rightType = when (rowType) { "t", "tv", "series" -> type == "tv"; "m", "movie" -> type == "movie"; else -> true }
+                        normalize(comparable) == normalize(title) && rightType &&
+                            (type == "tv" || rowYear.isBlank() || rowYear == year) && (id(row) to ott) !in attempted
                     }
-                    if (matches.size > 1) throw IOException("Provider title identity is ambiguous")
-                    matches.singleOrNull()?.let { val id = id(it); if (id.isNotBlank()) return id to ott }
+                    if (matches.size > 1 && matches.any { !id(it).matches(Regex(if (ott == "pv") "[A-Z0-9]{10,30}" else "[0-9]{5,20}")) })
+                        throw IOException("Provider title identity is ambiguous")
+                    validateCandidates(matches.map { id(it) to ott }, title, year, type)?.let { return it }
                 }
             }
             publicIdentity(tmdbId, type, title, year)?.let { return it }
@@ -179,6 +211,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         }
 
         private suspend fun netflixPage(showId: String): String {
+            publicPages[showId to "nf"]?.let { return it }
             if (!showId.matches(Regex("[0-9]{5,20}"))) throw IOException("Invalid Netflix show ID")
             var url = "https://www.netflix.com/title/$showId".toHttpUrl()
             repeat(3) {
@@ -189,6 +222,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     url = next
                 } else {
                     requireSuccess(response)
+                    publicPages[showId to "nf"] = response.body
                     return response.body
                 }
             }
@@ -201,12 +235,14 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             } else if (ott == "pv" && showId == PRIME_MR_ROBOT.first()) {
                 PRIME_MR_ROBOT.getOrNull(season - 1) ?: throw IOException("Requested season is unavailable")
             } else if (ott == "pv") {
-                val page = text("https://www.primevideo.com/detail/$showId".toHttpUrl(), publicNetflix = true)
-                requireSuccess(page)
-                parsePrimeSeasons(page.body, title)[season] ?: throw IOException("Requested Prime season is unavailable in the public catalog")
+                val html = publicPages[showId to ott] ?: text("https://www.primevideo.com/detail/$showId".toHttpUrl(), publicNetflix = true).also(::requireSuccess).body
+                parsePrimeSeasons(html, title)[season] ?: throw IOException("Requested Prime season is unavailable in the public catalog")
             } else {
-                val data = json("${prefix(ott)}/post.php", "id" to showId) as? JSONObject ?: throw IOException("Season catalog unavailable")
-                findEpisode(data.optJSONArray("episodes") ?: JSONArray(), season, episode)?.let { return it }
+                val data = providerDetails[showId to ott] ?: (json("${prefix(ott)}/post.php", "id" to showId) as? JSONObject) ?: throw IOException("Season catalog unavailable")
+                if (!PublicProviderIdentity.matches(data, title, "", "tv")) throw IOException("Provider show identity mismatch")
+                // A title page can default to its newest season. Untagged episodes
+                // are only safe after requesting the verified season-specific endpoint.
+                findEpisode(data.optJSONArray("episodes") ?: JSONArray(), season, episode, requireSeasonLabel = true)?.let { return it }
                 val rows = objects(data.optJSONArray("season") ?: data.optJSONArray("seasons") ?: JSONArray())
                     .filter { number(field(it, "s", "season", "name", "title")) == season }
                 rows.singleOrNull()?.let(::id)?.takeIf(String::isNotBlank) ?: throw IOException("Requested season ID is unavailable")
@@ -227,6 +263,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         }
 
         suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult {
+            if (backgroundCatalogRefresh) catalog?.refreshInBackground(http)
             val identityKey = key(tmdbId, type, title, year)
             var last: IOException? = null
             repeat(3) {
@@ -237,11 +274,18 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 } catch (rate: PlaybackRateLimitedException) { throw rate }
                 catch (error: IOException) {
                     catalog?.evict(identityKey)
+                    if (selected == null && error.message == "No verified public provider identity is available for this title") last?.let { throw it }
                     last = error
                     if (selected == null || requests >= 28 || !(error.message.orEmpty().startsWith("Issued") ||
                         error.message.orEmpty().startsWith("Playback manifest") ||
                         error.message.orEmpty().startsWith("Playback endpoint unavailable") ||
-                        error.message.orEmpty().startsWith("Provider returned an expired"))) throw error
+                        error.message.orEmpty().startsWith("Provider returned an expired") ||
+                        error.message.orEmpty().startsWith("Requested season") ||
+                        error.message.orEmpty().startsWith("Requested Prime season") ||
+                        error.message.orEmpty().startsWith("Requested episode") ||
+                        error.message.orEmpty().startsWith("Provider returned a different season") ||
+                        error.message.orEmpty().startsWith("Provider show identity mismatch"))) throw error
+                    if (!forcedRefresh && backgroundCatalogRefresh) { forcedRefresh = true; catalog?.refreshInBackground(http, force = true) }
                 }
             }
             throw last ?: IOException("No available public playback source")
@@ -300,9 +344,9 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         private fun field(obj: JSONObject, vararg names: String) = names.firstNotNullOfOrNull { obj.optString(it).takeIf(String::isNotBlank) }.orEmpty()
         private fun id(obj: JSONObject) = field(obj, "id", "Id", "sid")
         private fun number(s: String) = Regex("\\d+").find(s)?.value?.toIntOrNull()
-        private fun findEpisode(rows: JSONArray, season: Int, episode: Int): String? = objects(rows).firstOrNull {
+        private fun findEpisode(rows: JSONArray, season: Int, episode: Int, requireSeasonLabel: Boolean = false): String? = objects(rows).firstOrNull {
             val label = field(it, "s", "season", "s_num")
-            (label.isBlank() || number(label) == season) && number(field(it, "ep", "episode", "e")) == episode
+            ((!requireSeasonLabel && label.isBlank()) || number(label) == season) && number(field(it, "ep", "episode", "e")) == episode
         }?.let(::id)?.takeIf(String::isNotBlank)
 
         internal fun parsePrimeSeasons(html: String, title: String): Map<Int, String> {

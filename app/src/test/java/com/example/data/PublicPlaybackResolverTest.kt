@@ -16,6 +16,25 @@ import java.io.IOException
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicPlaybackResolverTest {
+    @Test fun unlabelledDefaultEpisodesCannotOverrideTheRequestedSeason() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/mobile/hs/post.php" -> """{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"wrong-default","ep":"E1"}],"season":[{"id":"1271685002","s":"S2"}]}""" to 200
+                "/mobile/hs/episodes.php" -> {
+                    assertEquals("1271685002", request.url.queryParameter("s"))
+                    """{"episodes":[{"id":"1271685003","ep":"E1"}]}""" to 200
+                }
+                "/mobile/hs/playlist.php" -> {
+                    assertEquals("1271685003", request.url.queryParameter("id"))
+                    """{"sources":[{"file":"https://cdn.invalid/season-two.m3u8?in=issued"}]}""" to 200
+                }
+                "/season-two.m3u8" -> "#EXTM3U\n#EXTINF:1,\nsegment.jpg" to 200
+                else -> throw AssertionError("Unexpected endpoint")
+            }
+        })
+        assertEquals("1271685003", resolver.resolve("Lanterns", "2026", "tv", 2, 1, "95350").contentId)
+    }
     @Test fun staleNetflixPlaylistFallsBackToExactPrimeIdentityWithoutCookies() = runBlocking {
         val seen = mutableListOf<Request>()
         val resolver = PublicPlaybackResolver(client(seen) { request ->
@@ -23,6 +42,8 @@ class PublicPlaybackResolverTest {
                 "/search.php" -> """{"searchResult":[{"id":"81458416","t":"Fixture Film","y":"2024"}]}""" to 200
                 "/mobile/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
                 "/mobile/playlist.php" -> "[]" to 200
+                "/title/81458416" -> """<script type="application/ld+json">{"@type":"Movie","name":"Fixture Film","datePublished":"2024-01-01"}</script>""" to 200
+                "/detail/0O70LSZ5KT12QBNQRUQGGRIWDP" -> primeMovie("Fixture Film", 2024) to 200
                 "/mobile/pv/search.php" -> """{"searchResult":[{"id":"0O70LSZ5KT12QBNQRUQGGRIWDP","t":"Fixture Film","y":"2024"}]}""" to 200
                 "/mobile/pv/playlist.php" -> """{"sources":[{"file":"https://cdn.example/master.m3u8?in=issued"}]}""" to 200
                 "/master.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts" to 200
@@ -41,6 +62,7 @@ class PublicPlaybackResolverTest {
         Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("fixture")
             .header("Set-Cookie", "t_hash_t=unused; Path=/; Secure").body(text.toResponseBody()).build()
     }.build()
+    private fun primeMovie(title: String, year: Int) = """<script>{"init":{"preparations":{"body":{"atf":{"state":{"detail":{"headerDetail":{"film":{"title":"$title","titleType":"movie","releaseYear":$year}}}}}}}}}</script>"""
 
     @Test fun smallvilleResolvesPublicSeasonAndPaginatedEpisodeWithoutPostOrWarmup() = runBlocking {
         val seen = mutableListOf<Request>()
@@ -85,6 +107,7 @@ class PublicPlaybackResolverTest {
                 "/search.php" -> """{"searchResult":[{"id":"70155584","t":"Smallville"}]}""" to 200
                 "/title/70155584" -> html to 200
                 "/mobile/episodes.php" -> """{"episodes":[{"id":"wrong","s":"S4","ep":"E1"}]}""" to 200
+                "/mobile/search.php", "/mobile/pv/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
                 else -> throw AssertionError("Wrong episode must not reach a playlist")
             }
         })
@@ -111,6 +134,7 @@ class PublicPlaybackResolverTest {
             when (request.url.encodedPath) {
                 "/search.php", "/mobile/search.php" -> """{"head":"Top Searches","status":"n","searchResult":[{"id":"wrong","t":"Road House"}]}""" to 200
                 "/mobile/pv/search.php" -> """{"searchResult":[{"id":"$nativeId","t":"Road House","y":"2024"},{"id":"remake","t":"Road House","y":"1989"}]}""" to 200
+                "/detail/$nativeId" -> primeMovie("Road House", 2024) to 200
                 "/mobile/pv/playlist.php" -> { assertEquals(nativeId, request.url.queryParameter("id")); """{"sources":[{"file":"$issued"}]}""" to 200 }
                 "/movies/media.m3u8" -> { assertEquals(issued, request.url.toString()); "#EXTM3U\n#EXTINF:10,\nsegment.jpg" to 200 }
                 else -> throw AssertionError("Unexpected endpoint")
@@ -167,6 +191,52 @@ class PublicPlaybackResolverTest {
         assertEquals("hs", result.ott)
         assertEquals("1271684191", result.contentId)
         assertTrue(seen.none { it.url.encodedPath.contains("search") || it.url.encodedPath.contains("verify") })
+    }
+
+    @Test fun unavailableSeasonRetriesAnotherVerifiedHostingIdentity() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/search.php", "/mobile/search.php" -> """{"searchResult":[{"id":"70155584","t":"Fixture Series","y":"2026","type":"t"}]}""" to 200
+                "/title/70155584" -> """<script type="application/ld+json">{"@type":"TVSeries","name":"Fixture Series"}</script><select name="seasonSelect"><option value="60031634">Season 1</option></select>""" to 200
+                "/mobile/pv/search.php" -> """{"searchResult":[{"id":"0SERIES123456789","t":"Fixture Series","type":"t"}]}""" to 200
+                "/detail/0SERIES123456789" -> """<script>{"init":{"preparations":{"body":{"atf":{"state":{"detail":{"headerDetail":{"show":{"titleType":"season","title":"Fixture Series - Season 2"}}},"seasons":{"show":[{"sequenceNumber":2,"seasonLink":"/detail/0SEASON2123456789"}]}}}}}}}</script>""" to 200
+                "/mobile/pv/episodes.php" -> {
+                    assertEquals("0SEASON2123456789", request.url.queryParameter("s"))
+                    """{"episodes":[{"id":"0EPISODE123456789","s":"S2","ep":"E1"}]}""" to 200
+                }
+                "/mobile/pv/playlist.php" -> """{"sources":[{"file":"https://cdn.example/master.m3u8?in=issued"}]}""" to 200
+                "/master.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts" to 200
+                else -> throw AssertionError("Unexpected endpoint ${request.url.encodedPath}")
+            }
+        })
+        val result = resolver.resolve("Fixture Series", "2022", "tv", 2, 1)
+        assertEquals("pv", result.ott)
+        assertEquals("0EPISODE123456789", result.contentId)
+        assertFalse(seen.any { it.url.encodedPath == "/mobile/playlist.php" })
+    }
+
+    @Test fun newSeriesOutsideBothBundledAndRemoteIndexesIsFoundFromPublishedLinks() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val path = "/tv-shows/brand-new-show/HOTSTAR_DTH_TVSHOW_1971999001"
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/search.php", "/mobile/search.php", "/mobile/pv/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
+                "/tv-shows" -> """<a href="$path">Brand New Show</a>""" to 200
+                path -> """<p id="banner-content-release-year">2026</p><script>{"@type":"VideoObject","name":"Brand New Show"}</script>""" to 200
+                "/mobile/hs/post.php" -> {
+                    assertEquals("1971999001", request.url.queryParameter("id"))
+                    """{"status":"y","title":"Brand New Show","year":"2026","type":"t","episodes":[{"id":"1971999011","s":"S1","ep":"E1"}]}""" to 200
+                }
+                "/mobile/hs/playlist.php" -> """{"sources":[{"file":"https://cdn.example/master.m3u8?in=issued"}]}""" to 200
+                "/master.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts" to 200
+                else -> throw AssertionError("New title must not depend on Wikidata or an APK update: ${request.url.encodedPath}")
+            }
+        })
+        val result = resolver.resolve("Brand New Show", "2025", "tv", 1, 1, "999999001")
+        assertEquals("hs", result.ott)
+        assertEquals("1971999011", result.contentId)
+        assertEquals(1, seen.count { it.url.encodedPath == "/mobile/hs/post.php" })
     }
 
     @Test fun primeSeasonLinksAreBoundToTheSeriesAndExcludeRecommendations() {
