@@ -10,4 +10,8 @@ The shared correction rechecks already-fetched provider search records after aut
 
 The corrected production resolver now selects provider season ID `0LEE086T9L711TRMJ0ODBQHZGS` and requests the playlist for exact S1E1 `0KVBLO9DOW99VWB40BUV66DI2U`. This took approximately 5.9 seconds in the local audit. The media response was classified as upstream rate-limited, so no new video segment or on-device playback is verified from this workspace. See `lioness-after-native.json`. The original failure occurred before the episode lookup; this independent upstream limitation must not be conflated with the corrected identity bugs.
 
-Focused TV regression checks: 25 passed. The mobile checks and production signed builds are tracked separately before publication. Release versions for this correction: TV 3.10.2026.4 (29092038), mobile 1.12 (13).
+Focused TV regression checks: 25 passed. Focused mobile regression checks also passed (25). The mobile production CI passed its complete debug/rules/signed-release jobs. Release versions for this correction: TV 3.10.2026.4 (29092038), mobile 1.12 (13).
+
+After installing the published mobile 1.12 update, the user confirmed Lioness S1E1 plays on their phone. This is user-reported on-device verification, distinct from the workspace’s upstream rate-limited media audit.
+
+The final signed releases are published at https://npro-app.vercel.app/: TV 3.10.2026.4 (29092038), mobile 1.12 (13). Production APK hashes, original signing continuity and release manifests were verified. See `follow-up-publication.json`.

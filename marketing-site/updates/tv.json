@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092037,
-  "versionName": "3.10.2026.3",
+  "versionCode": 29092038,
+  "versionName": "3.10.2026.4",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7579835,
-  "sha256": "53fee93afa38d4c6e5b262d6e655f631b5e71640c65ec8d2c2398d0a5ab7a466",
+  "sizeBytes": 7579823,
+  "sha256": "34554876a365cf9f53e94f4b8c2036ede0e97a725e191765adb1547baa2b796a",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092037-53fee93afa38d4c6.apk",
-  "releaseNotes": "Faster movie and episode lookup, improved title matching, and recovery from outdated playback IDs. Public playback no longer waits for session warming. Existing accounts and app data are preserved when installing this update.",
+  "apkUrl": "/downloads/tv/29092038-34554876a365cf9f.apk",
+  "releaseNotes": "Fixes Lioness and other shows listed under alternate titles, and corrects Prime season matching. Premium remains Premium during temporary verification failures, with a reconnect/retry message when needed. TV subscription options now match the mobile app’s KES prices, 30-day plans and benefits.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-03T18:12:56.888Z"
+  "publishedAt": "2026-10-03T19:16:57.761Z"
 }

@@ -1,4 +1,4 @@
-# Final validation — 3 October 2026
+# Validation — 3 October 2026
 
 - App version: 3.10.2026.3 (29092037).
 - Debug APK assembly, full unit suite and debug lint: successful.
@@ -21,3 +21,14 @@ Both production GitHub Actions workflows passed debug checks, release assembly a
 - The live streaming configuration matches the staged net52 configuration. The existing `netflixpro.vercel.app` alias exposes the same release manifests.
 
 See `publication.json` for APK URLs, hashes verification and source build identities. Existing production installations can update with the same signing key. Newly decoded upstream playback and Android first-frame performance remain subject to the live limitation above.
+
+## Published follow-up correction
+
+- Current release: 3.10.2026.4 (29092038).
+- Production [GitHub Actions workflow](https://github.com/alitrial2025/netflix-tv/actions/runs/37146261830): all debug, rule and signed-release jobs passed. Exact application source commit: `de332aa288a84635eef4e3c43b443f3ecbc7f9a3`.
+- Repository unit suite: 315 tests; zero failures/errors; 9 skipped. Focused Lioness identity/resolver tests: 25 passed per app.
+- Original production signing certificate preserved. Publisher/website policy checks: 13 passed.
+- Both release manifests and downloaded APK sizes/SHA-256 match the live website. Previous immutable APKs and the existing website alias are still available. See `follow-up-publication.json`.
+- After installing mobile 1.12, the user confirmed Lioness S1E1 plays on their phone. The workspace HLS check remained rate-limited; this is separate from the corrected title/season identity failures.
+- Final local debug assemble, complete unit suite and lint passed: zero lint errors, 248 warnings. Two temporary modal previews also passed at 1280×720 and 960×540, including focused-button semantics and contrast; preview sources were removed.
+- TV Premium verification failures now retain the confirmed plan and show reconnect/retry while live membership/device/screens remain required. Eight policy regressions include server downgrade and account-switch proof rejection. Subscription options match the phone’s KES prices and 30-day benefits. See `tv-premium-verification.md`.
