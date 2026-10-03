@@ -3087,14 +3087,26 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     private var remoteCommandListener: com.google.firebase.firestore.ListenerRegistration? = null
     private var streamHeartbeatJob: kotlinx.coroutines.Job? = null
 
+    private suspend fun applyVerifiedPlaybackMembership(owner: String,
+        verified: com.example.data.ScreenLease.VerifiedMembership): com.example.model.UserSubscription? =
+        withContext(Dispatchers.Main.immediate) {
+            if (authenticatedUid() != owner) return@withContext null
+            val confirmed = com.example.data.TvPlaybackAccessPolicy.confirmedSubscription(
+                _userSubscription.value, owner, verified) ?: return@withContext null
+            if (confirmed != _userSubscription.value) {
+                _userSubscription.value = confirmed
+                saveStoredSubscription(confirmed)
+            }
+            confirmed
+        }
+
     suspend fun confirmPlaybackAccess(movie: Movie): Boolean {
         val owner = authenticatedUid() ?: return false
         if (isMovieLocked(movie)) return false
-        // The slot transaction validates live subscription, bound device and screen count together.
-        try {
+        // The same slot transaction supplies the live tier used for catalog access.
+        val verified = try {
             kotlinx.coroutines.withTimeoutOrNull(15_000L) {
                 com.example.data.ScreenLease.acquire(getApplication(), tv = true)
-                true
             } ?: throw com.example.data.MembershipCheckException()
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (verification: Exception) {
@@ -3102,20 +3114,34 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 com.example.data.TvPlaybackAccessPolicy.verificationMessage(verification)
             throw verification
         }
+        val confirmed = applyVerifiedPlaybackMembership(owner, verified) ?: return false
         val allowed = authenticatedUid() == owner &&
-            com.example.data.TvPlaybackAccessPolicy.decide(_userSubscription.value, movie,
+            com.example.data.TvPlaybackAccessPolicy.decide(confirmed, movie,
                 authenticated = true, leaseVerified = true) == com.example.data.TvPlaybackAccessPolicy.Decision.ALLOW
         if (allowed) _playbackAccessError.value = null
+        else com.example.data.ScreenLease.release()
         return allowed
     }
 
-    fun startStreamHeartbeat(mediaTitle: String) {
+    fun startStreamHeartbeat(mediaTitle: String, movie: Movie? = null) {
         val owner = authenticatedUid() ?: return
         streamHeartbeatJob?.cancel()
         _playbackAccessError.value = null
         streamHeartbeatJob = viewModelScope.launch {
             while (isActive && authenticatedUid() == owner) {
-                try { com.example.data.ScreenLease.acquire(getApplication(), tv = true) }
+                try {
+                    val verified = com.example.data.ScreenLease.acquire(getApplication(), tv = true)
+                    val confirmed = applyVerifiedPlaybackMembership(owner, verified) ?: return@launch
+                    if (movie != null && com.example.data.TvPlaybackAccessPolicy.decide(confirmed, movie,
+                            authenticated = true, leaseVerified = true) != com.example.data.TvPlaybackAccessPolicy.Decision.ALLOW) {
+                        if (sharedExoPlayerDelegate.isInitialized()) {
+                            sharedExoPlayer.stop()
+                            sharedExoPlayer.clearMediaItems()
+                        }
+                        com.example.data.ScreenLease.release()
+                        return@launch
+                    }
+                }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (error: Exception) {
                     if (authenticatedUid() != owner) return@launch

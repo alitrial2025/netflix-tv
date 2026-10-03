@@ -120,7 +120,7 @@ fun PlayerScreen(
         return
     }
     DisposableEffect(movie.id, isTrailerPlayback) {
-        if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title)
+        if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title, movie)
         onDispose { if (!isTrailerPlayback) viewModel.stopStreamHeartbeat() }
     }
     val playbackOwner = remember(movie.id, movie.title, movie.type) { "player:${java.util.UUID.randomUUID()}" }
@@ -553,7 +553,7 @@ fun PlayerScreen(
                 pendingResumePositionMs = null
                 isLoading = false
                 isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING
-                if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title)
+                if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title, movie)
                 exoPlayer.play()
                 isPlaying = true
                 return@LaunchedEffect
@@ -598,7 +598,7 @@ fun PlayerScreen(
                 return@LaunchedEffect
             }
             activeStream = stream
-            if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title)
+            if (!isTrailerPlayback) viewModel.startStreamHeartbeat(movie.title, movie)
             exoPlayer.setMediaSource(playbackMediaSource(context, stream, targetMediaId, selectedSubLang), startMs)
             pendingResumePositionMs = null
             exoPlayer.prepare()
@@ -1263,7 +1263,7 @@ fun PlayerScreen(
                     sessionRecoveryAttempts = 0
                     if (!isTrailerPlayback && viewModel.playbackAccessError.value != null) {
                         // Recheck the lease without discarding a valid provider URL.
-                        viewModel.startStreamHeartbeat(movie.title)
+                        viewModel.startStreamHeartbeat(movie.title, movie)
                         restartPlaybackResolution()
                         return@PlayerErrorOverlay
                     }

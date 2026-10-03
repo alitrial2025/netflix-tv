@@ -7,6 +7,13 @@ import com.example.model.UserSubscription
 internal object TvPlaybackAccessPolicy {
     enum class Decision { UPGRADE, VERIFY, ALLOW }
 
+    fun confirmedSubscription(current: UserSubscription, ownerUid: String,
+        verified: ScreenLease.VerifiedMembership): UserSubscription? {
+        if (ownerUid.isBlank() || verified.uid != ownerUid) return null
+        return current.copy(planId = verified.planId, planName = verified.planName,
+            status = verified.status, expiresAt = verified.expiresAt)
+    }
+
     fun decide(subscription: UserSubscription, movie: Movie, authenticated: Boolean,
         leaseVerified: Boolean = false): Decision {
         if (subscription.isMovieLocked(movie.id, movie.year, isTvDevice = true, movieTitle = movie.title))

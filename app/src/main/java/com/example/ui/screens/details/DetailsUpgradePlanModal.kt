@@ -217,7 +217,7 @@ fun UpgradePlanModal(
                         ) {
                             Text(
                                 text = "Subscribe on your phone",
-                                color = Color.White,
+                                color = if (isUpgradeFocused) Color.Black else Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -248,7 +248,7 @@ fun UpgradePlanModal(
                         ) {
                             Text(
                                 text = "Continue watching trailer",
-                                color = Color.White,
+                                color = if (isWatchTrailerFocused) Color.Black else Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )

@@ -8,4 +8,6 @@ Temporary verification failures retain the last confirmed plan, stop playback an
 
 The legacy TV upgrade modal delegates to the canonical modal. Both routes show the phone's KES prices, 30-day duration, eligible Basic/Standard/Premium plans, profiles, screens, offline allowances, catalog scope and included benefits. Mobile is excluded because it cannot authorize TV playback. The prompt uses the same Watch the full story/trailer wording, selects the current plan for renewal, supports Back dismissal and retains D-pad navigation. Payments remain in the mobile app on the same account.
 
-Six policy regression cases cover Premium without proof, signed-out leases, genuine unsupported/expired memberships, renewal grace, sanitized verification failure, and distinct device/screen denial. Final build, full-suite, lint and visual checks are recorded after validation.
+Eight policy regression cases cover Premium without proof, signed-out leases, genuine unsupported/expired memberships, renewal grace, sanitized verification failure, distinct device/screen denial, server downgrade and late old-account proof rejection. Final build, full-suite, lint and visual checks are recorded after validation.
+
+The successful screen-lease transaction now returns the UID and live plan/status/expiry. Startup and heartbeat catalog decisions use this verified tier rather than a stale cached Premium value, without adding another network transaction. A server downgrade can therefore restrict a title immediately while temporary verification failures retain the confirmed plan display.

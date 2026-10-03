@@ -59,4 +59,25 @@ class TvPlaybackAccessPolicyTest {
         assertEquals(TvPlaybackAccessPolicy.Decision.VERIFY,
             TvPlaybackAccessPolicy.decide(premium, movie, authenticated = true))
     }
+
+    @Test fun theSuccessfulLeaseTierOverridesStalePremiumBeforeCatalogAuthorization() {
+        val basic = premium.copy(planId = "plan_basic", planName = "Basic")
+        val restricted = (1..100).map { movie.copy(id = it.toString()) }
+            .first { basic.isMovieLocked(it.id, isTvDevice = true, movieTitle = it.title) }
+        assertEquals(TvPlaybackAccessPolicy.Decision.ALLOW,
+            TvPlaybackAccessPolicy.decide(premium, restricted, authenticated = true, leaseVerified = true))
+        val verified = ScreenLease.VerifiedMembership("same-account", "plan_basic", "ACTIVE",
+            now + 2 * RenewalPolicy.DAY_MS, "Basic")
+        val confirmed = TvPlaybackAccessPolicy.confirmedSubscription(premium, "same-account", verified)!!
+        assertEquals("plan_basic", confirmed.planId)
+        assertEquals(verified.expiresAt, confirmed.expiresAt)
+        assertEquals(TvPlaybackAccessPolicy.Decision.UPGRADE,
+            TvPlaybackAccessPolicy.decide(confirmed, restricted, authenticated = true, leaseVerified = true))
+    }
+
+    @Test fun aLateLeaseResultCannotReplaceAnotherAccountsMembership() {
+        val verified = ScreenLease.VerifiedMembership("old-account", "plan_basic", "ACTIVE",
+            now + RenewalPolicy.DAY_MS, "Basic")
+        assertNull(TvPlaybackAccessPolicy.confirmedSubscription(premium, "new-account", verified))
+    }
 }
