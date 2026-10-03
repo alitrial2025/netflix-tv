@@ -1,0 +1,7 @@
+allprojects {
+    tasks.withType(Test).configureEach {
+        maxHeapSize = '2g'
+        maxParallelForks = 1
+        systemProperty 'roborazzi.record', 'true'
+    }
+}

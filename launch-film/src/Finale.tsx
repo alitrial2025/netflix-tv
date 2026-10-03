@@ -1,0 +1,8 @@
+import {AbsoluteFill,useCurrentFrame,useVideoConfig,interpolate} from 'remotion';
+import {Stage} from './Stage';
+import {Camera,Phone,Television,Remote,Floor,smooth,lerp3} from './world';
+import {Wordmark,Font} from './Type';
+export const Finale=()=>{const f=useCurrentFrame();const {width}=useVideoConfig();const s=width/1920,p=smooth(f/239);return <AbsoluteFill><Stage><Camera position={lerp3([.18,1.52,4.8],[0,1.40,4.6],p)} target={[0,1.14,0]} fov={39}/><Floor/><group position={[-.73,1.14,0]} rotation={[0,.12,0]} scale={.91}><Television on still/></group><group position={[-.04,.82,.51]} rotation={[.03,-.18,-.04]} scale={1.28}><Phone on still/></group><group position={[-1.68,.30,.67]} rotation={[-1.0,.16,-.4]} scale={.9}><Remote/></group></Stage>
+ <div style={{position:'absolute',left:1120*s,top:217*s,width:700*s,fontFamily:Font.fontFamily,color:'#f2f7fc',opacity:interpolate(f,[7,30],[0,1],{extrapolateLeft:'clamp',extrapolateRight:'clamp'})}}><Wordmark/><div style={{fontSize:99*s,lineHeight:1.03,fontWeight:600,letterSpacing:-4*s,marginTop:46*s}}>Now released.</div><div style={{fontSize:30*s,lineHeight:1.5,color:'#bdcad9',marginTop:24*s}}>For your TV.<br/>For your Android phone.</div><div style={{display:'inline-block',marginTop:40*s,padding:`${18*s}px ${28*s}px`,borderRadius:12*s,background:'#1761b0',fontSize:27*s,fontWeight:700}}>Download the apps</div><div style={{fontSize:31*s,color:'#82d7ff',marginTop:22*s}}>npro-app.vercel.app</div></div>
+ <div style={{position:'absolute',left:112*s,bottom:70*s,color:'#8498af',fontSize:19*s,fontFamily:Font.fontFamily}}>Independent app · Android TV / Google TV / Android</div></AbsoluteFill>;};
+

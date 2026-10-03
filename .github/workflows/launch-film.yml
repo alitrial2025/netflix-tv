@@ -1,0 +1,195 @@
+name: Native Kotlin 3D launch film
+on:
+  push:
+    branches: ['creative/launch-film']
+    paths: ['launch-film/**', '.github/workflows/launch-film.yml']
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Preview frames or complete native 4K and 1080p exports'
+        type: choice
+        options: [preview, full]
+        default: preview
+permissions:
+  contents: read
+concurrency:
+  group: launch-film-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: mode
+        env:
+          REQUESTED_MODE: ${{ inputs.mode }}
+        run: |
+          python3 - <<'PY'
+          import json,os
+          mode=os.environ.get('REQUESTED_MODE') or json.load(open('launch-film/render-mode.json'))['mode']
+          assert mode in ['preview','full']
+          with open(os.environ['GITHUB_OUTPUT'],'a') as handle: handle.write('mode='+mode+'\n')
+          PY
+  native:
+    name: Kotlin UI / ${{ matrix.device }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [tv, mobile]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: alitrial2025/netflix-mobile
+          ref: b48dc71cf05c92d03dccc8094255ee198e9fcf32
+          path: mobile-source
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: actions/cache@v4
+        id: ui-cache
+        with:
+          path: launch-film/public/screens
+          key: native-film-v1-${{ matrix.device }}-${{ hashFiles('launch-film/native/*.kt', 'app/src/main/**/*.kt', 'advertising-video/catalogue.json') }}-b48dc71
+      - name: Prepare offline fixtures and opt-in Kotlin captures
+        run: python3 launch-film/scripts/generate-native-assets.py --prepare --mobile-root "$GITHUB_WORKSPACE/mobile-source" --github-env "$GITHUB_ENV"
+      - name: Render TV production Compose screens
+        if: matrix.device == 'tv' && steps.ui-cache.outputs.cache-hit != 'true'
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=2 --init-script launch-film/native/capture.init.gradle :app:testDebugUnitTest --tests com.example.LaunchFilmTvCaptureTest -Proborazzi.test.record=true
+      - name: Render mobile production Compose screens
+        if: matrix.device == 'mobile' && steps.ui-cache.outputs.cache-hit != 'true'
+        working-directory: mobile-source
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=2 --init-script ../launch-film/native/capture.init.gradle :app:testDebugUnitTest --tests com.example.LaunchFilmMobileCaptureTest -Proborazzi.test.record=true
+      - name: Upload native UI frames
+        uses: actions/upload-artifact@v5
+        with:
+          name: native-ui-${{ matrix.device }}
+          path: launch-film/public/screens/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload native capture diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: native-capture-errors-${{ matrix.device }}
+          path: |
+            app/build/reports/tests/
+            mobile-source/app/build/reports/tests/
+            app/build/test-results/
+            mobile-source/app/build/test-results/
+
+  preview:
+    name: Inspect native screens and 3D shots
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: launch-film
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: launch-film/package-lock.json
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: native-ui-*
+          merge-multiple: true
+          path: launch-film/public/screens
+      - run: python3 scripts/generate-native-assets.py --verify
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: pip install numpy
+      - run: python3 scripts/soundtrack.py
+      - name: Render representative frames in cloud
+        run: |
+          npx remotion render NetflixProLaunch1080 out/preview --frames=30,75,110,175,235,290,350,420,500,555,600,640,685,735,820,890,1010 --image-format=png --gl=swangle --concurrency=1 --timeout=120000
+      - uses: actions/upload-artifact@v5
+        with:
+          name: launch-film-preview
+          path: |
+            launch-film/out/preview/
+            launch-film/public/screens/manifest.json
+            launch-film/public/score.wav
+          retention-days: 30
+
+  render:
+    name: Native 4K / shard ${{ matrix.shard }}
+    if: needs.plan.outputs.mode == 'full'
+    needs: [plan, preview]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    defaults:
+      run:
+        working-directory: launch-film
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: launch-film/package-lock.json
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: native-ui-*
+          merge-multiple: true
+          path: launch-film/public/screens
+      - run: npm ci
+      - run: pip install numpy
+      - run: python3 scripts/soundtrack.py
+      - name: Render 135 exact frames at native 3840 by 2160
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          FIRST=$((SHARD * 135))
+          LAST=$((FIRST + 134))
+          npx remotion render NetflixProLaunch4K "out/chunk-$SHARD.mp4" --frames="$FIRST-$LAST" --muted --codec=h264 --crf=16 --pixel-format=yuv420p --image-format=jpeg --jpeg-quality=95 --gl=swangle --concurrency=1 --timeout=120000 --x264-preset=medium --gop=30
+      - uses: actions/upload-artifact@v5
+        with:
+          name: launch-film-shard-${{ matrix.shard }}
+          path: launch-film/out/chunk-*.mp4
+          if-no-files-found: error
+          retention-days: 30
+
+  exports:
+    name: Assemble, downsample and verify MP4s
+    needs: render
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: launch-film-shard-*
+          merge-multiple: true
+          path: launch-film/chunks
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - run: pip install numpy
+      - run: python3 launch-film/scripts/soundtrack.py
+      - run: python3 launch-film/scripts/assemble.py launch-film/out launch-film/chunks
+      - uses: actions/upload-artifact@v5
+        with:
+          name: NetflixPro-Launch-4K-and-1080p
+          path: |
+            launch-film/out/*.mp4
+            launch-film/out/contact-sheet.jpg
+            launch-film/out/verification.json
+          if-no-files-found: error
+          retention-days: 90
