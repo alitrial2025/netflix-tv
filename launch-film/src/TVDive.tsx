@@ -8,7 +8,7 @@ export const TVDive = () => {
     <AbsoluteFill>
       <Stage room>
         <Camera
-          position={lerp3([1.5, 1.55, 3.15], [0, 1.28, 1.69], smooth(f / 160))}
+          position={lerp3([1.5, 1.55, 3.15], [0, 1.28, 1.81], smooth(f / 160))}
           target={[0, 1.28, 0.06]}
           fov={38}
         />

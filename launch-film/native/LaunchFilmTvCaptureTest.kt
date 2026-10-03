@@ -19,18 +19,24 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 import org.junit.Assume.assumeTrue
 import org.junit.Before
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
+import org.robolectric.annotation.RealObject
 import org.robolectric.shadows.ShadowLooper
 
 /** Offline export of production Kotlin UI. Installed into the test source set only in the film workflow. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w1280dp-h720dp-xhdpi", sdk = [34], application = Application::class)
+@Config(qualifiers = "w1280dp-h720dp-xhdpi", sdk = [34], application = Application::class,
+    shadows = [LaunchFilmVerifiedSessionShadow::class], instrumentedPackages = ["com.example.ui.NetflixViewModel"])
 class LaunchFilmTvCaptureTest {
     @get:Rule val rule = createAndroidComposeRule<ComponentActivity>()
     private lateinit var viewModel: NetflixViewModel
@@ -43,6 +49,7 @@ class LaunchFilmTvCaptureTest {
         val application = ApplicationProvider.getApplicationContext<Application>()
         coil.Coil.setImageLoader(coil.ImageLoader.Builder(application).crossfade(false).build())
         com.example.ui.util.HomeStartupGate.markHomeHidden()
+        LaunchFilmVerifiedSessionShadow.sessionReady = false
         val catalogue = JSONArray(File(fixtures, "catalogue.json").readText())
         val movies = (0 until catalogue.length()).map { index ->
             val source = catalogue.getJSONObject(index)
@@ -64,6 +71,9 @@ class LaunchFilmTvCaptureTest {
         seed("_isLoading", false)
         seed("_userSubscription", UserSubscription(planId = "plan_premium", status = "ACTIVE", expiresAt = System.currentTimeMillis() + 7 * 86_400_000L))
         seed("_myListMovieIds", movies.take(3).map { it.id }.toSet())
+        LaunchFilmVerifiedSessionShadow.sessionReady = true
+        assertTrue("The capture must model an already verified synthetic session", viewModel.isUserLoggedInOrGuest())
+        assertFalse("Premium demo titles must use the paid subscription policy", viewModel.isMovieLocked(movies.first()))
     }
 
     @Suppress("UNCHECKED_CAST") private fun <T> seed(name: String, value: T) {
@@ -101,4 +111,19 @@ class LaunchFilmTvCaptureTest {
             rule.onRoot().captureRoboImage(File(frames, "%05d.png".format(frame)).path)
         }
     }
+}
+
+/** Capture-only account boundary: production UI and paid-tier policy still execute unchanged.
+ * There is no real account or device proof in an offline artwork export. This shadow represents
+ * a previously verified session, and is never installed into an application source set/APK.
+ */
+@Implements(value = NetflixViewModel::class, isInAndroidSdk = false)
+class LaunchFilmVerifiedSessionShadow {
+    @RealObject private lateinit var viewModel: NetflixViewModel
+    @Implementation fun isUserLoggedInOrGuest(): Boolean = sessionReady
+    @Implementation fun isMovieLocked(movie: Movie): Boolean = viewModel.userSubscription.value.isMovieLocked(
+        movieId = movie.id, releaseYear = movie.year, isTrendingOrVip = false,
+        isTvDevice = true, movieTitle = movie.title
+    )
+    companion object { @JvmField var sessionReady = false }
 }

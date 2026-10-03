@@ -72,7 +72,10 @@ class LaunchFilmMobileCaptureTest {
             val series = item.getString("type") == "tv"
             MediaItem("launch_${item.getString("id")}", item.getString("title"), if (series) MediaType.TV_SHOW else MediaType.MOVIE,
                 item.getString("overview"), "", 96, "16+", item.getInt("year"), if (series) "3 Seasons" else "2h 32m",
-                isOriginal = false, genres = listOf("Drama", "Thriller"), cast = emptyList(), director = "",
+                // Rankings/trending are synthetic demo selection, while title genres are genuine.
+                // Populate the same UI classifiers used by the live catalogue rather than duplicating one hero in every rail.
+                isOriginal = false, top10Rank = (index + 2).takeIf { it <= 10 }, isTrending = true,
+                genres = genresFor(item.getString("id")), cast = emptyList(), director = "",
                 posterUrl = File(fixtures, item.getString("poster_file")).toURI().toString(),
                 backdropUrl = File(fixtures, item.getString("backdrop_file")).toURI().toString())
         }
@@ -85,6 +88,21 @@ class LaunchFilmMobileCaptureTest {
             episodes = (1..6).map { Episode("ep_launch_squid_S1_$it", it, if (it == 1) "The Invitation" else "Chapter $it", 60, "A new chapter unfolds.", stillUrl = File(fixtures, "squid-game.jpg").toURI().toString()) },
             totalSeasons = 3, similarMedia = titles)
         catalogue = listOf(show) + titles
+    }
+
+    private fun genresFor(id: String): List<String> = when (id) {
+        "blade-runner-2049" -> listOf("Science Fiction", "Drama", "Mystery")
+        "fight-club" -> listOf("Drama", "Thriller")
+        "pulp-fiction" -> listOf("Thriller", "Crime")
+        "the-dark-knight" -> listOf("Drama", "Action", "Crime", "Thriller")
+        "inception" -> listOf("Action", "Science Fiction", "Adventure")
+        "breaking-bad" -> listOf("Drama", "Crime", "Thriller")
+        "stranger-things" -> listOf("Drama", "Sci-Fi & Fantasy", "Mystery")
+        "the-matrix" -> listOf("Action", "Science Fiction")
+        "interstellar" -> listOf("Adventure", "Drama", "Science Fiction")
+        "game-of-thrones", "house-of-the-dragon" -> listOf("Drama", "Action & Adventure", "Sci-Fi & Fantasy")
+        "the-crown" -> listOf("Drama", "History")
+        else -> emptyList()
     }
 
     private fun mount() {

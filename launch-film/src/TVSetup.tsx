@@ -30,6 +30,13 @@ export const TVSetup = () => {
           <Television />
         </group>
       </Stage>
+      <AbsoluteFill
+        style={{
+          background:
+            "linear-gradient(90deg,rgba(8,14,23,.55),rgba(8,14,23,.15) 35%,transparent 54%)",
+          opacity: smooth((f - 115) / 25),
+        }}
+      />
       <Copy
         eyebrow="THE RELEASE IS HERE"
         headline={"Make room\nfor a new story."}

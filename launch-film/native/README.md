@@ -4,6 +4,8 @@ The film uses newly rendered production Jetpack Compose screens. It does not cro
 
 The generic Home profile, subscription state and viewing progress are synthetic. Existing, checked-in catalogue artwork is loaded from local fixtures. No login, payment service, CDN playback, release signing credentials or real user records are used.
 
+The TV capture uses a test-only Robolectric shadow at the account-verification boundary to represent an already verified Premium session; its actual paid subscription policy still determines title access. The shadow is only a test template and cannot enter an APK. Mobile title genres reflect the fixture titles, and rankings/trending flags are synthetic demo selection used to show populated native catalogue rails rather than claims about live popularity.
+
 The tests in this directory are templates installed only into GitHub Actions checkouts by `scripts/generate-native-assets.py --prepare`. They opt in with `NPRO_NATIVE_CAPTURE=1` and use configurable `NPRO_NATIVE_FIXTURES` and `NPRO_NATIVE_OUTPUT` paths.
 
 ## Cloud commands
