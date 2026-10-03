@@ -42,6 +42,7 @@ class PublicPlaybackResolverTest {
                 "/search.php" -> """{"searchResult":[{"id":"81458416","t":"Fixture Film","y":"2024"}]}""" to 200
                 "/mobile/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
                 "/mobile/playlist.php" -> "[]" to 200
+                "/mobile/hls/81458416.m3u8" -> "unavailable" to 404
                 "/title/81458416" -> """<script type="application/ld+json">{"@type":"Movie","name":"Fixture Film","datePublished":"2024-01-01"}</script>""" to 200
                 "/detail/0O70LSZ5KT12QBNQRUQGGRIWDP" -> primeMovie("Fixture Film", 2024) to 200
                 "/mobile/pv/search.php" -> """{"searchResult":[{"id":"0O70LSZ5KT12QBNQRUQGGRIWDP","t":"Fixture Film","y":"2024"}]}""" to 200
@@ -58,7 +59,8 @@ class PublicPlaybackResolverTest {
     private fun client(seen: MutableList<Request>, body: (Request) -> Pair<String, Int>) = OkHttpClient.Builder().addInterceptor { chain ->
         val request = chain.request(); synchronized(seen) { seen += request }
         assertNull(request.header("Cookie")); assertNull(request.header("Authorization"))
-        val (text, code) = body(request)
+        val (text, code) = if (request.url.encodedPath in listOf("/mobile/post.php", "/mobile/pv/post.php"))
+            "{}" to 404 else body(request)
         Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("fixture")
             .header("Set-Cookie", "t_hash_t=unused; Path=/; Secure").body(text.toResponseBody()).build()
     }.build()
@@ -112,6 +114,22 @@ class PublicPlaybackResolverTest {
             }
         })
         try { resolver.resolve("Smallville", "2001", "tv", 1, 1); fail("Wrong season accepted") }
+        catch (e: IOException) { assertEquals("Provider returned a different season", e.message) }
+        assertFalse(seen.any { it.url.encodedPath.contains("playlist") })
+    }
+
+    @Test fun embeddedWrongSeasonLabelStopsBeforePlaylistEvenWithoutSeasonField() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = PublicPlaybackResolver(client(seen) { request ->
+            when (request.url.encodedPath) {
+                "/search.php" -> """{"searchResult":[{"id":"70155584","t":"Smallville"}]}""" to 200
+                "/title/70155584" -> html to 200
+                "/mobile/episodes.php" -> """{"episodes":[{"id":"82171122","ep":"S4E1"}]}""" to 200
+                "/mobile/pv/search.php" -> """{"status":"n"}""" to 200
+                else -> throw AssertionError("Wrong season reached playback")
+            }
+        }, backgroundCatalogRefresh = false)
+        try { resolver.resolve("Smallville", "2001", "tv", 1, 1); fail("Wrong embedded season accepted") }
         catch (e: IOException) { assertEquals("Provider returned a different season", e.message) }
         assertFalse(seen.any { it.url.encodedPath.contains("playlist") })
     }

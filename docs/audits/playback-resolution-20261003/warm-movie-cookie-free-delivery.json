@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "timestamp": "2026-10-03T13:22:10.426Z",
+  "title": "Glass Onion: A Knives Out Mystery",
+  "year": 2022,
+  "type": "movie",
+  "contentId": "81458416",
+  "newWarmups": 0,
+  "cookieFreeDeliveryVerified": true,
+  "events": [
+    {
+      "stage": "warm_movie_post",
+      "host": "net52.cc",
+      "path": "/mobile/post.php",
+      "queryKeys": [
+        "id"
+      ],
+      "elapsedMs": 668,
+      "status": 200,
+      "bytes": 1554,
+      "connectMs": 1,
+      "firstByteMs": 654,
+      "redirects": 0,
+      "kind": "json",
+      "proxyBlocked": false
+    },
+    {
+      "stage": "warm_movie_playlist",
+      "host": "net52.cc",
+      "path": "/mobile/playlist.php",
+      "queryKeys": [
+        "id",
+        "t",
+        "tm"
+      ],
+      "elapsedMs": 731,
+      "status": 200,
+      "bytes": 1178,
+      "connectMs": 1,
+      "firstByteMs": 718,
+      "redirects": 0,
+      "kind": "json",
+      "proxyBlocked": false
+    }
+  ],
+  "providerIdentity": {
+    "exact": true,
+    "title": "Glass Onion: A Knives Out Mystery",
+    "type": "m",
+    "year": "2022"
+  },
+  "issuedMaster": {
+    "host": "net52.cc",
+    "path": "/mobile/hls/81458416.m3u8",
+    "queryKeys": [
+      "in",
+      "hd",
+      "lang",
+      "hp"
+    ],
+    "placeholder": false,
+    "mode": "su",
+    "sourceModified": false
+  },
+  "videoSample": {
+    "kind": "mpeg_ts",
+    "bytes": 65536
+  },
+  "audioSample": {
+    "kind": "mpeg_ts",
+    "bytes": 65536
+  },
+  "ffmpegDecodedFrame": true,
+  "cookieFreeEvents": [
+    {
+      "stage": "video_manifest",
+      "host": "net52.cc",
+      "path": "/mobile/hls/81458416.m3u8",
+      "queryKeys": [
+        "in",
+        "hd",
+        "lang",
+        "hp"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 2900,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 373
+    },
+    {
+      "stage": "video_manifest",
+      "host": "s20.freecdn1.top",
+      "path": "/files/81458416/720p/720p.m3u8",
+      "queryKeys": [
+        "in"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 26749,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 753
+    },
+    {
+      "stage": "video_sample",
+      "host": "s20.freecdn1.top",
+      "path": "/files/81458416/720p/2362_000.jpg",
+      "queryKeys": [],
+      "status": 206,
+      "retryAfter": null,
+      "sampledBytes": 65536,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 283
+    },
+    {
+      "stage": "audio_manifest",
+      "host": "s20.freecdn1.top",
+      "path": "/files/81458416/a/2/2.m3u8",
+      "queryKeys": [],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 25818,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 576
+    },
+    {
+      "stage": "audio_sample",
+      "host": "s20.freecdn1.top",
+      "path": "/files/81458416/a/2/2362_000.js",
+      "queryKeys": [],
+      "status": 206,
+      "retryAfter": null,
+      "sampledBytes": 65536,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 251
+    }
+  ],
+  "authenticationCookiesSentToMedia": false,
+  "issuedCdnSignaturesModified": false,
+  "androidFirstFrameMeasured": false
+}
