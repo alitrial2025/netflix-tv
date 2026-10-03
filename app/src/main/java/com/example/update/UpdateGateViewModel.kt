@@ -42,7 +42,7 @@ data class UpdateGateState(
     val message: String = "Checking for updates…"
 )
 
-/** One launch check, a resumable OS download, and a verified self-update. No account is needed. */
+/** Mandatory update check, resumable OS download, and verified self-update. No account is needed. */
 class UpdateGateViewModel(application: Application) : AndroidViewModel(application) {
     private val context = application.applicationContext
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -62,61 +62,70 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
         context.packageManager.getPackageInfo(context.packageName, 0)
     )
 
-    private fun checkOnLaunch() {
+    fun refreshWhenCurrent() {
+        if (_state.value.phase == UpdatePhase.CONTINUE && work?.isActive != true) checkOnLaunch(backgroundCheck = true)
+    }
+
+    private fun checkOnLaunch(backgroundCheck: Boolean = false) {
         work?.cancel()
         checkTimeout?.cancel()
-        _state.value = UpdateGateState()
-        // A slow/offline website never blocks normal app startup.
+        if (!backgroundCheck) _state.value = UpdateGateState()
         checkTimeout = viewModelScope.launch {
-            delay(3500L)
-            if (_state.value.phase == UpdatePhase.CHECKING) {
+            delay(8000L)
+            if (_state.value.phase in listOf(UpdatePhase.CHECKING, UpdatePhase.CONTINUE) && work?.isActive == true) {
                 work?.cancel()
-                _state.value = UpdateGateState(UpdatePhase.CONTINUE)
+                fail("Unable to check for updates. Connect to the internet and retry.")
             }
         }
         work = viewModelScope.launch(Dispatchers.IO) {
             try {
-                val source = UpdateRelease.manifestUrl(context)
-                if (source == null) {
-                    _state.value = UpdateGateState(UpdatePhase.CONTINUE)
-                    return@launch
-                }
+                val source = UpdateRelease.manifestUrl(context) ?: error("Update site not configured")
                 val version = installedVersion()
                 val saved = prefs.getString("release", null)?.let {
                     runCatching { UpdateRelease.parse(it, source, context.packageName) }.getOrNull()
                 }
                 if (saved != null && saved.versionCode <= version) clearCompletedDownload()
-                if (saved != null && saved.versionCode > version && saved.minSdk <= Build.VERSION.SDK_INT) {
-                    if (prefs.getInt("install_session", -1) >= 0) {
-                        monitorInstall(saved)
-                        return@launch
-                    }
-                    if (prefs.getLong("download_id", -1L) >= 0L) {
-                        monitorDownload(saved)
-                        return@launch
-                    }
+                if (saved != null && saved.versionCode > version) {
+                    _state.value = UpdateGateState(UpdatePhase.CHECKING, saved)
                 }
-                val release = UpdateRelease.parse(fetchManifest(source), source, context.packageName)
+                val latest = try {
+                    UpdateRelease.parse(fetchManifest(source), source, context.packageName)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
                 coroutineContext.ensureActive()
-                if (_state.value.phase != UpdatePhase.CHECKING) return@launch
-                if (release == null || release.versionCode <= version || release.minSdk > Build.VERSION.SDK_INT) {
-                    _state.value = UpdateGateState(UpdatePhase.CONTINUE)
-                } else {
-                    require(prefs.edit().putString("release", release.manifestJson).commit())
-                    startDownload(release)
+                if (_state.value.phase !in listOf(UpdatePhase.CHECKING, UpdatePhase.CONTINUE)) return@launch
+                when (val decision = UpdateGatePolicy.decide(version, Build.VERSION.SDK_INT, latest, saved)) {
+                    UpdateGatePolicy.Decision.Current -> _state.value = UpdateGateState(UpdatePhase.CONTINUE)
+                    UpdateGatePolicy.Decision.Unavailable -> fail("Unable to check for updates. Connect to the internet and retry.")
+                    is UpdateGatePolicy.Decision.Required -> {
+                        val release = decision.release
+                        // Never reuse a download/session belonging to a different release.
+                        if (saved?.sha256 != release.sha256 || saved?.versionCode != release.versionCode) clearCompletedDownload()
+                        require(prefs.edit().putString("release", release.manifestJson).commit())
+                        _state.value = UpdateGateState(UpdatePhase.CHECKING, release)
+                        if (!decision.compatible) {
+                            fail("This update requires Android API ${release.minSdk} or newer. Update Android to continue.")
+                        } else if (prefs.getInt("install_session", -1) >= 0) {
+                            monitorInstall(release)
+                        } else if (prefs.getLong("download_id", -1L) >= 0L) {
+                            monitorDownload(release)
+                        } else {
+                            startDownload(release)
+                        }
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                if (_state.value.phase == UpdatePhase.CHECKING) {
-                    _state.value = UpdateGateState(UpdatePhase.CONTINUE)
+                coroutineContext.ensureActive()
+                fail(if (_state.value.phase == UpdatePhase.VERIFYING) {
+                    "This update could not be verified. Retry to continue."
                 } else {
-                    fail(if (_state.value.phase == UpdatePhase.VERIFYING) {
-                        "This update could not be verified. Keep using the app and try again later."
-                    } else {
-                        "The update could not be downloaded. Check your connection and try again."
-                    })
-                }
+                    "The update could not be checked or downloaded. Check your connection and retry."
+                })
             }
         }
     }
@@ -313,9 +322,10 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
         }.toSet()
     }
 
-    fun onResume(activity: Activity) {
+    fun onResume(activity: Activity, checkForUpdates: Boolean = false) {
         val owner = activity as? androidx.lifecycle.LifecycleOwner ?: return
         if (!owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
+        if (checkForUpdates) refreshWhenCurrent()
         if (_state.value.phase == UpdatePhase.READY || (_state.value.phase == UpdatePhase.PERMISSION && canInstall())) install(activity)
         if (_state.value.phase == UpdatePhase.APPROVAL && !approvalOpened) openApproval(activity)
     }
@@ -381,7 +391,7 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                fail("Android could not install this update. You can retry or continue using the app.")
+                fail("Android could not install this update. Retry to continue.")
             } finally {
                 if (sessionId >= 0 && !committed) {
                     runCatching { installer.abandonSession(sessionId) }
@@ -399,7 +409,12 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
             when (prefs.getInt("install_status", INSTALL_IN_PROGRESS)) {
                 PackageInstaller.STATUS_SUCCESS -> {
                     // Normally Android replaces this process first; the next launch clears the files.
-                    _state.value = UpdateGateState(UpdatePhase.CONTINUE)
+                    if (installedVersion() >= release.versionCode) {
+                        clearCompletedDownload()
+                        checkOnLaunch()
+                    } else {
+                        fail("Restart the app after Android finishes installation. The update is still required.")
+                    }
                     return
                 }
                 PackageInstaller.STATUS_PENDING_USER_ACTION -> {
@@ -416,7 +431,7 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 }
                 else -> {
-                    fail("The update was not installed. You can retry or continue using the app.")
+                    fail("The update was not installed. Retry to continue.")
                     return
                 }
             }
@@ -436,14 +451,16 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
         work?.cancel()
         approvalOpened = false
         val release = _state.value.release
+        if (release == null || release.minSdk > Build.VERSION.SDK_INT) {
+            checkOnLaunch()
+            return
+        }
         work = viewModelScope.launch(Dispatchers.IO) {
             try {
                 val session = prefs.getInt("install_session", -1)
                 if (session >= 0) runCatching { installer.abandonSession(session) }
                 prefs.edit().remove("install_session").remove("install_token").remove("approval_intent").commit()
-                if (release == null) {
-                    checkOnLaunch()
-                } else {
+                run {
                     // A cancelled install can reuse the already verified bytes.
                     val reusable = try {
                         verifyPrivateApk(release)
@@ -467,20 +484,12 @@ class UpdateGateViewModel(application: Application) : AndroidViewModel(applicati
                 throw cancelled
             } catch (_: Exception) {
                 fail(if (_state.value.phase == UpdatePhase.VERIFYING) {
-                    "This update could not be verified. Keep using the app and try again later."
+                    "This update could not be verified. Retry to continue."
                 } else {
                     "The update could not be downloaded. Check your connection and try again."
                 })
             }
         }
-    }
-
-    fun later() {
-        if (_state.value.phase == UpdatePhase.INSTALLING) return
-        checkTimeout?.cancel()
-        work?.cancel()
-        _state.value = UpdateGateState(UpdatePhase.CONTINUE)
-        // DownloadManager continues in the background. Installation waits for the next launch.
     }
 
     private fun fail(message: String) {

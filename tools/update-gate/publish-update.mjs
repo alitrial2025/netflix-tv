@@ -9,7 +9,7 @@ import { PACKAGES, MAX_APK_BYTES, secureUrl, parseBadging, parseSigners, readGat
 const args = {};
 for (let i = 2; i < process.argv.length; i++) {
   const key = process.argv[i];
-  if (['--dry-run', '--allow-legacy'].includes(key)) args[key] = true;
+  if (['--dry-run', '--allow-legacy', '--replace-debug-baseline'].includes(key)) args[key] = true;
   else if (['--channel', '--apk', '--site', '--apk-url', '--notes-file', '--sdk', '--java'].includes(key)) {
     if (!process.argv[i + 1] || process.argv[i + 1].startsWith('--')) throw new Error(`Missing value for ${key}`);
     args[key] = process.argv[++i];
@@ -55,7 +55,11 @@ async function main() {
   const manifestPath = join(site, 'updates', `${channel}.json`);
   const previous = await exists(manifestPath) ? JSON.parse(await readFile(manifestPath, 'utf8')) : null;
   const notes = args['--notes-file'] ? await readFile(resolve(args['--notes-file']), 'utf8') : '';
-  const release = makeRelease({ channel, metadata, bytes: info.size, sha256: hash, signers, apkUrl, notes, previous, gateEnabled });
+  const release = makeRelease({ channel, metadata, bytes: info.size, sha256: hash, signers, apkUrl, notes, previous, gateEnabled,
+    replaceDebugBaseline: args['--replace-debug-baseline'] === true });
+  if (release.requiresFreshInstallFromDebug) {
+    process.stderr.write('Replacing the debug baseline with a production release. Debug installations need a fresh install; production signing-key checks remain enforced.\n');
+  }
   if (!args['--apk-url'] && info.size > 10 * 1024 * 1024) {
     process.stderr.write('Netlify warns that files over 10 MB may fail deployment. You can use --apk-url with another HTTPS file host.\n');
   }

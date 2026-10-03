@@ -86,9 +86,6 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         private suspend fun publicIdentity(tmdbId: String, type: String, title: String, year: String, includeDiscovery: Boolean = true): Pair<String, String>? {
             if (!tmdbId.matches(Regex("\\d+"))) return null
             val seeded = PublicProviderIdentity.seed(tmdbId, type, year)
-            if (seeded != null) validateCandidates(listOf(seeded to "hs").filter { it !in attempted }, title, year, type)?.let { return it }
-            val indexed = catalog?.candidates(type, tmdbId).orEmpty()
-            validateCandidates(indexed.filter { it !in attempted }, title, year, type)?.let { return it }
             suspend fun partnerIdentity(partnerCandidates: List<Pair<String, String>>): Pair<String, String>? {
               for ((partnerId, path) in partnerCandidates.distinct().take(6)) {
                 // A short partner ID may translate to a separate native ID on the title page.
@@ -106,6 +103,9 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
               return null
             }
             partnerIdentity(catalog?.hotstarTitles(type,title).orEmpty())?.let { return it }
+            if (seeded != null) validateCandidates(listOf(seeded to "hs").filter { it !in attempted }, title, year, type)?.let { return it }
+            val indexed = catalog?.candidates(type, tmdbId).orEmpty()
+            validateCandidates(indexed.filter { it !in attempted }, title, year, type)?.let { return it }
             if (!includeDiscovery) return null
             if (!liveBrowseChecked) {
                 liveBrowseChecked = true

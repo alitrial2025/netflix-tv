@@ -29,3 +29,7 @@ debug.keystore
 **/__pycache__/
 **/node_modules/
 *.zip
+
+# Production APKs are deployed to Vercel; keep binaries out of source commits.
+/marketing-site/downloads/mobile/*.apk
+/marketing-site/downloads/tv/*.apk

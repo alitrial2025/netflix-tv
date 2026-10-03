@@ -14,7 +14,21 @@ test('a newer release preserves package, signer and update gate metadata', () =>
   assert.equal(release.versionCode, 2);
   assert.equal(release.supportsUpdateGate, true);
   assert.equal(release.buildType, 'release');
+  assert.equal(release.mandatory, true);
   assert.deepEqual(release.signingCertificateSha256, [signer]);
+});
+
+test('replacing a debug baseline requires explicit migration and records a fresh install', () => {
+  const data = { ...input(), signers: ['c'.repeat(64)], previous: { ...input().previous, buildType: 'debug' } };
+  assert.throws(() => makeRelease(data), /Signing key changed/);
+  const release = makeRelease({ ...data, replaceDebugBaseline: true });
+  assert.equal(release.requiresFreshInstallFromDebug, true);
+  assert.equal(release.mandatory, true);
+});
+
+test('debug migration cannot change a production signing key', () => {
+  assert.throws(() => makeRelease({ ...input(), signers: ['c'.repeat(64)],
+    previous: { ...input().previous, buildType: 'release' }, replaceDebugBaseline: true }), /Signing key changed/);
 });
 test('an update cannot replace the installed signing key', () => {
   assert.throws(() => makeRelease({ ...input(), signers: ['c'.repeat(64)] }), /Signing key changed/);
