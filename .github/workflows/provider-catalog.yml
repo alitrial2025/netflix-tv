@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   refresh:
-    if: github.repository == 'alitrial2025/netflix-tv'
+    if: github.repository == 'alitrial2025/netflix-tv' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -19,15 +19,19 @@ jobs:
         with:
           node-version: '22'
       - name: Validate catalog parsing
-        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs
+        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs tools/public-playback/netflix-catalog.test.mjs
       - name: Export current public metadata
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           node tools/public-playback/build-public-catalog.mjs --output "$RUNNER_TEMP/native.json"
           node tools/public-playback/build-hotstar-catalog.mjs --output "$RUNNER_TEMP/partner.json"
-          node tools/public-playback/build-provider-feed.mjs --native "$RUNNER_TEMP/native.json" --partner "$RUNNER_TEMP/partner.json"
+          node tools/public-playback/enrich-netflix-catalog.mjs --native "$RUNNER_TEMP/native.json" --output "$RUNNER_TEMP/native-enriched.json" --state catalogs/netflix-metadata-state.json --state-output "$RUNNER_TEMP/netflix-metadata-state.json"
+          node tools/public-playback/build-provider-feed.mjs --native "$RUNNER_TEMP/native-enriched.json" --partner "$RUNNER_TEMP/partner.json"
+          cp "$RUNNER_TEMP/netflix-metadata-state.json" catalogs/netflix-metadata-state.json
       - name: Publish validated identity candidates
         run: |
-          git add catalogs/provider-identities.json
+          git add catalogs/provider-identities.json catalogs/netflix-metadata-state.json
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

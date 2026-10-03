@@ -10,6 +10,22 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicProviderIdentityTest {
+    @Test fun netflixMoviesCanPublishDateCreatedInsteadOfDatePublished() {
+        val html = """<script type="application/ld+json">{"@type":"Movie","name":"Grand Theft Auto VI: An Extended Look","dateCreated":"2026-8-27","trailer":{"@type":"VideoObject","uploadDate":"2025-01-01"}}</script>"""
+        assertTrue(PublicProviderIdentity.matchesNetflix(html, "Grand Theft Auto VI: An Extended Look", "2026", "movie"))
+        assertFalse(PublicProviderIdentity.matchesNetflix(html, "Grand Theft Auto VI: An Extended Look", "2025", "movie"))
+        assertFalse(PublicProviderIdentity.matchesNetflix(html, "Grand Theft Auto VI: An Extended Look", "2026", "tv", typedMapping = true))
+        assertFalse(PublicProviderIdentity.matchesNetflix(html.replace("dateCreated", "missingDate"), "Grand Theft Auto VI: An Extended Look", "2025", "movie"))
+    }
+
+    @Test fun laterSeasonDatesCannotVerifyTitleOnlySameNameSeries() {
+        val page = """<script type="application/ld+json">{"@type":"TVSeries","name":"Same Name","dateCreated":"2026-01-01","startDate":"2026-01-01"}</script>"""
+        assertFalse(PublicProviderIdentity.matchesNetflix(page, "Same Name", "2026", "tv"))
+        assertTrue(PublicProviderIdentity.matchesNetflix(page, "Same Name", "2016", "tv", typedMapping = true))
+        assertFalse(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Same Name","type":"t","year":"2026"}"""), "Same Name", "2026", "tv"))
+        assertFalse(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Same Name","type":"t"}"""), "Same Name", "", "tv"))
+    }
+
     @Test fun accentedPublishedPathsMatchCanonicalTitleAndRetainUrlEncoding() {
         val path = "/movies/tár/HOTSTAR_DTH_MOVIE_1971309279"
         assertEquals(listOf("1971309279" to "/movies/t%C3%A1r/HOTSTAR_DTH_MOVIE_1971309279"),
@@ -18,7 +34,7 @@ class PublicProviderIdentityTest {
     @Test fun seriesLandingYearAndPublishedBrowseLinksAllowMigratedAndNewTitles() {
         val path = "/tv-shows/house-of-the-dragon/HOTSTAR_DTH_TVSHOW_1971002877"
         val page = """<p id="banner-content-release-year">2026</p><script>{"@type":"VideoObject","name":"House Of The Dragon"}</script><a href="$path">Watch</a>"""
-        assertTrue(PublicProviderIdentity.matchesAirtel(page, "House of the Dragon", "2022", "tv"))
+        assertTrue(PublicProviderIdentity.matchesAirtel(page, "House of the Dragon", "2022", "tv", typedMapping = true))
         assertFalse(PublicProviderIdentity.matchesAirtel(page, "Other show", "2022", "tv"))
         assertFalse(PublicProviderIdentity.matchesAirtel(page, "House of the Dragon", "2022", "movie"))
         assertEquals(listOf("1971002877" to path), PublicProviderIdentity.partnerLinks(page, "House of the Dragon", "tv"))
@@ -39,7 +55,7 @@ class PublicProviderIdentityTest {
         assertFalse(PublicProviderIdentity.matchesNetflix(html,"Road House","1989","tv"))
     }
     @Test fun seriesLastSeasonYearDoesNotRejectAnAuthoritativeShowId() {
-        assertTrue(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Game Of Thrones","type":"t","year":"2019"}"""), "Game of Thrones", "2011", "tv"))
+        assertTrue(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Game Of Thrones","type":"t","year":"2019"}"""), "Game of Thrones", "2011", "tv", typedMapping = true))
         assertFalse(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Game Of Thrones","type":"m","year":"2011"}"""), "Game of Thrones", "2011", "tv"))
         assertFalse(PublicProviderIdentity.matches(JSONObject("""{"status":"y","title":"Other title","type":"t","year":"2011"}"""), "Game of Thrones", "2011", "tv"))
     }

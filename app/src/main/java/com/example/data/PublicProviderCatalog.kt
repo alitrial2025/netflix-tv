@@ -21,7 +21,8 @@ import java.io.IOException
 /** Catalog metadata only. Playback URLs, cookies and membership data are never persisted. */
 internal class PublicProviderCatalog(context: Context) {
     private val app = context.applicationContext
-    private val file = AtomicFile(File(app.filesDir, "verified_provider_identities.json"))
+    private val file = AtomicFile(File(app.filesDir, "verified_provider_identities_v3.json"))
+    private val discoveryFile = AtomicFile(File(app.filesDir, "discovered_provider_identities.json"))
     private val feedFile = AtomicFile(File(app.filesDir, "public_provider_feed_v2.json"))
     private val refreshMutex = Mutex()
     private val refreshQueued = AtomicBoolean(false)
@@ -29,7 +30,7 @@ internal class PublicProviderCatalog(context: Context) {
     @Volatile private var liveFeed: Feed? = null
     // Resolver construction happens during UI startup; parse disk metadata on first IO lookup.
     private val persistedFeed: Feed? by lazy {
-        try { feedFile.openRead().use { parseFeed(JSONObject(it.bufferedReader().readText()), System.currentTimeMillis()) } }
+        try { feedFile.openRead().use { parseFeed(JSONObject(it.bufferedReader().readText()), System.currentTimeMillis(), allowStale = true) } }
         catch (_: Exception) { null }
     }
     private val candidates by lazy {
@@ -64,8 +65,8 @@ internal class PublicProviderCatalog(context: Context) {
         } catch (_: Exception) { emptyMap() }
     }
     fun hotstarTitles(type: String, title: String): List<Pair<String, String>> {
-        val normalized = java.text.Normalizer.normalize(title,java.text.Normalizer.Form.NFKD)
-            .replace(Regex("\\p{M}"),"").lowercase(java.util.Locale.ROOT).replace(Regex("[^a-z0-9]"),"")
+        val normalized = PublicIdentityDiscovery.normalize(title)
+        if (normalized.isEmpty()) return emptyList()
         return (currentFeed()?.partner?.get("$type:$normalized").orEmpty() + hotstarTitles["$type:$normalized"].orEmpty()).distinct()
     }
     private val verified by lazy {
@@ -74,7 +75,7 @@ internal class PublicProviderCatalog(context: Context) {
     }
     fun candidates(type: String, tmdb: String): List<Pair<String, String>> =
         (currentFeed()?.native?.get("$type:$tmdb").orEmpty() + candidates["$type:$tmdb"].orEmpty()).distinct()
-    private fun currentFeed() = (liveFeed ?: persistedFeed)?.takeIf { System.currentTimeMillis() - it.generatedAt <= 14 * 86_400_000L }
+    private fun currentFeed() = liveFeed ?: persistedFeed
     fun refreshInBackground(client: OkHttpClient, force: Boolean = false) {
         if (!refreshQueued.compareAndSet(false,true)) return
         refreshScope.launch { try { refresh(client,force) } finally { refreshQueued.set(false) } }
@@ -95,6 +96,7 @@ internal class PublicProviderCatalog(context: Context) {
                 if (!response.isSuccessful) return@withLock
                 val root = JSONObject(response.body)
                 val parsed = parseFeed(root, now).copy(fetchedAt = now)
+                if (parsed.generatedAt < (currentFeed()?.generatedAt ?: 0L)) return@withLock
                 root.put("fetchedAt", now)
                 var output: java.io.FileOutputStream? = null
                 try { output = feedFile.startWrite(); output.write(root.toString().toByteArray(Charsets.UTF_8)); feedFile.finishWrite(output) }
@@ -109,16 +111,57 @@ internal class PublicProviderCatalog(context: Context) {
         val id = row.optString("id"); val ott = row.optString("ott")
         return (id to ott).takeIf { valid(ott,id) && row.optLong("expiresAt") > now }
     }
-    @Synchronized fun save(key: String, id: String, ott: String, now: Long) {
+    @Synchronized fun save(key: String, id: String, ott: String, now: Long, aliases: List<String> = emptyList()) {
         if (!valid(ott,id)) return
         if (verified.length() >= 20000) {
             val expired = verified.keys().asSequence().filter { (verified.optJSONObject(it)?.optLong("expiresAt", 0L) ?: 0L) <= now }.toList()
             expired.forEach(verified::remove)
             if (verified.length() >= 20000) verified.keys().asSequence().firstOrNull()?.let(verified::remove)
         }
-        verified.put(key, JSONObject().put("id",id).put("ott",ott).put("expiresAt",now + 7 * 86_400_000L))
+        verified.put(key, JSONObject().put("id",id).put("ott",ott).put("expiresAt",now + 7 * 86_400_000L).put("aliases", JSONArray(aliases.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(24))))
         persist()
     }
+    @Synchronized fun verifiedAliases(key: String): List<String> = strings(verified.optJSONObject(key)?.optJSONArray("aliases"))
+    internal data class Discovered(val ids: List<Pair<String, String>>, val aliases: List<String>, val typedIds: Set<Pair<String, String>>)
+    private val discovered by lazy {
+        try { discoveryFile.openRead().use { JSONObject(it.bufferedReader().readText()) } }
+        catch (_: Exception) { JSONObject() }
+    }
+    @Synchronized fun discovered(key: String, now: Long): Discovered? {
+        val row = discovered.optJSONObject(key) ?: return null
+        if (row.optLong("expiresAt") <= now) return null
+        val rows = row.optJSONArray("ids") ?: return null
+        val ids = (0 until rows.length()).mapNotNull { i ->
+            val candidate = rows.optJSONArray(i) ?: return@mapNotNull null
+            val id = candidate.optString(0); val ott = candidate.optString(1)
+            (id to ott).takeIf { valid(ott, id) }
+        }.distinct().take(24)
+        val typedRows = row.optJSONArray("typedIds") ?: JSONArray()
+        val typedIds = (0 until typedRows.length()).mapNotNull { i ->
+            val candidate = typedRows.optJSONArray(i) ?: return@mapNotNull null
+            val value = candidate.optString(0) to candidate.optString(1)
+            value.takeIf { it in ids }
+        }.toSet()
+        return Discovered(ids, strings(row.optJSONArray("aliases")), typedIds).takeIf { ids.isNotEmpty() }
+    }
+    @Synchronized fun saveDiscovered(key: String, ids: List<Pair<String, String>>, aliases: List<String>, now: Long, typedIds: List<Pair<String, String>> = emptyList()) {
+        val validIds = ids.filter { valid(it.second, it.first) }.distinct().take(24)
+        if (validIds.isEmpty() || !key.matches(Regex("(?:movie|tv):[1-9][0-9]*"))) return
+        if (discovered.length() >= 20000) {
+            discovered.keys().asSequence().filter { (discovered.optJSONObject(it)?.optLong("expiresAt") ?: 0L) <= now }
+                .toList().forEach(discovered::remove)
+            if (discovered.length() >= 20000) discovered.keys().asSequence().firstOrNull()?.let(discovered::remove)
+        }
+        discovered.put(key, JSONObject().put("expiresAt", now + 86_400_000L)
+            .put("ids", JSONArray(validIds.map { JSONArray(listOf(it.first, it.second)) }))
+            .put("typedIds", JSONArray(typedIds.filter { it in validIds }.distinct().map { JSONArray(listOf(it.first, it.second)) }))
+            .put("aliases", JSONArray(aliases.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(24))))
+        var output: java.io.FileOutputStream? = null
+        try { output = discoveryFile.startWrite(); output.write(discovered.toString().toByteArray(Charsets.UTF_8)); discoveryFile.finishWrite(output) }
+        catch (_: Exception) { output?.let(discoveryFile::failWrite) }
+    }
+    private fun strings(rows: JSONArray?): List<String> = if (rows == null) emptyList() else
+        (0 until rows.length()).map { rows.optString(it) }.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(24)
     @Synchronized fun evict(key: String) { if (verified.remove(key) != null) persist() }
     private fun persist() {
         var output: java.io.FileOutputStream? = null
@@ -142,9 +185,9 @@ internal class PublicProviderCatalog(context: Context) {
         private val NORMALIZED_TITLE = Regex("[a-z0-9]+")
         private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         internal const val FEED_URL = "https://raw.githubusercontent.com/alitrial2025/netflix-tv/main/catalogs/provider-identities.json"
-        internal fun parseFeed(root: JSONObject, now: Long): Feed {
+        internal fun parseFeed(root: JSONObject, now: Long, allowStale: Boolean = false): Feed {
             val generated = root.optLong("generatedAt")
-            if (root.optInt("schemaVersion") != 2 || generated <= 0 || generated > now + 300_000L || now - generated > 14 * 86_400_000L)
+            if (root.optInt("schemaVersion") != 2 || generated <= 0 || generated > now + 300_000L || !allowStale && now - generated > 14 * 86_400_000L)
                 throw IOException("Invalid or stale provider feed")
             val nativeRows = root.optJSONArray("nativeRows") ?: throw IOException("Missing native identities")
             val partnerRows = root.optJSONArray("partnerRows") ?: throw IOException("Missing partner identities")

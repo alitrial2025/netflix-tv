@@ -33,7 +33,7 @@ jobs:
         if: ${{ github.repository == 'alitrial2025/netflix-tv' }}
         run: node --test marketing-site/tests/release-policy.test.mjs tools/cdn-audit/season-catalog-audit.test.mjs tools/cdn-audit/probe.test.mjs tools/cdn-audit/audit-profiles.test.mjs tools/public-playback/public-catalog-flow.test.mjs
       - name: Validate provider identity refresh
-        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs tools/public-playback/public-catalog-flow.test.mjs
+        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs tools/public-playback/public-catalog-flow.test.mjs tools/public-playback/netflix-catalog.test.mjs
       - name: Build debug APK
         run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug
       - name: Run unit tests
