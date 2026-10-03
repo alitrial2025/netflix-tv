@@ -26,7 +26,7 @@ The browser check starts its own local server, checks all six phone screens, in-
 
 ## Downloads and publishing
 
-`updates/mobile.json` and `updates/tv.json` identify the existing **debug review APKs**, including their exact size, SHA-256, certificate fingerprint and `buildType: "debug"`. Keep the metadata aligned whenever the actual artifacts change. The website labels debug builds beside each download button and provides expandable file details. The release publishing tool emits `buildType: "release"` only for its release-signing flow.
+`updates/mobile.json` and `updates/tv.json` identify the existing **debug review APKs**, including their exact size, SHA-256, certificate fingerprint and `buildType: "debug"`. Keep the metadata aligned whenever the actual artifacts change. The website labels debug builds beside each download button; technical file identity remains in update metadata and is not displayed on the cards. The release publishing tool emits `buildType: "release"` only for its release-signing flow.
 
 The Vercel project is **netflixpro** under **alitrial2025-9479**, linked from `marketing-site`. Deploy this folder, not the Android repository root:
 

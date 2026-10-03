@@ -39,19 +39,6 @@ async function loadChannel(channel) {
       notes.textContent = release.releaseNotes || 'Download the latest published release.';
       badge.textContent = release.buildType === 'debug' ? 'Debug review build · outside Google Play' : 'Release build · outside Google Play';
       link.textContent = `Download ${channel === 'tv' ? 'TV' : 'phone'} ${release.buildType === 'debug' ? 'debug ' : ''}APK`;
-      let details = card.querySelector('.release__identity');
-      if (!details) {
-        details = document.createElement('details');
-        details.className = 'release__identity';
-        card.insertBefore(details, link);
-      }
-      details.replaceChildren();
-      const heading = document.createElement('summary');
-      heading.textContent = 'File source and verification details';
-      const identity = document.createElement('p');
-      identity.textContent = `Developer: mzazimhenga · Source: ${new URL(release.apkUrl).hostname}\nPackage: ${release.packageName}\nSHA-256: ${release.sha256}\nSigning certificate SHA-256: ${release.signingCertificateSha256.join(', ')}`;
-      identity.style.whiteSpace = 'pre-line';
-      details.append(heading, identity);
     } else {
       summary.textContent = 'The next release is being prepared.';
       notes.textContent = 'The download will appear here when a signed APK is published.';
