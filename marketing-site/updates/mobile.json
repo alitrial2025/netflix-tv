@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 13,
-  "versionName": "1.12",
+  "versionCode": 14,
+  "versionName": "1.13",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14128063,
-  "sha256": "e084693a834593d959db5b1417b77538f16fd0b4e91e44d06095b501c48bd3ea",
+  "sizeBytes": 14128052,
+  "sha256": "77c37b64a73ed2c6bb4017b550a3cfae0959dab09d597356dcc6bff32e20a6f9",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/13-e084693a834593d9.apk",
-  "releaseNotes": "Fixes show lookup under alternate titles, including Lioness Season 1. Corrects Prime season matching and reuses search results for faster lookup. Install over the existing production app to preserve accounts and app data.",
+  "apkUrl": "/downloads/mobile/14-77c37b64a73ed2c6.apk",
+  "releaseNotes": "Reduces duplicate episode requests and pauses automatic downloads during playback. Improves visible detail previews without adding a timing clock. Payment codes are verified securely by the membership server against the exact merchant receipt and account-bound checkout; retry your existing code without paying again. Signed-in Guest accounts show View Plans, and downloads show an upgrade dialog.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-03T18:51:11.522Z"
+  "publishedAt": "2026-10-04T08:03:22.954Z"
 }
