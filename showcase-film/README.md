@@ -14,6 +14,8 @@ Phone: Home browsing and saving, search, New & Hot, games, Clips, title details,
 
 Screens execute production Compose code through Robolectric native Skia. Account state and fixture data are synthetic. The TV harness directs Firebase clients to local, unused emulator ports and uses a capture-only shadow for a previously verified Premium session. The shadow and harnesses never enter release APKs. Original procedural eclipse footage illustrates the player; no real payment, customer account or stream-speed measurement is used. Film coverage emphasizes user-facing screens and principal controls; it does not claim to display every internal loading/error or legacy duplicate component.
 
+Capture image loaders predecode bundled artwork, use software bitmaps and settle image transitions before export. A capture-only trailer resolver shadow prevents provider calls in the Clips shot; its native controls are shown with the same original procedural footage used in the player scenes.
+
 ## Reproduce
 
 Keep TV and mobile repositories beside each other, named `netflix-tv` and `netflix-mobile`. Install JDK 21, Android 35, Gradle 8.9, FFmpeg, Open Sans and the existing cinematic Python requirements. Capture outputs use `/workspace/artifacts/showcase-20261004` by default.

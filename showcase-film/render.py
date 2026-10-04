@@ -120,6 +120,12 @@ def base_compose(index,t):
     bit=type_layer('AVAILABLE NOW',15,color=(192,200,214),bold=True);md.title(im,bit,(W-bit.shape[1])//2,892,t,.5)
  elif s['kind']=='mobile':
   source,u,_=choose(s,t);frame=screen_for(s,t)
+  if source=='mobile:clips':
+   # SurfaceView footage is illustrative; preserve the native white controls and copy.
+   frame=frame.copy();h,w=frame.shape[:2];a,b=round(h*.09),round(h*.73)
+   footage=cv2.resize(fx.footage(t),(w,b-a))[:,:,:3]
+   region=frame[a:b,:,:3];mask=np.max(region,axis=2)<18
+   region[mask]=footage[mask]
   if s['name']=='connected':
    fx.device(im,native('tv:home',t*.3),1050,1660,1350,'tv',yaw=-8+7*p,opacity=ease(t/.8)*.85,reflect=False)
    md.connection(im,t)

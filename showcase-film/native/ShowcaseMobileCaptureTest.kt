@@ -52,7 +52,20 @@ class ShowcaseMobileCaptureTest {
         // retains the previous sandbox's main-thread dispatcher and stalls new requests.
         org.junit.Assume.assumeTrue("Set NETFLIXPRO_CAPTURE=1 for native film export", System.getenv("NETFLIXPRO_CAPTURE") == "1")
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<Application>()
-        coil.Coil.setImageLoader(coil.ImageLoader.Builder(context).build())
+        val loader=coil.ImageLoader.Builder(context).allowHardware(false).components {
+            add(coil.intercept.Interceptor { chain ->
+                val result=chain.proceed(chain.request.newBuilder().allowHardware(false).crossfade(false).build())
+                if(result is coil.request.ErrorResult) System.err.println("CAPTURE_ARTWORK_ERROR ${result.throwable.javaClass.simpleName}")
+                result
+            })
+        }.build()
+        coil.Coil.setImageLoader(loader)
+        kotlinx.coroutines.runBlocking {
+            for(file in File("src/test/resources/artwork").listFiles().orEmpty().filter{it.extension in listOf("jpg","png","webp")}) {
+                val result=loader.execute(coil.request.ImageRequest.Builder(context).data(fixture(file.name)).allowHardware(false).crossfade(false).build())
+                check(result is coil.request.SuccessResult) { "Offline film artwork failed to decode" }
+            }
+        }
         org.robolectric.shadows.ShadowStatFs.registerStats(context.filesDir.absolutePath, 16_000_000, 9_000_000, 9_000_000)
     }
     private val names = listOf("Jeff", "Brian", "Mom", "Home", "Kids")
@@ -164,9 +177,11 @@ class ShowcaseMobileCaptureTest {
         } }
         ready(); capture("downloads")
     }
+    @Config(qualifiers="w412dp-h895dp-xhdpi",sdk=[34],application=Application::class,
+        shadows=[ShowcaseTrailerResolverShadow::class],instrumentedPackages=["com.example.data.TrailerResolver"])
     @Test fun filmClips() {
         com.example.data.CatalogData.allMedia = listOf(show)
-        rule.setContent { NetflixTheme { com.example.ui.screens.ClipsScreen(streamingAllowed=false) } }
+        rule.setContent { NetflixTheme { com.example.ui.screens.ClipsScreen(streamingAllowed=true) } }
         ready(); capture("clips")
     }
     @Test fun filmMyList() {
@@ -306,4 +321,14 @@ class ShowcaseMobileCaptureTest {
         rule.runOnIdle{state.value=state.value.copy(showEpisodeDrawer=false,hasEnded=true)};ready();capture("post-play")
     }
 
+}
+
+/** Render the real Clips controls without calling a remote trailer provider. */
+@org.robolectric.annotation.Implements(value=com.example.data.TrailerResolver::class,isInAndroidSdk=false)
+class ShowcaseTrailerResolverShadow {
+    @org.robolectric.annotation.RealObject private lateinit var resolver:com.example.data.TrailerResolver
+    @org.robolectric.annotation.Implementation fun start() {
+        val field=com.example.data.TrailerResolver::class.java.getDeclaredField("callback").apply{isAccessible=true}
+        (field.get(resolver) as com.example.data.TrailerResolverCallback).onError("Local illustrative capture")
+    }
 }

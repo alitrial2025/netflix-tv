@@ -46,8 +46,16 @@ class ShowcaseTvCaptureTest {
  @Before fun prepare() {
   assumeTrue("Set NETFLIXPRO_CAPTURE=1 to export film frames",System.getenv("NETFLIXPRO_CAPTURE")=="1")
   val app=ApplicationProvider.getApplicationContext<Application>()
-  coil.Coil.setImageLoader(coil.ImageLoader.Builder(app).build())
+  val loader=coil.ImageLoader.Builder(app).allowHardware(false).components {
+   add(coil.intercept.Interceptor { chain ->
+    val result=chain.proceed(chain.request.newBuilder().allowHardware(false).crossfade(false).build())
+    if(result is coil.request.ErrorResult) System.err.println("CAPTURE_ARTWORK_ERROR ${result.throwable.javaClass.simpleName}")
+    result
+   })
+  }.build()
+  coil.Coil.setImageLoader(loader)
   com.example.ui.util.HomeStartupGate.markHomeHidden()
+  com.example.ui.util.HomeStartupGate.setPreparing(true)
   val assets=File("../advertising-video/assets")
   val catalog=JSONArray(File("../advertising-video/catalogue.json").readText())
   movies=(0 until catalog.length()).map { n ->
@@ -55,6 +63,12 @@ class ShowcaseTvCaptureTest {
    Movie("film_${j.getString("id")}",j.getString("title"),j.getString("overview"),
     File(assets,j.getString("backdrop_file")).toURI().toString(),File(assets,j.getString("poster_file")).toURI().toString(),
     rating="16+",year=j.get("year").toString(),type=if(j.getString("type")=="tv")"Series" else "Movie",duration=if(j.getString("type")=="tv")"3 Seasons" else "2h 32m")
+  }
+  kotlinx.coroutines.runBlocking {
+   for(url in movies.flatMap{listOf(it.backdropUrl,it.posterUrl)}.distinct()) {
+    val result=loader.execute(coil.request.ImageRequest.Builder(app).data(url).size(1280,720).allowHardware(false).crossfade(false).build())
+    check(result is coil.request.SuccessResult) { "Offline film artwork failed to decode" }
+   }
   }
   if(com.google.firebase.FirebaseApp.getApps(app).isEmpty()) {
    com.google.firebase.FirebaseApp.initializeApp(app,com.google.firebase.FirebaseOptions.Builder().setApplicationId("1:123:android:demo").setApiKey("AIzaSyDEMO0000000000000000000000000000000").setProjectId("demo-netflixpro").build())
@@ -67,7 +81,7 @@ class ShowcaseTvCaptureTest {
   seed("_profiles",listOf(Profile("film","Home",autoplayPreviews=false),Profile("kids","Kids",isKid=true,autoplayPreviews=false)))
   seed("_categoryRows",listOf("Trending Now" to movies,"Popular Movies" to movies.filter{it.type=="Movie"},"TV Shows" to movies.filter{it.type=="Series"},"Your next story" to movies.reversed()))
   seed("_isLoading",false)
-  seed("_userSubscription",com.example.model.UserSubscription(planId="plan_premium",status="ACTIVE",expiresAt=System.currentTimeMillis()+86_400_000))
+  seed("_userSubscription",com.example.model.UserSubscription(planId="plan_premium",planName="Premium",status="ACTIVE",expiresAt=System.currentTimeMillis()+86_400_000))
   seed("_myListMovieIds",movies.take(3).map{it.id}.toSet())
   root.mkdirs()
  }
@@ -99,9 +113,9 @@ class ShowcaseTvCaptureTest {
   }
  }
  private fun still(name:String) {
-  repeat(3) {
-   org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(1000))
-   rule.mainClock.advanceTimeBy(1000);ShadowLooper.idleMainLooper();rule.waitForIdle()
+  repeat(20) {
+   org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(150))
+   rule.mainClock.advanceTimeBy(150);ShadowLooper.idleMainLooper();rule.waitForIdle();Thread.sleep(30)
   }
   rule.onRoot().captureRoboImage(File(root,"$name.png").path)
  }
@@ -195,6 +209,7 @@ class ShowcaseTvCaptureTest {
 class ShowcaseVerifiedSessionShadow {
     @org.robolectric.annotation.RealObject private lateinit var viewModel: NetflixViewModel
     @org.robolectric.annotation.Implementation fun isUserLoggedInOrGuest(): Boolean = sessionReady
+    @org.robolectric.annotation.Implementation fun isUserLoggedIn(): Boolean = sessionReady
     @org.robolectric.annotation.Implementation fun isMovieLocked(movie: Movie): Boolean = viewModel.userSubscription.value.isMovieLocked(
         movieId = movie.id, releaseYear = movie.year, isTrendingOrVip = false,
         isTvDevice = true, movieTitle = movie.title
