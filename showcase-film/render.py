@@ -128,8 +128,8 @@ def base_compose(index,t):
    x=max(0,min(fitted.shape[1]-w,round(fitted.shape[1]*.62-w*.5)))
    y=(fitted.shape[0]-(b-a))//2;footage=fitted[y:y+b-a,x:x+w]
    region=frame[a:b,:,:3]
-   background=np.median(region,axis=1)[:,None,:]
-   distance=np.max(np.abs(region.astype(np.float32)-background),axis=2)
+   fallback_color=np.median(region,axis=1)[:,None,:]
+   distance=np.max(np.abs(region.astype(np.float32)-fallback_color),axis=2)
    alpha=np.clip(1-distance/12,0,1)[:,:,None]
    region[:]=np.uint8(region*(1-alpha)+footage*alpha)
   if s['name']=='connected':
