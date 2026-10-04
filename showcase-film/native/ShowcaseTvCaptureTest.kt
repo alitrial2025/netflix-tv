@@ -42,7 +42,7 @@ class ShowcaseTvCaptureTest {
  private lateinit var vm:NetflixViewModel
  private lateinit var movies:List<Movie>
  private val route=mutableStateOf("home")
- private val root=File("/workspace/artifacts/showcase-20261004/assets/native-tv")
+ private val root=File(System.getenv("NPRO_SHOWCASE_WORK") ?: "/workspace/artifacts/showcase-20261004", "assets/native-tv")
  @Before fun prepare() {
   assumeTrue("Set NETFLIXPRO_CAPTURE=1 to export film frames",System.getenv("NETFLIXPRO_CAPTURE")=="1")
   val app=ApplicationProvider.getApplicationContext<Application>()

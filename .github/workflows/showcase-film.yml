@@ -1,0 +1,213 @@
+name: TV and phone showcase film
+on:
+  push:
+    branches: ['creative/showcase-20261004']
+    paths: ['showcase-film/**', '.github/workflows/showcase-film.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: showcase-film-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  NPRO_SHOWCASE_WORK: ${{ github.workspace }}/showcase-work
+jobs:
+  native:
+    name: Native Kotlin screens / ${{ matrix.device }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [tv, mobile]
+    env:
+      NETFLIXPRO_CAPTURE: '1'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: netflix-tv
+      - uses: actions/checkout@v5
+        with:
+          repository: alitrial2025/netflix-mobile
+          ref: f162a10b939e40dca13ac5d30ad1eeceeae0bf0c
+          path: netflix-mobile
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: actions/cache@v4
+        id: captures
+        with:
+          path: showcase-work/assets/native-${{ matrix.device }}
+          key: showcase-native-v1-${{ matrix.device }}-${{ hashFiles('netflix-tv/showcase-film/native/*.kt', 'netflix-tv/app/src/main/**/*.kt', 'netflix-tv/advertising-video/catalogue.json', 'netflix-tv/advertising-video/assets/*', 'netflix-mobile/app/src/main/**/*.kt', 'netflix-mobile/app/src/test/resources/artwork/*') }}-f162a10
+      - name: Install capture-only test templates
+        if: steps.captures.outputs.cache-hit != 'true'
+        run: python3 netflix-tv/showcase-film/scripts/capture.py install --mobile-root "$GITHUB_WORKSPACE/netflix-mobile"
+      - name: Export production Compose screens
+        if: steps.captures.outputs.cache-hit != 'true'
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          if [ "$DEVICE" = tv ]; then
+            cd netflix-tv
+            TEST=com.example.ShowcaseTvCaptureTest
+            INIT=launch-film/native/capture.init.gradle
+          else
+            cd netflix-mobile
+            TEST=com.example.ShowcaseMobileCaptureTest
+            INIT=../netflix-tv/launch-film/native/capture.init.gradle
+          fi
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=2 --init-script "$INIT" :app:testDebugUnitTest --tests "$TEST" -Proborazzi.test.record=true
+      - name: Remove temporary capture harnesses
+        if: always()
+        run: python3 netflix-tv/showcase-film/scripts/capture.py remove --mobile-root "$GITHUB_WORKSPACE/netflix-mobile"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: showcase-native-${{ matrix.device }}
+          path: showcase-work/assets/native-${{ matrix.device }}/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: showcase-capture-errors-${{ matrix.device }}
+          path: |
+            netflix-tv/app/build/test-results/
+            netflix-tv/app/build/reports/tests/
+            netflix-mobile/app/build/test-results/
+            netflix-mobile/app/build/reports/tests/
+  preview:
+    name: Inspect edit and master audio
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: showcase-native-tv
+          path: showcase-work/assets/native-tv
+      - uses: actions/download-artifact@v5
+        with:
+          name: showcase-native-mobile
+          path: showcase-work/assets/native-mobile
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: advertising-video/cinematic/requirements.txt
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg fonts-open-sans
+      - run: pip install -r advertising-video/cinematic/requirements.txt
+      - run: python3 showcase-film/render.py audio
+      - run: python3 showcase-film/render.py storyboard
+      - uses: actions/upload-artifact@v5
+        with:
+          name: showcase-preview-and-audio
+          path: |
+            showcase-work/output/review/
+            showcase-work/output/native-provenance.json
+            showcase-work/assets/audio/master.wav
+            showcase-work/assets/audio/master.json
+          if-no-files-found: error
+          retention-days: 30
+  render:
+    name: Render scenes / shard ${{ matrix.shard }}
+    needs: preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: showcase-native-tv
+          path: showcase-work/assets/native-tv
+      - uses: actions/download-artifact@v5
+        with:
+          name: showcase-native-mobile
+          path: showcase-work/assets/native-mobile
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: advertising-video/cinematic/requirements.txt
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg fonts-open-sans
+      - run: pip install -r advertising-video/cinematic/requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: showcase-work/output/segments/
+          key: showcase-scenes-v1-${{ matrix.shard }}-${{ hashFiles('showcase-film/render.py', 'showcase-film/shot-list.json', 'showcase-film/native/*.kt', 'advertising-video/cinematic/film.py', 'app/src/main/**/*.kt', 'advertising-video/assets/*') }}-f162a10
+      - name: Render resumable scene clips
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          python3 - <<'PY'
+          import json,os,subprocess
+          shots=json.load(open('showcase-film/shot-list.json'))
+          for index in range(int(os.environ['SHARD']),len(shots),8):
+              subprocess.run(['python3','showcase-film/render.py','scene','--index',str(index)],check=True)
+          PY
+      - uses: actions/upload-artifact@v5
+        with:
+          name: showcase-scenes-${{ matrix.shard }}
+          path: showcase-work/output/segments/
+          if-no-files-found: error
+          retention-days: 30
+  delivery:
+    name: Assemble film and Resolve timeline
+    needs: render
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: showcase-scenes-*
+          merge-multiple: true
+          path: showcase-work/output/segments
+      - uses: actions/download-artifact@v5
+        with:
+          name: showcase-native-tv
+          path: showcase-work/assets/native-tv
+      - uses: actions/download-artifact@v5
+        with:
+          name: showcase-native-mobile
+          path: showcase-work/assets/native-mobile
+      - uses: actions/download-artifact@v5
+        with:
+          name: showcase-preview-and-audio
+          path: preview-artifact
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: advertising-video/cinematic/requirements.txt
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg fonts-open-sans
+      - run: pip install -r advertising-video/cinematic/requirements.txt
+      - name: Restore continuous score and storyboard
+        run: |
+          mkdir -p showcase-work/assets/audio showcase-work/output/review
+          cp preview-artifact/assets/audio/master.* showcase-work/assets/audio/
+          cp preview-artifact/output/review/* showcase-work/output/review/
+      - run: python3 showcase-film/render.py assemble
+      - run: python3 showcase-film/scripts/deliver.py timeline
+      - run: python3 showcase-film/scripts/deliver.py verify
+      - uses: actions/upload-artifact@v5
+        with:
+          name: NetflixPro-TV-and-Phone-Showcase-and-Resolve
+          path: |
+            showcase-work/output/NetflixPro-TV-and-Phone-3min.mp4
+            showcase-work/output/NetflixPro-Resolve-Project.zip
+            showcase-work/output/NetflixPro-Captions.srt
+            showcase-work/output/Verification.json
+            showcase-work/output/native-provenance.json
+            showcase-work/output/review/
+            showcase-work/assets/audio/master.json
+          if-no-files-found: error
+          retention-days: 90

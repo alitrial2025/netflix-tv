@@ -1,8 +1,8 @@
 """Create a Resolve-importable FCP7 XML and verify the delivered film."""
 from pathlib import Path
-import argparse,hashlib,json,subprocess,shutil,xml.etree.ElementTree as E,zipfile
+import argparse,hashlib,json,os,re,subprocess,shutil,xml.etree.ElementTree as E,zipfile
 HERE=Path(__file__).resolve().parents[1]
-ROOT=Path('/workspace/artifacts/showcase-20261004')
+ROOT=Path(os.environ.get('NPRO_SHOWCASE_WORK','/workspace/artifacts/showcase-20261004')).resolve()
 OUT=ROOT/'output';SHOTS=json.loads((HERE/'shot-list.json').read_text())
 RATE=30
 def child(parent,key,value=None,**attrib):
@@ -65,7 +65,34 @@ def verify():
  clips=sequence.findall('media/video/track/clipitem');assert len(clips)==29
  assert [int(c.findtext('start')) for c in clips]==[s['start']*RATE for s in SHOTS]
  assert [int(c.findtext('end')) for c in clips]==[s['end']*RATE for s in SHOTS]
- report={'finishedVideo':path.name,'durationSeconds':180,'width':1920,'height':1080,'fps':30,'frames':5400,'chapters':29,'stereoAudio':True,'fullDecodePassed':True,'resolveXmlValidated':True,'resolveApplicationImportTested':False,'realPaymentMade':False,'fixtureData':True,'bytes':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+ for i,shot in enumerate(SHOTS):
+  segment=OUT/'segments'/f'{i+1:02d}-{shot["name"]}.mp4'
+  streams=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-of','json',str(segment)]))['streams']
+  v=next(s for s in streams if s['codec_type']=='video')
+  assert (v['width'],v['height'],v['r_frame_rate'],int(v['nb_frames']))==(1920,1080,'30/1',shot['duration']*RATE),segment
+ with zipfile.ZipFile(OUT/'NetflixPro-Resolve-Project.zip') as archive:
+  assert archive.testzip() is None
+  assert sum(n.endswith('.mp4') for n in archive.namelist())==29
+ # Review the actual encoded film as well as the source storyboard.
+ from PIL import Image,ImageDraw,ImageFont
+ review=OUT/'review';decoded=review/'decoded';decoded.mkdir(parents=True,exist_ok=True)
+ frames=[round((s['start']+min(s['duration']/2,2.5))*RATE) for s in SHOTS]
+ expression='+'.join(f'eq(n,{n})' for n in frames)
+ subprocess.run(['ffmpeg','-v','error','-y','-threads','1','-i',str(path),'-an','-vf',f"select='{expression}',scale=480:270",'-fps_mode','vfr','-frames:v','29','-threads','1',str(decoded/'scene-%02d.jpg')],check=True)
+ pictures=sorted(decoded.glob('scene-*.jpg'));assert len(pictures)==29
+ board=Image.new('RGB',(1920,8*310),(3,4,7));font=ImageFont.truetype('/usr/share/fonts/truetype/open-sans/OpenSans-Regular.ttf',14)
+ for i,(picture,shot) in enumerate(zip(pictures,SHOTS)):
+  x,y=(i%4)*480,(i//4)*310
+  with Image.open(picture) as im:board.paste(im,(x,y))
+  ImageDraw.Draw(board).text((x+12,y+281),f'{shot["start"]:03d}s  {shot["name"]}',font=font,fill=(191,199,215))
+ board.save(review/'Decoded-Storyboard.jpg',quality=94)
+ loudness=subprocess.run(['ffmpeg','-hide_banner','-threads','1','-i',str(path),'-vn','-af','loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json','-f','null','-'],capture_output=True,text=True,check=True)
+ measured=json.loads(re.findall(r'\{\s*"input_i".*?\}',loudness.stderr,re.S)[-1])
+ assert -18<=float(measured['input_i'])<=-14
+ assert float(measured['input_tp'])<0
+ (review/'Audio-Loudness.json').write_text(json.dumps(measured,indent=2)+'\n')
+ report={'finishedVideo':path.name,'durationSeconds':180,'width':1920,'height':1080,'fps':30,'frames':5400,'chapters':29,'stereoAudio':True,'fullDecodePassed':True,'sceneFrameCountsValidated':True,'resolveArchiveCrcPassed':True,'decodedReviewFrames':29,'audioIntegratedLufs':float(measured['input_i']),'audioTruePeakDbtp':float(measured['input_tp']),'resolveXmlValidated':True,'resolveApplicationImportTested':False,'realPaymentMade':False,'fixtureData':True,'bytes':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+ report['deliveryFiles']={p.name:{'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in [path,OUT/'NetflixPro-Resolve-Project.zip',OUT/'NetflixPro-Captions.srt']}
  (OUT/'Verification.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 def main():
  p=argparse.ArgumentParser();p.add_argument('action',choices=['timeline','verify']);args=p.parse_args()

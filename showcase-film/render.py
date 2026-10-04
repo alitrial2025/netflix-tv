@@ -171,7 +171,7 @@ def validate_sources():
  (OUT/'native-provenance.json').write_text(json.dumps({'source':'Production Kotlin Compose, opt-in Robolectric native Skia captures','fixtureData':True,'customerAccountsUsed':False,'realPaymentMade':False,'captures':records},indent=2)+'\n')
  print('Validated',len(records),'native screen/component sources',flush=True)
 def encode(index):
- s=SHOTS[index];output=SEG/f'{index+1:02d}-{s["name"]}.mp4';signature=hashlib.sha256(Path(__file__).read_bytes()+(HERE/'shot-list.json').read_bytes()).hexdigest()
+ s=SHOTS[index];output=SEG/f'{index+1:02d}-{s["name"]}.mp4';signature=hashlib.sha256(Path(__file__).read_bytes()+(HERE/'shot-list.json').read_bytes()+Path(fx.__file__).read_bytes()+(OUT/'native-provenance.json').read_bytes()).hexdigest()
  stamp=output.with_suffix('.json')
  if output.exists() and stamp.exists() and json.loads(stamp.read_text()).get('signature')==signature:return
  cmd=['ffmpeg','-hide_banner','-loglevel','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','pipe:0','-an','-c:v','libx264','-preset','veryfast','-crf','18','-threads','1','-pix_fmt','yuv420p','-profile:v','high','-color_primaries','bt709','-color_trc','bt709','-colorspace','bt709','-movflags','+faststart',str(output)]

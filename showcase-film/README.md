@@ -16,6 +16,8 @@ Screens execute production Compose code through Robolectric native Skia. Account
 
 Keep TV and mobile repositories beside each other, named `netflix-tv` and `netflix-mobile`. Install JDK 21, Android 35, Gradle 8.9, FFmpeg, Open Sans and the existing cinematic Python requirements. Capture outputs use `/workspace/artifacts/showcase-20261004` by default.
 
+`.github/workflows/showcase-film.yml` reproduces the full capture and delivery on GitHub Actions. It pins the mobile source to `f162a10b939e40dca13ac5d30ad1eeceeae0bf0c`, caches native exports, renders 29 scenes across eight jobs, and retains the finished film and Resolve media archive for 90 days. Set `NPRO_SHOWCASE_WORK` to choose a writable output directory; native captures, rendering and timeline export all honor it.
+
 ```sh
 python showcase-film/scripts/capture.py install
 NETFLIXPRO_CAPTURE=1 ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest \
@@ -42,4 +44,4 @@ Native interaction sequences are exported at 15 fps; the composition and deliver
 - `output/native-provenance.json`
 - `output/review/Storyboard.jpg`
 
-`deliver.py verify` checks dimensions, frame count, exact duration, stereo audio, chapter count, continuous decoding and the interchange timeline's clip boundaries. A decoded contact sheet and audio loudness report supplement those checks. Actual Resolve import remains untested.
+`deliver.py verify` checks dimensions, frame count, exact duration, stereo audio, chapter count, continuous decoding, all 29 scene frame counts, archive CRCs and the interchange timeline's clip boundaries. It exports 29 frames from the encoded MP4 into `review/decoded`, creates `review/Decoded-Storyboard.jpg`, and measures encoded audio loudness in `review/Audio-Loudness.json`. Actual Resolve import remains untested.
