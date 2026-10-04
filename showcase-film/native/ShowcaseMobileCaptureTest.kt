@@ -47,12 +47,13 @@ import org.robolectric.annotation.GraphicsMode
 @Config(qualifiers = "w412dp-h895dp-xhdpi", sdk = [34], application = Application::class)
 class ShowcaseMobileCaptureTest {
     @get:Rule val rule = createComposeRule()
+    private val captureArtwork=mutableMapOf<String,android.graphics.Bitmap>()
     @Before fun freshImageLoaderForRobolectricApplication() {
         // Robolectric replaces the Application between tests; Coil's singleton otherwise
         // retains the previous sandbox's main-thread dispatcher and stalls new requests.
         org.junit.Assume.assumeTrue("Set NETFLIXPRO_CAPTURE=1 for native film export", System.getenv("NETFLIXPRO_CAPTURE") == "1")
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<Application>()
-        val artwork=mutableMapOf<String,android.graphics.Bitmap>()
+        val artwork=captureArtwork
         val loader=coil.ImageLoader.Builder(context).allowHardware(false).components {
             add(coil.intercept.Interceptor { chain ->
                 val request=chain.request.newBuilder().allowHardware(false).crossfade(false)
@@ -215,7 +216,7 @@ class ShowcaseMobileCaptureTest {
     private fun filmCatalog(): List<MediaItem> {
         val source=File("../../netflix-tv/advertising-video")
         val data=org.json.JSONArray(File(source,"catalogue.json").readText())
-        return listOf(show)+(0 until data.length()).map { n ->
+        val catalogue=listOf(show)+(0 until data.length()).map { n ->
             val j=data.getJSONObject(n)
             show.copy(id="${9000+n}", title=j.getString("title"), description=j.getString("overview"),
                 posterUrl=File(source,"assets/"+j.getString("poster_file")).toURI().toString(),
@@ -223,6 +224,14 @@ class ShowcaseMobileCaptureTest {
                 type=if(j.getString("type")=="tv")MediaType.TV_SHOW else MediaType.MOVIE,top10Rank=n+2,
                 isTrending=true, releaseYear=j.getInt("year"))
         }
+        catalogue.flatMap { listOfNotNull(it.posterUrl,it.backdropUrl) }.distinct().forEach { url ->
+            captureArtwork.getOrPut(url) {
+                checkNotNull(android.graphics.BitmapFactory.decodeFile(File(java.net.URI(url)).path)) {
+                    "Offline catalogue artwork failed to decode"
+                }
+            }
+        }
+        return catalogue
     }
     private fun motionClip(name:String,seconds:Int,events:Map<Int,()->Unit> = emptyMap()) {
         val dir=File(captureRoot(),name).apply{mkdirs()}

@@ -121,11 +121,17 @@ def base_compose(index,t):
  elif s['kind']=='mobile':
   source,u,_=choose(s,t);frame=screen_for(s,t)
   if source=='mobile:clips':
-   # SurfaceView footage is illustrative; preserve the native white controls and copy.
+   # Replace only the uniform native fallback gradient; keep native controls and copy.
    frame=frame.copy();h,w=frame.shape[:2];a,b=round(h*.09),round(h*.73)
-   footage=cv2.resize(fx.footage(t),(w,b-a))[:,:,:3]
-   region=frame[a:b,:,:3];mask=np.max(region,axis=2)<18
-   region[mask]=footage[mask]
+   original=fx.footage(t);fh,fw=original.shape[:2];scale=max(w/fw,(b-a)/fh)
+   fitted=cv2.resize(original,(math.ceil(fw*scale),math.ceil(fh*scale)))[:,:,:3]
+   x=max(0,min(fitted.shape[1]-w,round(fitted.shape[1]*.62-w*.5)))
+   y=(fitted.shape[0]-(b-a))//2;footage=fitted[y:y+b-a,x:x+w]
+   region=frame[a:b,:,:3]
+   background=np.median(region,axis=1)[:,None,:]
+   distance=np.max(np.abs(region.astype(np.float32)-background),axis=2)
+   alpha=np.clip(1-distance/12,0,1)[:,:,None]
+   region[:]=np.uint8(region*(1-alpha)+footage*alpha)
   if s['name']=='connected':
    fx.device(im,native('tv:home',t*.3),1050,1660,1350,'tv',yaw=-8+7*p,opacity=ease(t/.8)*.85,reflect=False)
    md.connection(im,t)
