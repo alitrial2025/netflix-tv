@@ -142,7 +142,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: showcase-work/output/segments/
-          key: showcase-scenes-v1-${{ matrix.shard }}-${{ hashFiles('showcase-film/render.py', 'showcase-film/shot-list.json', 'showcase-film/native/*.kt', 'advertising-video/cinematic/film.py', 'app/src/main/**/*.kt', 'advertising-video/assets/*') }}-f162a10
+          key: showcase-scenes-v1-${{ matrix.shard }}-${{ hashFiles('showcase-film/*.py', 'showcase-film/shot-list.json', 'showcase-film/native/*.kt', 'advertising-video/cinematic/film.py', 'app/src/main/**/*.kt', 'advertising-video/assets/*') }}-f162a10
       - name: Render resumable scene clips
         env:
           SHARD: ${{ matrix.shard }}

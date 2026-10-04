@@ -2,6 +2,8 @@
 
 One fully edited three-minute film for both released apps. This is a 1920×1080, 30 fps product tour with 29 chapters, native Kotlin UI, perspective device shots, camera pushes, focus pulls, travelling-light reveals, matched transitions, original music and stereo sound effects. The final MP4 is ready to watch; editing software is not required.
 
+The visual edit uses orbiting artwork planes with parallax and focus falloff, perspective stage lines, animated key and rim lighting, drifting particles, rotating device arrivals, a phone drop, moving bezel highlights, staggered typography, screen-to-screen dissolves and a travelling connection light between devices. Scene transitions follow the TV, phone and connected-device chapters. Hero interfaces remain crisp; supporting artwork and devices sit behind them. The original score includes stereo whooshes, impact accents and quiet ticks timed to native screen changes.
+
 DaVinci Resolve is a desktop editor and is not installed in GitHub or this cloud environment. The deliverable includes an optional FCP7 XML interchange timeline with media, original audio and captions for import into Resolve. It is not a proprietary `.drp` project, and an actual Resolve application import cannot be verified in this environment. Each main scene is a separate editable clip; its internal visual treatment is baked into that clip.
 
 ## Screen coverage
