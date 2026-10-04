@@ -52,19 +52,20 @@ class ShowcaseMobileCaptureTest {
         // retains the previous sandbox's main-thread dispatcher and stalls new requests.
         org.junit.Assume.assumeTrue("Set NETFLIXPRO_CAPTURE=1 for native film export", System.getenv("NETFLIXPRO_CAPTURE") == "1")
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<Application>()
+        val artwork=mutableMapOf<String,android.graphics.Bitmap>()
         val loader=coil.ImageLoader.Builder(context).allowHardware(false).components {
             add(coil.intercept.Interceptor { chain ->
-                val result=chain.proceed(chain.request.newBuilder().allowHardware(false).crossfade(false).build())
+                val request=chain.request.newBuilder().allowHardware(false).crossfade(false)
+                artwork[chain.request.data.toString()]?.let { request.data(it).memoryCacheKey(chain.request.data.toString()) }
+                val result=chain.proceed(request.build())
                 if(result is coil.request.ErrorResult) System.err.println("CAPTURE_ARTWORK_ERROR ${result.throwable.javaClass.simpleName}")
                 result
             })
         }.build()
         coil.Coil.setImageLoader(loader)
-        kotlinx.coroutines.runBlocking {
-            for(file in File("src/test/resources/artwork").listFiles().orEmpty().filter{it.extension in listOf("jpg","png","webp")}) {
-                val result=loader.execute(coil.request.ImageRequest.Builder(context).data(fixture(file.name)).allowHardware(false).crossfade(false).build())
-                check(result is coil.request.SuccessResult) { "Offline film artwork failed to decode" }
-            }
+        for(file in File("src/test/resources/artwork").listFiles().orEmpty().filter{it.extension in listOf("jpg","png","webp")}) {
+            val url=fixture(file.name)
+            artwork[url]=checkNotNull(android.graphics.BitmapFactory.decodeFile(File(java.net.URI(url)).path)) { "Offline film artwork failed to decode" }
         }
         org.robolectric.shadows.ShadowStatFs.registerStats(context.filesDir.absolutePath, 16_000_000, 9_000_000, 9_000_000)
     }

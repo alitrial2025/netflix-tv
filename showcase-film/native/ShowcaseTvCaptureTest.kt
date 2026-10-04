@@ -46,9 +46,12 @@ class ShowcaseTvCaptureTest {
  @Before fun prepare() {
   assumeTrue("Set NETFLIXPRO_CAPTURE=1 to export film frames",System.getenv("NETFLIXPRO_CAPTURE")=="1")
   val app=ApplicationProvider.getApplicationContext<Application>()
+  val artwork=mutableMapOf<String,android.graphics.Bitmap>()
   val loader=coil.ImageLoader.Builder(app).allowHardware(false).components {
    add(coil.intercept.Interceptor { chain ->
-    val result=chain.proceed(chain.request.newBuilder().allowHardware(false).crossfade(false).build())
+    val request=chain.request.newBuilder().allowHardware(false).crossfade(false)
+    artwork[chain.request.data.toString()]?.let { request.data(it).memoryCacheKey(chain.request.data.toString()) }
+    val result=chain.proceed(request.build())
     if(result is coil.request.ErrorResult) System.err.println("CAPTURE_ARTWORK_ERROR ${result.throwable.javaClass.simpleName}")
     result
    })
@@ -64,11 +67,9 @@ class ShowcaseTvCaptureTest {
     File(assets,j.getString("backdrop_file")).toURI().toString(),File(assets,j.getString("poster_file")).toURI().toString(),
     rating="16+",year=j.get("year").toString(),type=if(j.getString("type")=="tv")"Series" else "Movie",duration=if(j.getString("type")=="tv")"3 Seasons" else "2h 32m")
   }
-  kotlinx.coroutines.runBlocking {
-   for(url in movies.flatMap{listOf(it.backdropUrl,it.posterUrl)}.distinct()) {
-    val result=loader.execute(coil.request.ImageRequest.Builder(app).data(url).size(1280,720).allowHardware(false).crossfade(false).build())
-    check(result is coil.request.SuccessResult) { "Offline film artwork failed to decode" }
-   }
+  for(url in movies.flatMap{listOf(it.backdropUrl,it.posterUrl)}.distinct()) {
+   val path=File(java.net.URI(url)).path
+   artwork[url]=checkNotNull(android.graphics.BitmapFactory.decodeFile(path)) { "Offline film artwork failed to decode" }
   }
   if(com.google.firebase.FirebaseApp.getApps(app).isEmpty()) {
    com.google.firebase.FirebaseApp.initializeApp(app,com.google.firebase.FirebaseOptions.Builder().setApplicationId("1:123:android:demo").setApiKey("AIzaSyDEMO0000000000000000000000000000000").setProjectId("demo-netflixpro").build())
