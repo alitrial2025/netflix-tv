@@ -1,0 +1,13 @@
+{
+  "name": "netflixpro-update-and-payment-service",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test:payments": "node --test tests/payments.test.cjs tests/checkout-integration.test.cjs"
+  },
+  "dependencies": {
+    "firebase-admin": "13.10.0"
+  }
+}

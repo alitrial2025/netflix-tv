@@ -2368,6 +2368,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     }
 
     fun evictCachedStream(tmdbId: String, type: String, season: Int = 0, episode: Int = 0) {
+        publicPlayback.evict(tmdbId, type, season, episode)
         val key = "${type}_${tmdbId}_${season}_${episode}"
         streamCache.remove(key)
         streamCache.remove("${StreamPurpose.HERO_PREVIEW.name}_$key")

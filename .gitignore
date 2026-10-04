@@ -33,3 +33,7 @@ debug.keystore
 # Production APKs are deployed to Vercel; keep binaries out of source commits.
 /marketing-site/downloads/mobile/*.apk
 /marketing-site/downloads/tv/*.apk
+
+# Server dependencies
+marketing-site/node_modules/
+.vercel

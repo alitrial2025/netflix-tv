@@ -47,7 +47,7 @@ fun playbackMediaSource(
             .build()
     }
     item.setSubtitleConfigurations(subtitles)
-    return DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http)))
+    return DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http), manifestHeaders = stream.headers))
         .setLoadErrorHandlingPolicy(com.example.data.PlaybackLoadErrorPolicy())
         .createMediaSource(item.build())
 }

@@ -1,6 +1,8 @@
 package com.example.data
 
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Deferred
@@ -33,15 +35,42 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
     private data class SeasonCache(val expiresAt: Long, val seasons: Map<Int, String>)
     private val netflixSeasons = ConcurrentHashMap<String, SeasonCache>()
 
+    private data class ResolutionKey(val origin: String, val revision: Long, val tmdb: String, val title: String, val year: String, val type: String, val season: Int, val episode: Int)
+    private val resolved = ConcurrentHashMap<ResolutionKey, PublicPlaybackResult>()
+    private data class ResolutionGate(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val resolutionGates = HashMap<ResolutionKey, ResolutionGate>()
+
+    fun evict(tmdbId: String, type: String, season: Int, episode: Int) {
+        resolved.keys.removeAll { it.tmdb == tmdbId && it.type == type &&
+            (type == "movie" || it.season == season && it.episode == episode) }
+    }
+
     suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String = ""): PublicPlaybackResult = withTimeout(28_000L) {
         if (normalize(title).isEmpty() || type !in listOf("movie", "tv") || type == "tv" && (season < 1 || episode < 1))
             throw IOException("Invalid title or episode selection")
         if (backgroundCatalogRefresh) runtimeConfig?.refreshInBackground()
-        Run().resolve(title, year, type, season, episode, tmdbId)
+        PlaybackServiceGate.check()
+        val settings = runtimeConfig?.snapshot() ?: ProviderRuntimeConfig.Snapshot(baseUrl = defaultBase.toString())
+        val key = ResolutionKey(settings.toString(), PlaybackServiceGate.sourceRevision, tmdbId, normalize(title), year, type,
+            if (type == "tv") season else 0, if (type == "tv") episode else 0)
+        val gate = synchronized(resolutionGates) { resolutionGates.getOrPut(key) { ResolutionGate() }.also { it.users++ } }
+        try {
+            gate.mutex.withLock {
+                PlaybackServiceGate.check()
+                val now = System.currentTimeMillis()
+                resolved[key]?.takeIf { it.expiresAt - now > StreamSessionPolicy.EXPIRY_MARGIN_MS }?.let { return@withLock it }
+                val result = Run(settings).resolve(title, year, type, season, episode, tmdbId)
+                resolved.entries.removeAll { it.key.revision != key.revision || it.value.expiresAt - now <= StreamSessionPolicy.EXPIRY_MARGIN_MS }
+                if (resolved.size >= 32) resolved.keys.firstOrNull()?.let(resolved::remove)
+                resolved[key] = result
+                result
+            }
+        } finally {
+            synchronized(resolutionGates) { if (--gate.users == 0) resolutionGates.remove(key, gate) }
+        }
     }
 
-    private inner class Run {
-        private val settings = runtimeConfig?.snapshot() ?: ProviderRuntimeConfig.Snapshot(baseUrl = defaultBase.toString())
+    private inner class Run(private val settings: ProviderRuntimeConfig.Snapshot) {
         private val base = settings.baseUrl.toHttpUrl()
         private val requestCounter = java.util.concurrent.atomic.AtomicInteger()
         private val requests get() = requestCounter.get()
@@ -447,13 +476,18 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     if (selected == null || error.message == "Provider show identity mismatch") catalog?.evict(identityKey)
                     val mediaFailure = error.message.orEmpty().let { it.startsWith("Issued") || it.startsWith("Playback manifest") ||
                         it.startsWith("Playback endpoint unavailable") || it.startsWith("Provider returned an expired") }
-                    if (type == "tv" && cachedEpisodeUsed && !cachedEpisodeRefreshed && mediaFailure && selected != null && requests < 28) {
+                    val staleEpisodeEvidence = error.message.orEmpty().let { it.startsWith("Provider returned an expired") ||
+                        it.startsWith("Issued") || it.startsWith("Playback manifest") || it == "Playback endpoint unavailable (HTTP 404)" }
+                    if (type == "tv" && cachedEpisodeUsed && !cachedEpisodeRefreshed && staleEpisodeEvidence && selected != null && requests < 28) {
                         cachedEpisodeRefreshed = true
                         selected?.let { (id, ott) -> catalog?.episodeCatalog?.evictEpisode(base.toString(), ott, id, season, episode, System.currentTimeMillis()) }
                         retryIdentity = selected
                         last = error
                         return@repeat
                     }
+                    // A failing CDN does not invalidate a verified show/movie identity.
+                    // After the one stale-episode repair, stop instead of searching other catalogs.
+                    if (mediaFailure && error.message != "Playback endpoint unavailable (HTTP 404)") throw error
                     if (selected == null && error.message == "No verified public provider identity is available for this title") last?.let { throw it }
                     last = error
                     if (selected == null || requests >= 28 || !(error.message.orEmpty().startsWith("Issued") ||
@@ -493,9 +527,11 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 else ProviderMasterRequest.resolve(issued.toString(), contentId, base.toString(), settings)
             if (route.toHttpUrl().queryParameter("in")?.startsWith("unknown") == true) throw IOException("Issued HLS authorization unavailable")
             var url = route.toHttpUrl(); var expiry = System.currentTimeMillis() + 3_600_000L
+            val verifiedManifests = linkedMapOf<String, String>()
             repeat(4) {
                 val response = text(url); requireSuccess(response)
                 if (!response.body.trimStart().startsWith("#EXTM3U")) throw IOException("Playback manifest unavailable")
+                verifiedManifests[url.toString()] = response.body
                 CdnRoutePolicy.earliestManifestExpiry(response.body, System.currentTimeMillis())?.let { expiry = minOf(expiry, it) }
                 if (expiry - System.currentTimeMillis() <= StreamSessionPolicy.EXPIRY_MARGIN_MS) throw IOException("Provider returned an expired playback link")
                 val lines = response.body.lineSequence().map(String::trim).filter(String::isNotBlank).toList()
@@ -510,6 +546,9 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                         if (kind.isNotBlank() && kind !in listOf("subtitles", "captions", "vtt", "thumbnails")) return@mapNotNull null
                         Caption(absolute.toString(), field(track, "label", "language", "name", "lang").ifBlank { "English" },
                             if (kind == "thumbnails") kind else if (file.contains(".srt")) "srt" else "vtt", field(track, "srclang", "language", "lang", "code").ifBlank { "en" })
+                    }
+                    if (response.body.lineSequence().any { it.trim() == "#EXT-X-ENDLIST" }) {
+                        verifiedManifests.forEach { (url, body) -> VerifiedManifestHandoff.offer(url, mediaHeaders, body, validatedVod = true) }
                     }
                     // Keep the issued master so Media3 retains adaptive video and alternate audio.
                     return PublicPlaybackResult(route, mediaHeaders, captions, contentId, ott, expiry)

@@ -268,6 +268,7 @@ fun PlayerScreen(
 
     val nextEpisodeJobHolder = remember(movie.id) { PlayerJobHolder() }
     fun playNextEpisode() {
+        if (isLoading || isBuffering) return
         if (isTrailerPlayback || !viewModel.ownsSharedPlayback(playbackOwner)) return
         val movieIdLong = movie.id.toLongOrNull() ?: 0L
         if (nextEpisodeJobHolder.job?.isActive == true) return
@@ -669,19 +670,6 @@ fun PlayerScreen(
                 }
             }
             playbackMarkers = markers
-        }
-    }
-
-    LaunchedEffect(movie.id, currentSeason, currentEpisode, activeStream, isLoading, isTvShow, playbackActive) {
-        if (!playbackActive || !viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
-        if (!isTrailerPlayback && isTvShow && activeStream != null && !isLoading) {
-            delay(8000L)
-            val nextEpNum = currentEpisode + 1
-            val tvId = movie.id.toLongOrNull() ?: return@LaunchedEffect
-            val episodes = withContext(Dispatchers.IO) { viewModel.getEpisodes(tvId, currentSeason) }
-            ensureActive()
-            if (viewModel.ownsSharedPlayback(playbackOwner) && episodes.any { it.episodeNumber == nextEpNum })
-                viewModel.preloadNextEpisodeStream(movie, currentSeason, nextEpNum)
         }
     }
 

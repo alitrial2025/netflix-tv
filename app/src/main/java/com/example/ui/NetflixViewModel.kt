@@ -2673,7 +2673,6 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             warmupIsImmediate = false
             warmupHasStartedAttempt = false
         }
-        nextEpisodePreloadJob?.cancel()
         directCDNResolver.invalidateSessionByCookie(cookieString)
         streamCache.clear()
     }
@@ -2693,20 +2692,6 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         com.example.data.StreamPurpose.values().forEach { streamCache.remove(streamCacheKey(movie, season, episode, it)) }
         val type = movie.catalogMediaKind()
         directCDNResolver.invalidateStream(movie.id, type, season, episode)
-    }
-
-    private var nextEpisodePreloadJob: kotlinx.coroutines.Job? = null
-    fun preloadNextEpisodeStream(movie: Movie, season: Int, episode: Int) {
-        nextEpisodePreloadJob?.cancel()
-        nextEpisodePreloadJob = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (getCachedStream(movie, season, episode) != null) return@launch
-                android.util.Log.d("NetflixViewModel", "⏩ Pre-resolving next episode S${season}E${episode} for ${movie.title}...")
-                resolveStream(movie, season, episode)
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {}
-        }
     }
 
     suspend fun resolveStream(movie: Movie, season: Int = 1, episode: Int = 1, purpose: com.example.data.StreamPurpose = com.example.data.StreamPurpose.PLAYBACK): com.example.data.NetMirrorStream? {
