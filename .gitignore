@@ -37,3 +37,6 @@ debug.keystore
 # Server dependencies
 marketing-site/node_modules/
 .vercel
+
+# Film capture harnesses are installed temporarily from versioned templates.
+/app/src/test/java/com/example/ShowcaseTvCaptureTest.kt
