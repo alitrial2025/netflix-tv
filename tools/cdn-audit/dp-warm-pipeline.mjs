@@ -46,7 +46,7 @@ try {
   const homeR = await req(BASE + '/mobile/home?app=1');
   let addhash = '';
   for (const c of homeR.cookies) { const m=c.match(/addhash=([^;]+)/); if(m){addhash=decodeURIComponent(m[1]);break;} }
-  if (!addhash) { const bm=homeR.body.match(/data-addhash="REDACTED_EXPIRED_SESSION"]+)"/); if(bm) addhash=bm[1]; }
+  if (!addhash) { const bm=homeR.body.match(/data-addhash="([^"]+)"/); if(bm) addhash=bm[1]; }
   console.log('addhash: ' + (addhash?addhash.substring(0,40)+'...':'NOT FOUND'));
   if (!addhash) { console.log('FATAL'); process.exit(1); }
   const enc = encodeURIComponent(addhash);

@@ -40,7 +40,7 @@ for (const c of homeR.cookies) {
 }
 if (!addhash) {
   // Try extracting from body data-addhash
-  const bm = homeR.body.match(/data-addhash="REDACTED_EXPIRED_SESSION"]+)"/);
+  const bm = homeR.body.match(/data-addhash="([^"]+)"/);
   if (bm) addhash = bm[1];
 }
 console.log('addhash:', addhash ? addhash.substring(0,40) + '...' : 'NOT FOUND');
