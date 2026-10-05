@@ -20,7 +20,7 @@ Capture image loaders predecode bundled artwork, use software bitmaps and settle
 
 Keep TV and mobile repositories beside each other, named `netflix-tv` and `netflix-mobile`. Install JDK 21, Android 35, Gradle 8.9, FFmpeg, Open Sans and the existing cinematic Python requirements. Capture outputs use `/workspace/artifacts/showcase-20261004` by default.
 
-`.github/workflows/showcase-film.yml` reproduces the full capture and delivery on GitHub Actions. It pins the mobile source to `f162a10b939e40dca13ac5d30ad1eeceeae0bf0c`, caches native exports, renders 29 scenes across eight jobs, and retains the finished film and Resolve media archive for 90 days. Set `NPRO_SHOWCASE_WORK` to choose a writable output directory; native captures, rendering and timeline export all honor it.
+`.github/workflows/showcase-film.yml` reproduces the full capture and delivery on GitHub Actions. It pins the mobile source to `f162a10b939e40dca13ac5d30ad1eeceeae0bf0c`, caches native exports, and renders 29 scenes across eight jobs. Intermediate render artifacts expire after one day; the finished film and Resolve media archive expire after seven days. Download final deliverables for permanent storage. Set `NPRO_SHOWCASE_WORK` to choose a writable output directory; native captures, rendering and timeline export all honor it.
 
 ```sh
 python showcase-film/scripts/capture.py install

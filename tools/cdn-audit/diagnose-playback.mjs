@@ -39,12 +39,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ── Target ─────────────────────────────────────────────────────────────
 const TARGET = {
-  title: 'Smallville',
-  year: 2001,
-  tmdbId: '4607',
+  title: 'Ironheart',
+  year: 2025,
+  tmdbId: '114472',
   type: 'tv',
-  season: 4,
-  episode: 8
+  season: 1,
+  episode: 1
 };
 
 // ── CLI ────────────────────────────────────────────────────────────────

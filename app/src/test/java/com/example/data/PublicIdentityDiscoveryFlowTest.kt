@@ -65,6 +65,7 @@ class PublicIdentityDiscoveryFlowTest {
         val seen = mutableListOf<Request>()
         val nativeId = "8109090901"
         val resolver = PublicPlaybackResolver(client(seen) { request -> when (request.url.encodedPath) {
+            "/search.php", "/mobile/pv/search.php" -> """{"status":"n"}"""
             "/sparql" -> """{"results":{"bindings":[{"type":{"value":"movie"},"tmdb":{"value":"999998103"},"ott":{"value":"nf"},"nativeId":{"value":"$nativeId"}}]}}"""
             "/3/movie/999998103" -> { Thread.sleep(3500L); "{}" }
             "/title/$nativeId" -> """<script type="application/ld+json">{"@type":"Movie","name":"Ready Fixture","datePublished":"2026-01-01"}</script>"""
@@ -76,7 +77,7 @@ class PublicIdentityDiscoveryFlowTest {
             resolver.resolve("Ready Fixture", "2026", "movie", 0, 0, "999998103")
         }
         assertEquals(nativeId, result.contentId)
-        assertFalse(seen.any { it.url.encodedPath.endsWith("search.php") })
+        assertEquals(2, seen.count { it.url.encodedPath.endsWith("search.php") })
     }
 
 }

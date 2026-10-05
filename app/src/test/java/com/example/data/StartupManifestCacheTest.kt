@@ -19,8 +19,9 @@ import java.time.Duration
 class StartupManifestCacheTest {
     @Test fun validatedMasterIsHandedToPlayerWithoutSecondNetworkFetch() {
         val url = "https://cdn.example/cached.m3u8?in=unique-startup"
-        val body = "#EXTM3U\n#EXTINF:10,\nsegment.ts"
-        StartupManifestCache.put(url, body)
+        val body = "#EXTM3U\n#EXTINF:10,\nsegment.ts\n#EXT-X-ENDLIST"
+        val headers = mapOf("Referer" to "https://net52.cc/")
+        VerifiedManifestHandoff.offer(url, headers, body)
         val upstream = DataSource.Factory { object : DataSource {
             override fun addTransferListener(listener: TransferListener) {}
             override fun open(spec: DataSpec): Long = error("Duplicate manifest request")
@@ -28,7 +29,7 @@ class StartupManifestCacheTest {
             override fun getUri(): Uri? = null
             override fun close() = error("Unopened upstream must not close")
         } }
-        val source = GuardedPlaybackDataSourceFactory(upstream).createDataSource()
+        val source = GuardedPlaybackDataSourceFactory(upstream, manifestHeaders = headers).createDataSource()
         assertEquals(body.toByteArray().size.toLong(), source.open(DataSpec(Uri.parse(url))))
         val buffer = ByteArray(1024)
         val read = source.read(buffer, 0, buffer.size)
@@ -36,7 +37,7 @@ class StartupManifestCacheTest {
         assertEquals(C.RESULT_END_OF_INPUT, source.read(buffer, 0, buffer.size))
         assertEquals(url, source.uri.toString())
         source.close()
-        assertNull(StartupManifestCache.take(url))
+        assertNull(VerifiedManifestHandoff.take(url, headers))
     }
     @Test fun staleOrNonManifestResponsesAreNeverHandedOff() {
         val url = "https://cdn.example/expired.m3u8"

@@ -68,10 +68,11 @@ jobs:
           name: showcase-native-${{ matrix.device }}
           path: showcase-work/assets/native-${{ matrix.device }}/
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
       - uses: actions/upload-artifact@v5
         if: failure()
         with:
+          retention-days: 7
           name: showcase-capture-errors-${{ matrix.device }}
           path: |
             netflix-tv/app/build/test-results/
@@ -111,7 +112,7 @@ jobs:
             showcase-work/assets/audio/master.wav
             showcase-work/assets/audio/master.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
   render:
     name: Render scenes / shard ${{ matrix.shard }}
     needs: preview
@@ -158,7 +159,7 @@ jobs:
           name: showcase-scenes-${{ matrix.shard }}
           path: showcase-work/output/segments/
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
   delivery:
     name: Assemble film and Resolve timeline
     needs: render
@@ -210,4 +211,4 @@ jobs:
             showcase-work/output/review/
             showcase-work/assets/audio/master.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 7
