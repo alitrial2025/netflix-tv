@@ -1,0 +1,374 @@
+[
+  {
+    "name": "opening",
+    "start": 0,
+    "end": 8,
+    "duration": 8,
+    "kind": "both",
+    "title": "Entertainment. Everywhere.",
+    "subtitle": "TV and phone. One NetflixPro experience.",
+    "sources": [
+      "tv:home",
+      "mobile:home"
+    ]
+  },
+  {
+    "name": "tv-profiles",
+    "start": 8,
+    "end": 16,
+    "duration": 8,
+    "kind": "tv",
+    "title": "Make it yours.",
+    "subtitle": "Profiles for the way you watch.",
+    "sources": [
+      "tv:profiles",
+      "tv:profile-setup"
+    ]
+  },
+  {
+    "name": "tv-home",
+    "start": 16,
+    "end": 23,
+    "duration": 7,
+    "kind": "tv",
+    "title": "A bigger way to browse.",
+    "subtitle": "Billboards, categories and curated collections.",
+    "sources": [
+      "tv:home"
+    ]
+  },
+  {
+    "name": "tv-browsing",
+    "start": 23,
+    "end": 33,
+    "duration": 10,
+    "kind": "tv",
+    "title": "Follow your next story.",
+    "subtitle": "Move naturally through movies and series.",
+    "sources": [
+      "tv:rows",
+      "tv:vertical",
+      "tv:category"
+    ]
+  },
+  {
+    "name": "tv-search",
+    "start": 33,
+    "end": 38,
+    "duration": 5,
+    "kind": "tv",
+    "title": "Find something great.",
+    "subtitle": "Search on the big screen.",
+    "sources": [
+      "tv:search"
+    ]
+  },
+  {
+    "name": "tv-details",
+    "start": 38,
+    "end": 45,
+    "duration": 7,
+    "kind": "tv",
+    "title": "Go beyond the poster.",
+    "subtitle": "Play, save and explore every title.",
+    "sources": [
+      "tv:details"
+    ]
+  },
+  {
+    "name": "tv-episodes",
+    "start": 45,
+    "end": 52,
+    "duration": 7,
+    "kind": "tv",
+    "title": "The whole season, together.",
+    "subtitle": "Season choices and episode cards.",
+    "sources": [
+      "tv:full-episodes",
+      "tv:episodes"
+    ]
+  },
+  {
+    "name": "tv-recommendations",
+    "start": 52,
+    "end": 57,
+    "duration": 5,
+    "kind": "tv",
+    "title": "Keep discovering.",
+    "subtitle": "Recommendations and extras.",
+    "sources": [
+      "tv:recommendations",
+      "tv:extras"
+    ]
+  },
+  {
+    "name": "tv-info",
+    "start": 57,
+    "end": 62,
+    "duration": 5,
+    "kind": "tv",
+    "title": "Know what you are watching.",
+    "subtitle": "Title information in one place.",
+    "sources": [
+      "tv:details-info"
+    ]
+  },
+  {
+    "name": "tv-player",
+    "start": 62,
+    "end": 70,
+    "duration": 8,
+    "kind": "tv",
+    "title": "Settle into the story.",
+    "subtitle": "Playback controls built for your remote.",
+    "sources": [
+      "tv:player"
+    ]
+  },
+  {
+    "name": "tv-audio",
+    "start": 70,
+    "end": 76,
+    "duration": 6,
+    "kind": "tv",
+    "title": "Watch your way.",
+    "subtitle": "Audio and subtitle choices.",
+    "sources": [
+      "tv:subtitles"
+    ]
+  },
+  {
+    "name": "tv-personalize",
+    "start": 76,
+    "end": 81,
+    "duration": 5,
+    "kind": "tv",
+    "title": "Your profile. Your preferences.",
+    "subtitle": "Personalize the big-screen experience.",
+    "sources": [
+      "tv:profile-edit"
+    ]
+  },
+  {
+    "name": "tv-ambient",
+    "start": 81,
+    "end": 85,
+    "duration": 4,
+    "kind": "tv",
+    "title": "A screen worth keeping on.",
+    "subtitle": "Ambient artwork.",
+    "sources": [
+      "tv:ambient"
+    ]
+  },
+  {
+    "name": "mobile-intro",
+    "start": 85,
+    "end": 92,
+    "duration": 7,
+    "kind": "mobile",
+    "title": "Take the story with you.",
+    "subtitle": "A familiar experience, made for your phone.",
+    "sources": [
+      "mobile:home"
+    ]
+  },
+  {
+    "name": "mobile-browse",
+    "start": 92,
+    "end": 101,
+    "duration": 9,
+    "kind": "mobile",
+    "title": "Swipe into something new.",
+    "subtitle": "Browse, save and keep watching.",
+    "sources": [
+      "mobile:home",
+      "mobile:save"
+    ]
+  },
+  {
+    "name": "mobile-search",
+    "start": 101,
+    "end": 107,
+    "duration": 6,
+    "kind": "mobile",
+    "title": "Less searching. More finding.",
+    "subtitle": "Titles and categories within reach.",
+    "sources": [
+      "mobile:search"
+    ]
+  },
+  {
+    "name": "mobile-new",
+    "start": 107,
+    "end": 112,
+    "duration": 5,
+    "kind": "mobile",
+    "title": "See what is coming.",
+    "subtitle": "New releases, reminders and updates.",
+    "sources": [
+      "mobile:new-hot"
+    ]
+  },
+  {
+    "name": "mobile-games",
+    "start": 112,
+    "end": 116,
+    "duration": 4,
+    "kind": "mobile",
+    "title": "More ways to unwind.",
+    "subtitle": "Explore the games collection.",
+    "sources": [
+      "mobile:games"
+    ]
+  },
+  {
+    "name": "mobile-clips",
+    "start": 116,
+    "end": 120,
+    "duration": 4,
+    "kind": "mobile",
+    "title": "A little inspiration.",
+    "subtitle": "Clips and quick discoveries.",
+    "sources": [
+      "mobile:clips"
+    ]
+  },
+  {
+    "name": "mobile-details",
+    "start": 120,
+    "end": 126,
+    "duration": 6,
+    "kind": "mobile",
+    "title": "Every title, up close.",
+    "subtitle": "Details, episodes, My List and downloads.",
+    "sources": [
+      "mobile:details"
+    ]
+  },
+  {
+    "name": "mobile-player",
+    "start": 126,
+    "end": 133,
+    "duration": 7,
+    "kind": "landscape",
+    "title": "A player that fits your day.",
+    "subtitle": "Playback, episodes, audio and subtitles.",
+    "sources": [
+      "mobile:player-controls",
+      "mobile:player-subtitles",
+      "mobile:player-episodes",
+      "mobile:post-play"
+    ]
+  },
+  {
+    "name": "mobile-profiles",
+    "start": 133,
+    "end": 139,
+    "duration": 6,
+    "kind": "mobile",
+    "title": "An experience for everyone.",
+    "subtitle": "Profiles, icons and personal preferences.",
+    "sources": [
+      "mobile:profile-picker",
+      "mobile:profile-edit",
+      "mobile:profile-setup",
+      "mobile:avatars"
+    ]
+  },
+  {
+    "name": "mobile-downloads",
+    "start": 139,
+    "end": 146,
+    "duration": 7,
+    "kind": "mobile",
+    "title": "Ready when you are offline.",
+    "subtitle": "Downloads and clear upgrade choices.",
+    "sources": [
+      "mobile:downloads",
+      "mobile:offline-home",
+      "mobile:download-upgrade"
+    ]
+  },
+  {
+    "name": "mobile-smart",
+    "start": 146,
+    "end": 151,
+    "duration": 5,
+    "kind": "mobile",
+    "title": "Plan what comes next.",
+    "subtitle": "Smart Downloads and storage choices.",
+    "sources": [
+      "mobile:smart-downloads"
+    ]
+  },
+  {
+    "name": "mobile-list",
+    "start": 151,
+    "end": 156,
+    "duration": 5,
+    "kind": "mobile",
+    "title": "Keep your favorites close.",
+    "subtitle": "My Netflix, saved titles and your account.",
+    "sources": [
+      "mobile:my-list"
+    ]
+  },
+  {
+    "name": "connected",
+    "start": 156,
+    "end": 162,
+    "duration": 6,
+    "kind": "mobile",
+    "title": "Bring it to the big screen.",
+    "subtitle": "TV pairing and cast controls.",
+    "sources": [
+      "mobile:tv-pair",
+      "mobile:cast"
+    ]
+  },
+  {
+    "name": "preferences",
+    "start": 162,
+    "end": 168,
+    "duration": 6,
+    "kind": "mobile",
+    "title": "You are in control.",
+    "subtitle": "Settings, notifications and profile options.",
+    "sources": [
+      "mobile:settings",
+      "mobile:settings-more",
+      "mobile:notifications"
+    ]
+  },
+  {
+    "name": "membership",
+    "start": 168,
+    "end": 176,
+    "duration": 8,
+    "kind": "both",
+    "title": "Choose your NetflixPro plan.",
+    "subtitle": "Membership on phone and TV.",
+    "sources": [
+      "tv:auth",
+      "tv:membership",
+      "mobile:auth",
+      "mobile:account",
+      "mobile:membership",
+      "mobile:membership-more"
+    ]
+  },
+  {
+    "name": "finale",
+    "start": 176,
+    "end": 180,
+    "duration": 4,
+    "kind": "both",
+    "title": "NetflixPro",
+    "subtitle": "Available for Android TV and Android phone.",
+    "sources": [
+      "tv:home",
+      "mobile:home"
+    ]
+  }
+]

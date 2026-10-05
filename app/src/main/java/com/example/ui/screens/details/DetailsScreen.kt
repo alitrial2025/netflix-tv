@@ -52,6 +52,7 @@ import com.example.model.catalogMediaKind
 import com.example.model.playbackMediaId
 import com.example.ui.NetflixViewModel
 import com.example.ui.theme.NetflixBlack
+import com.example.ui.util.FocusedPreviewPolicy
 import com.example.ui.util.TvMotion
 import com.example.ui.util.TvImagePolicy
 import com.example.ui.util.TvArtworkKind
@@ -62,10 +63,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collect
-
-private class DetailsPreviewCookie {
-    var value: String? = null
-}
 
 @Composable
 fun DetailsScreen(
@@ -270,8 +267,6 @@ fun DetailsScreen(
     val previewIsTrailer = !viewModel.isUserLoggedIn() || viewModel.isMovieLocked(movie)
     val targetMediaId = movie.playbackMediaId(currentSeason, currentEpisode) + if (previewIsTrailer) ":trailer" else ""
     var isStreamReady by remember(targetMediaId) { mutableStateOf(false) }
-    var previewRecovery by remember(targetMediaId) { mutableIntStateOf(0) }
-    val previewCookieHolder = remember(targetMediaId) { DetailsPreviewCookie() }
     val latestTargetMediaId by rememberUpdatedState(targetMediaId)
     val resetLatestPreview by rememberUpdatedState({ isStreamReady = false })
     val renderedMediaId by viewModel.sharedVideoFrameMediaId.collectAsStateWithLifecycle()
@@ -279,13 +274,21 @@ fun DetailsScreen(
         if (ownsPlayback) isStreamReady = renderedMediaId == targetMediaId
     }
 
-    LaunchedEffect(targetMediaId, isDetailsResumed, isNavigatingToPlayer, previewRecovery, ownsPlayback) {
-        if (!isDetailsResumed || isNavigatingToPlayer || !viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
+    val previewEligible = isDetailsResumed && !isNavigatingToPlayer && !showModalScreen && !showUpgradeModal
+    LaunchedEffect(targetMediaId, previewEligible, ownsPlayback) {
+        if (!viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
+        if (!previewEligible) {
+            if (!isNavigatingToPlayer) {
+                isStreamReady = false
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+            }
+            return@LaunchedEffect
+        }
         val cached = if (!previewIsTrailer) viewModel.getCachedStream(movie, currentSeason, currentEpisode) else null
         if (exoPlayer.currentMediaItem?.mediaId == targetMediaId &&
             (exoPlayer.playbackState == Player.STATE_READY || exoPlayer.playbackState == Player.STATE_BUFFERING)) {
             if (cached != null) {
-                previewCookieHolder.value = cached.headers["Cookie"]
                 streamCaptions = cached.captions
             }
             try { exoPlayer.volume = 0.25f } catch (_: Exception) {}
@@ -293,27 +296,32 @@ fun DetailsScreen(
             try { exoPlayer.play() } catch (_: Exception) {}
             return@LaunchedEffect
         }
-        // A warm return resumes immediately. Only a new source waits for
-        // the entrance/focus to settle before network and decoder work.
-        delay(TvMotion.duration(950).toLong())
-        com.example.ui.util.HomeStartupGate.awaitBrowsingIdle()
         isStreamReady = false
         try {
-            val stream = resolveAndPlayStream(
-                context = context,
-                movie = movie,
-                currentSeason = currentSeason,
-                currentEpisode = currentEpisode,
-                targetMediaId = targetMediaId,
-                viewModel = viewModel,
-                exoPlayer = exoPlayer,
-                playbackOwner = playbackOwner,
-                trailerOnly = previewIsTrailer,
-                selectedSubLang = selectedSubLang,
-                continueWatchingData = continueWatchingData,
-                onCaptions = { streamCaptions = it }
-            )
-            previewCookieHolder.value = stream?.headers?.get("Cookie")
+            val stream = FocusedPreviewPolicy.resolve {
+                com.example.ui.util.HomeStartupGate.awaitBrowsingIdle()
+                val resolved = resolveAndPlayStream(
+                    context = context,
+                    movie = movie,
+                    currentSeason = currentSeason,
+                    currentEpisode = currentEpisode,
+                    targetMediaId = targetMediaId,
+                    viewModel = viewModel,
+                    exoPlayer = exoPlayer,
+                    playbackOwner = playbackOwner,
+                    trailerOnly = previewIsTrailer,
+                    selectedSubLang = selectedSubLang,
+                    continueWatchingData = continueWatchingData,
+                    onCaptions = { streamCaptions = it }
+                ) ?: return@resolve null
+                while (!isStreamReady) delay(100L)
+                resolved
+            }
+            if (stream == null && viewModel.ownsSharedPlayback(playbackOwner) && !isNavigatingToPlayer) {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+                isStreamReady = false
+            }
         } catch (ce: kotlinx.coroutines.CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -352,11 +360,10 @@ fun DetailsScreen(
                         ?.firstOrNull { it.key.equals("Retry-After", true) }?.value?.firstOrNull()
                     viewModel.recordPlaybackRateLimit(com.example.data.StreamSessionPolicy.retryAfterDelayMs(retryAfter, System.currentTimeMillis()))
                     viewModel.evictCachedStream(movie, currentSeason, currentEpisode)
-                } else if (!previewIsTrailer && previewRecovery < 1 &&
+                } else if (!previewIsTrailer &&
                     (httpError?.responseCode == 401 || httpError?.responseCode == 403)) {
-                    viewModel.reportBadSession(previewCookieHolder.value)
-                    viewModel.invalidateStream(movie, currentSeason, currentEpisode)
-                    previewRecovery += 1
+                    // Optional previews never start a second resolver while focus stays put.
+                    viewModel.evictCachedStream(movie, currentSeason, currentEpisode)
                 }
                 exoPlayer.stop()
                 exoPlayer.clearMediaItems()

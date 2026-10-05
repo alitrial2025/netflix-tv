@@ -1,0 +1,18 @@
+{
+  "url": "https://npro-app.vercel.app/api/payments/verify",
+  "realPaymentMade": false,
+  "tests": [
+    {
+      "kind": "fabricated",
+      "status": 503,
+      "code": "GATEWAY_UNAVAILABLE"
+    },
+    {
+      "kind": "copied",
+      "status": 422,
+      "code": "CHECKOUT_MISMATCH"
+    }
+  ],
+  "noMembershipWritten": true,
+  "qaAccountRemoved": true
+}

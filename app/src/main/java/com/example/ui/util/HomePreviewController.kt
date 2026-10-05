@@ -29,7 +29,6 @@ import com.example.data.StreamSessionPolicy
 import com.example.data.toNetMirrorStream
 import com.example.model.Movie
 import com.example.model.catalogMediaKind
-import com.example.model.isSeriesContent
 import com.example.ui.NetflixViewModel
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
@@ -106,7 +105,7 @@ class HomePreviewController(
         val trailerOnly = !viewModel.isUserLoggedIn() || viewModel.isMovieLocked(movie) || movie.isComingSoon
         val previousRequest = desired
         if (previousRequest?.owner == owner && key(previousRequest.movie) == key(movie) &&
-            previousRequest.audible == audible && previousRequest.trailerOnly == trailerOnly && previousRequest.waitForHomeReady == waitForHomeReady && work?.isActive == true) return
+            previousRequest.audible == audible && previousRequest.trailerOnly == trailerOnly && previousRequest.waitForHomeReady == waitForHomeReady) return
         val request = Request(owner, movie, audible, trailerOnly, waitForHomeReady)
         val requestedAt = RuntimeTiming.start()
         desired = request
@@ -121,54 +120,48 @@ class HomePreviewController(
             previousWork?.join()
             delay(if (lowMemory) 6_000L else 2_800L)
             awaitPreviewIdle(waitForHomeReady)
+            // The provider startup deadline starts after optional Home settling.
+            val focusedAt = SystemClock.uptimeMillis()
             try {
-                repeat(2) { attempt ->
-                    // A CDN rate limit also blocks playback from cached manifests;
-                    // caching a URL does not exempt its segment requests from limits.
-                    while (budget.cooldownMillis() > 0L) delay(budget.cooldownMillis())
+                val resolved = FocusedPreviewPolicy.resolve(FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis())) {
                     awaitPreviewIdle(waitForHomeReady)
-                    val choice = if (trailerOnly) Choice(1, 1, 0L)
-                        else withTimeoutOrNull(8_000L) { choose(movie) } ?: return@launch
-                    currentCoroutineContext().ensureActive()
+                    // Optional surfaces never queue a restart after a provider cooldown.
+                    if (budget.cooldownMillis() > 0L) return@resolve null
+                    val choice = if (trailerOnly) Choice(1, 1, 0L) else choose(movie)
                     val purpose = if (audible) StreamPurpose.HERO_PREVIEW else StreamPurpose.SILENT_PREVIEW
                     var stream = if (trailerOnly) null else viewModel.getCachedStream(movie, choice.season, choice.episode, purpose)
                     if (stream == null) {
-                        while (budget.waitMillis() > 0L) delay(budget.waitMillis())
+                        val wait = budget.waitMillis()
+                        if (wait >= FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis())) return@resolve null
+                        if (wait > 0L) delay(wait)
                         awaitPreviewIdle(waitForHomeReady)
                         currentCoroutineContext().ensureActive()
-                        // A foreground request may have populated the cache while waiting.
                         stream = if (trailerOnly) null else viewModel.getCachedStream(movie, choice.season, choice.episode, purpose)
                         if (stream == null) {
                             budget.onResolutionStarted()
-                            // A first CDN session can take most of the old 40s timeout.
-                            // Give bootstrap the same opportunity as foreground playback.
-                            stream = withTimeoutOrNull(70_000L) {
-                                withContext(Dispatchers.IO) {
-                                    if (trailerOnly) viewModel.resolveTrailerStream(movie)
-                                        ?.takeUnless { it.type == "youtube" }
-                                        ?.toNetMirrorStream(movie.title, "trailer_${movie.id}")
-                                    else viewModel.resolveStream(movie, choice.season, choice.episode, purpose)
-                                }
+                            stream = withContext(Dispatchers.IO) {
+                                if (trailerOnly) viewModel.resolveTrailerStream(movie)
+                                    ?.takeUnless { it.type == "youtube" }
+                                    ?.toNetMirrorStream(movie.title, "trailer_${movie.id}")
+                                else viewModel.resolveStream(movie, choice.season, choice.episode, purpose)
                             }
                         }
                     }
                     currentCoroutineContext().ensureActive()
-                    val resolved = stream
-                    if (resolved == null) {
-                        budget.onFailure()
-                        // One paced retry covers a cold session or a transient failure.
-                        // Rate limits below are never retried in this loop.
-                        if (attempt == 0) return@repeat else return@launch
-                    }
-                    if (resolved.isRateLimited) {
-                        budget.onRateLimited()
-                        return@launch
-                    }
-                    budget.onSuccess()
-                    RuntimeTiming.elapsed("preview_requested_to_resolved", requestedAt)
-                    play(request, choice, resolved, ticket, requestedAt)
+                    stream?.let { choice to it }
+                }
+                if (resolved == null) {
+                    budget.onFailure()
                     return@launch
                 }
+                val (choice, stream) = resolved
+                if (stream.isRateLimited) {
+                    budget.onRateLimited()
+                    return@launch
+                }
+                budget.onSuccess()
+                RuntimeTiming.elapsed("preview_requested_to_resolved", requestedAt)
+                play(request, choice, stream, ticket, requestedAt, focusedAt)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (limited: PlaybackRateLimitedException) {
@@ -217,22 +210,11 @@ class HomePreviewController(
     private fun key(movie: Movie): String =
         homePreviewKey(movie)
 
-    private suspend fun choose(movie: Movie): Choice? {
+    private fun choose(movie: Movie): Choice {
         val key = key(movie)
-        choices[key]?.let { return it }
-        val choice = if (movie.isSeriesContent()) {
-            val id = movie.id.toLongOrNull() ?: return null
-            val seasons = withContext(Dispatchers.IO) { viewModel.getTvSeasons(id) }
-            currentCoroutineContext().ensureActive()
-            val season = seasons.filter { it > 0 }.randomOrNull() ?: return null
-            val episodes = withContext(Dispatchers.IO) { viewModel.getEpisodes(id, season) }
-            currentCoroutineContext().ensureActive()
-            val episode = episodes.filter { it.episodeNumber > 0 && it.seasonNumber == season }
-                .randomOrNull() ?: return null
-            Choice(season, episode.episodeNumber)
-        } else Choice(1, 1)
-        choices[key] = choice
-        return choice
+        // A preview does not need two metadata calls to choose a random episode.
+        // The public resolver verifies S1E1; foreground episode selection is unchanged.
+        return choices.getOrPut(key) { Choice(1, 1) }
     }
 
     private fun obtainPlayer(): ExoPlayer {
@@ -248,8 +230,9 @@ class HomePreviewController(
         viewModel.detachSharedPlaybackView(view)
     }
 
-    private suspend fun play(request: Request, choice: Choice, stream: NetMirrorStream, ticket: Long, requestedAt: Long) {
+    private suspend fun play(request: Request, choice: Choice, stream: NetMirrorStream, ticket: Long, requestedAt: Long, focusedAt: Long) {
         val activePlayer = obtainPlayer()
+        val mediaId = "preview:${key(request.movie)}" + if (request.trailerOnly) ":trailer" else ""
         val finished = CompletableDeferred<Unit>()
         var seekChosen = false
         var previewEndMs = 0L
@@ -257,38 +240,48 @@ class HomePreviewController(
         var firstFrameSeen = false
         fun revealFrame() {
             if (generation != ticket || !viewModel.ownsSharedPlayback(playbackOwner) ||
-                !seekChosen || revealed || !firstFrameSeen) return
+                !seekChosen || revealed || !firstFrameSeen || activePlayer.currentMediaItem?.mediaId != mediaId) return
             if (activePlayer.currentPosition + 1_000L < (choice.startMs ?: 0L)) return
             revealed = true
             RuntimeTiming.elapsed("preview_requested_to_visible", requestedAt)
             _state.value = HomePreviewState(request.owner, activePlayer, true, key(request.movie))
             onPlayingChanged(true)
         }
+        fun chooseSeekPosition(): Boolean {
+            if (activePlayer.currentMediaItem?.mediaId != mediaId) return false
+            if (seekChosen) return true
+            val duration = activePlayer.duration
+            if (!request.trailerOnly && duration in 535_000L..545_000L) {
+                budget.onRateLimited()
+                viewModel.recordPlaybackRateLimit()
+                finished.complete(Unit)
+                return false
+            }
+            if (duration == C.TIME_UNSET || duration <= 0L || !activePlayer.isCurrentMediaItemSeekable) return false
+            val start = homePreviewStartMs(duration, choice.startMs)
+            choice.startMs = start
+            previewEndMs = minOf(start + 60_000L, duration)
+            seekChosen = true
+            if (kotlin.math.abs(activePlayer.currentPosition - start) > 500L) {
+                firstFrameSeen = false
+                activePlayer.seekTo(start)
+            } else revealFrame()
+            activePlayer.play()
+            return true
+        }
         val listener = object : Player.Listener {
+            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                if (generation == ticket && viewModel.ownsSharedPlayback(playbackOwner)) {
+                    // VOD duration arrives with the manifest. Seek before downloading
+                    // and decoding an opening buffer which will immediately be discarded.
+                    chooseSeekPosition()
+                }
+            }
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (generation != ticket) return
-                if (playbackState == Player.STATE_READY && !seekChosen) {
-                    val duration = activePlayer.duration
-                    if (!request.trailerOnly && duration in 535_000L..545_000L) {
-                        budget.onRateLimited()
-                        viewModel.recordPlaybackRateLimit()
-                        finished.complete(Unit)
-                        return
-                    }
-                    // Do not show a live stream or an unseekable opening as a random preview.
-                    if (duration == C.TIME_UNSET || duration <= 0L || !activePlayer.isCurrentMediaItemSeekable) {
-                        finished.complete(Unit)
-                        return
-                    }
-                    val start = homePreviewStartMs(duration, choice.startMs)
-                    choice.startMs = start
-                    previewEndMs = minOf(start + 60_000L, duration)
-                    seekChosen = true
-                    if (kotlin.math.abs(activePlayer.currentPosition - start) > 500L) {
-                        firstFrameSeen = false
-                        activePlayer.seekTo(start)
-                    } else revealFrame()
-                    activePlayer.play()
+                if (generation != ticket || !viewModel.ownsSharedPlayback(playbackOwner) ||
+                    activePlayer.currentMediaItem?.mediaId != mediaId) return
+                if (playbackState == Player.STATE_READY && !chooseSeekPosition()) {
+                    finished.complete(Unit)
                 } else if (playbackState == Player.STATE_ENDED) finished.complete(Unit)
             }
 
@@ -344,12 +337,11 @@ class HomePreviewController(
                 .setConnectTimeoutMs(10_000)
                 .setReadTimeoutMs(10_000)
             // DirectCDN can return a local master manifest with remote segments.
-            val sourceFactory = DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http)))
+            val sourceFactory = DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http), manifestHeaders = stream.headers))
                 .setLoadErrorHandlingPolicy(object : DefaultLoadErrorHandlingPolicy(1) {
                     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long =
                         if (isRateLimited(loadErrorInfo.exception)) C.TIME_UNSET else super.getRetryDelayMsFor(loadErrorInfo)
                 })
-            val mediaId = "preview:${key(request.movie)}" + if (request.trailerOnly) ":trailer" else ""
             val item = MediaItem.Builder().setUri(stream.url).setMediaId(mediaId)
             when {
                 stream.url.contains(".m3u8", true) -> item.setMimeType(MimeTypes.APPLICATION_M3U8)
@@ -377,7 +369,8 @@ class HomePreviewController(
                 while (!finished.isCompleted) {
                     if (!viewModel.ownsSharedPlayback(playbackOwner)) break
                     if (seekChosen && activePlayer.currentPosition >= previewEndMs) break
-                    delay(250L)
+                    if (!revealed && FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis()) == 0L) break
+                    delay(100L)
                 }
             }
         } finally {
@@ -390,9 +383,12 @@ class HomePreviewController(
         _caption.value = ""
         onPlayingChanged(false)
         player?.let {
-            // Keep a prepared decoder for the next screen. Claiming that screen
-            // happens before this cleanup, so it cannot pause the new owner.
-            if (viewModel.ownsSharedPlayback(playbackOwner)) it.pause()
+            // Stop optional segment loading on blur. A screen which already
+            // claimed the player keeps its source and decoder.
+            if (viewModel.ownsSharedPlayback(playbackOwner)) {
+                it.stop()
+                it.clearMediaItems()
+            }
         }
     }
 

@@ -1,0 +1,12 @@
+[
+  {
+    "method": "GET",
+    "status": 405,
+    "code": "METHOD_NOT_ALLOWED"
+  },
+  {
+    "method": "POST",
+    "status": 401,
+    "code": "AUTH_REQUIRED"
+  }
+]

@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 11,
-  "versionName": "1.10",
+  "versionCode": 14,
+  "versionName": "1.13",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14127489,
-  "sha256": "99d4522c1b12bde532fe977e321bcc7946aef78fe6c6e94c04ad2ea37d69373b",
+  "sizeBytes": 14128052,
+  "sha256": "77c37b64a73ed2c6bb4017b550a3cfae0959dab09d597356dcc6bff32e20a6f9",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/11-99d4522c1b12bde5.apk",
-  "releaseNotes": "Improved movie and show matching, including official title aliases, Netflix release dates and season names. New title discovery runs automatically, with faster cached lookups and stricter season and episode checks. This update is required to continue using the app.",
+  "apkUrl": "/downloads/mobile/14-77c37b64a73ed2c6.apk",
+  "releaseNotes": "Reduces duplicate episode requests and pauses automatic downloads during playback. Improves visible detail previews without adding a timing clock. Payment codes are verified securely by the membership server against the exact merchant receipt and account-bound checkout; retry your existing code without paying again. Signed-in Guest accounts show View Plans, and downloads show an upgrade dialog.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-03T12:27:06.756Z"
+  "publishedAt": "2026-10-04T08:03:22.954Z"
 }

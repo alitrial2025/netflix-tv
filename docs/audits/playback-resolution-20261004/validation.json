@@ -1,0 +1,18 @@
+{
+  "unitTests": {
+    "tests": 325,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 9
+  },
+  "lint": {
+    "Error": 0,
+    "Warning": 246,
+    "Information": 0
+  },
+  "providerRequestRegression": "S1E1\u2192E2\u2192E3: 10 provider HTTP requests; no duplicate Media3 startup manifest calls",
+  "previewTiming": "15s internal startup budget; device first-frame timing unmeasured; no new visible clock",
+  "paymentServerTests": 12,
+  "firestoreEmulatorTests": 18,
+  "checkoutIntegrationTests": 2
+}

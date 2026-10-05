@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-10-03T17:32:39.768Z",
+  "scope": "Single bounded direct guide request, cookie-free, raw colon token, no warmup",
+  "title": "Mulan",
+  "ott": "hs",
+  "contentId": "1260048586",
+  "success": false,
+  "error": "waiting_video_returned",
+  "failedStage": "video_manifest",
+  "events": [
+    {
+      "stage": "video_manifest",
+      "host": "net52.cc",
+      "path": "/mobile/hs/hls/1260048586.m3u8",
+      "queryKeys": [
+        "hd",
+        "lang",
+        "hp",
+        "in"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 1345,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": true
+      },
+      "error": "waiting_video_returned",
+      "elapsedMs": 671
+    }
+  ]
+}
