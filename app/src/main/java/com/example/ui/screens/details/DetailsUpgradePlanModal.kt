@@ -163,6 +163,12 @@ fun UpgradePlanModal(
                                         color = Color.Gray,
                                         fontSize = 13.sp
                                     )
+                                    Text(
+                                        text = "Full available catalog • ${plan.screens} simultaneous screen${if (plan.screens > 1) "s" else ""}" +
+                                            if (plan.id == "plan_basic") " • one device" else "",
+                                        color = Color.Gray,
+                                        fontSize = 12.sp
+                                    )
                                 }
                                 Text(
                                     text = stringResource(R.string.upgrade_modal_price_per_month, "KSh ${plan.priceKes}"),

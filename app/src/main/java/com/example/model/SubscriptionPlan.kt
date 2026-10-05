@@ -352,38 +352,15 @@ data class UserSubscription(
             return (days + if (remainderHours) 1L else 0L).toInt().coerceAtLeast(0)
         }
 
-    /**
-     * Guest = full movie/series streaming locked (plays trailer preview only).
-     * Inactive/Expired = locked.
-     * Mobile Plan = TV streaming locked; selected catalog on mobile.
-     * Basic Plan = selected catalog, using the same policy as mobile.
-     * Standard/Premium = All content unlocked.
-     *
-     * Compatibility arguments for year and VIP status are retained for callers.
-     * Access is determined by the account's tier and the title identifier.
-     */
+    /** Every active paid tier includes the catalog; Mobile remains phone/tablet only. */
+    @Suppress("UNUSED_PARAMETER")
     fun isMovieLocked(
         movieId: String,
         releaseYear: String = "",
         isTrendingOrVip: Boolean = false,
         isTvDevice: Boolean = false,
         movieTitle: String = ""
-    ): Boolean {
-        if (isGuest) return true // Guest: lock full movie, route to trailer
-        if (!isActive) return true // Expired / No active subscription
-
-        if (isTvDevice && tier == SubscriptionTier.MOBILE) return true
-        if (tier == SubscriptionTier.STANDARD || tier == SubscriptionTier.PREMIUM) return false
-        // Match the phone's catalog policy for the same title and media ID.
-        val hash = kotlin.math.abs((movieId.hashCode() * 31 + movieTitle.hashCode() * 17 +
-            "netflix_tier_catalog_lock".hashCode()).toLong())
-        val pct = hash % 100
-        return when (tier) {
-            SubscriptionTier.MOBILE -> pct < 38
-            SubscriptionTier.BASIC -> pct < 18
-            else -> true
-        }
-    }
+    ): Boolean = !isActive || (isTvDevice && !isTvAllowed)
 
     fun getLockReason(
         releaseYear: String = "",
@@ -391,24 +368,14 @@ data class UserSubscription(
         isTvDevice: Boolean = false
     ): String {
         if (isGuest) return "Subscribe to a plan to watch the full movie or show."
-        if (isInGracePeriod) return "Please update your payment method to keep streaming."
         if (isPastDue) return "Your last payment failed. Please update your payment method to resume streaming."
         if (isCancelledButNotExpired) {
             val days = daysRemaining
             return "Your subscription ends in $days day(s). Renew to keep streaming."
         }
         if (!isActive) return "An active plan is needed to watch the full movie or show. Subscribe or renew on your phone."
-        val normalizedPlan = planId.lowercase()
-        val normalizedName = planName.lowercase()
-
-        if (normalizedPlan == "plan_mobile" || normalizedPlan == "mobile" || normalizedName.contains("mobile")) {
-            return if (isTvDevice) "The Mobile plan plays on phones and tablets. Upgrade on your phone for TV playback."
-                else "This title is locked on Mobile. Upgrade on your phone to stream it."
-        }
-        if (normalizedPlan == "plan_basic" || normalizedPlan == "basic" || normalizedName.contains("basic")) {
-            return "This title is locked on Basic. Upgrade on your phone to Standard or Premium."
-        }
-        return "Upgrade plan to unlock this title."
+        if (isTvDevice && !isTvAllowed) return "The Mobile plan plays on phones and tablets. Upgrade on your phone for TV playback."
+        return "This title is included with your active plan."
     }
 
     companion object {

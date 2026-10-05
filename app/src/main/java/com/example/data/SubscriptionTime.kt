@@ -14,10 +14,13 @@ class MonotonicSubscriptionClock(
     private var anchor = maxOf(wallTime(), checkpoint)
     private var anchorElapsed = elapsedTime()
     private var persisted = checkpoint
+    private var hasCurrentServerTime = false
 
     @Synchronized fun now(): Long {
         val elapsed = (elapsedTime() - anchorElapsed).coerceAtLeast(0L)
-        checkpoint = maxOf(checkpoint, wallTime(), anchor + elapsed)
+        // Once current server time is available, device clock edits cannot expire a
+        // newly verified membership or move its deadline during this process.
+        checkpoint = maxOf(checkpoint, if (hasCurrentServerTime) 0L else wallTime(), anchor + elapsed)
         if (checkpoint - persisted >= 60_000L) { persist(checkpoint); persisted = checkpoint }
         return checkpoint
     }
@@ -28,6 +31,7 @@ class MonotonicSubscriptionClock(
         checkpoint = serverNow
         anchor = serverNow
         anchorElapsed = elapsedTime()
+        hasCurrentServerTime = true
         persist(checkpoint)
         persisted = checkpoint
     }

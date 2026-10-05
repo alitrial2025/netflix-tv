@@ -24,6 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
+import kotlin.math.roundToInt
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -1800,29 +1801,24 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun preloadStartupArtwork() {
-        if (!hasStartupNetwork()) return
+        if (!hasStartupNetwork() || _selectedProfile.value?.isKid == true) return
         val context = getApplication<android.app.Application>()
         val density = context.resources.displayMetrics.density
         val screen = context.resources.configuration
         val rows = _categoryRows.value
         val catalog = rows.asSequence().flatMap { it.second.asSequence() }.distinctBy { "${it.type}:${it.id}" }.toList()
         val hero = com.example.ui.screens.BillboardAlgorithm.rankBillboardMovies(catalog, "Home", false, 1).firstOrNull()
-        val urls = buildList {
-            hero?.backdropUrl?.takeIf { it.isNotBlank() }?.let { add(it to com.example.ui.util.TvArtworkKind.BACKDROP) }
-            // Warm a bounded poster window for initial Home and Search; never decode the whole catalogue.
-            rows.firstOrNull()?.second.orEmpty().take(6).forEach { movie ->
-                if (movie.posterUrl.isNotBlank()) add(movie.posterUrl to com.example.ui.util.TvArtworkKind.POSTER)
-            }
-        }.distinct()
-        for ((url, kind) in urls) {
-            val width = if (kind == com.example.ui.util.TvArtworkKind.BACKDROP)
-                (screen.screenWidthDp * density).toInt().coerceAtMost(1280) else (180 * density).toInt().coerceAtMost(342)
-            val height = if (kind == com.example.ui.util.TvArtworkKind.BACKDROP) width * 9 / 16 else width * 3 / 2
-            val request = coil.request.ImageRequest.Builder(context)
-                .data(com.example.ui.util.TvImagePolicy.artworkUrl(url, width, kind))
-                .size(width, height).allowRgb565(true).crossfade(false).build()
-            coil.Coil.imageLoader(context).execute(request)
-        }
+        // Only warm the actual first billboard. Generic six-poster warmups decoded
+        // unrelated row images at a different size and evicted useful artwork on small heaps.
+        val url = hero?.backdropUrl?.takeIf { it.isNotBlank() } ?: return
+        val size = com.example.ui.util.TvImagePolicy.billboardSize(
+            ((screen.screenWidthDp - 32) * density).roundToInt(),
+            ((screen.screenHeightDp * 0.76f - 10) * density).roundToInt(),
+            com.example.ui.util.TvImagePolicy.isLowMemoryDevice(context)
+        )
+        coil.Coil.imageLoader(context).execute(com.example.ui.util.TvArtworkRequests.billboard(
+            context, url, com.example.ui.util.TvArtworkKind.BACKDROP, size
+        ))
     }
 
     private val _isLoading = MutableStateFlow(true)
@@ -1860,6 +1856,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     private var searchJob: kotlinx.coroutines.Job? = null
 
     private val allMoviesMap = java.util.concurrent.ConcurrentHashMap<String, Movie>()
+    private var personalizationJob: kotlinx.coroutines.Job? = null
     private val personalizationGeneration = java.util.concurrent.atomic.AtomicLong(0L)
 
     // perf: default to a Guest plan to avoid a SharedPreferences disk read in the constructor.
@@ -2389,10 +2386,15 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun applyProfilePersonalization(profile: Profile, preserveCurrentMovie: Boolean = false) {
-        viewModelScope.launch {
+        if (_selectedProfile.value?.id != profile.id) return
+        personalizationJob?.cancel()
+        personalizationJob = viewModelScope.launch {
             if (_selectedProfile.value?.id != profile.id) return@launch
             val generation = personalizationGeneration.incrementAndGet()
             val baseRows = originalCategoryRows + releaseRows()
+            val tasteSnapshot = _tasteSignals.value
+            val likedSnapshot = _likedMovieIds.value
+            val communitySnapshot = communityDiscovery.counts.value
             suspend fun publish(rows: List<Pair<String, List<Movie>>>, defaultMovie: Movie?) {
                 withContext(Dispatchers.Main) {
                     // A later profile/catalogue request may finish before this one.
@@ -2419,7 +2421,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     val byKey = safePool.associateBy { it.recommendationTitle().key }
                     val rankedSafeMovies = com.example.discovery.RecommendationEngine.rank(safePool.map { it.recommendationTitle() }, profile.id,
                         preferred = com.example.discovery.RecommendationEngine.preferredGenres(profile.favoriteGenres),
-                        history = _tasteSignals.value, community = communityDiscovery.counts.value, limit = safePool.size)
+                        history = tasteSnapshot, community = communitySnapshot, limit = safePool.size)
                         .mapNotNull { byKey[it] }
                     val rankedKeys = rankedSafeMovies.map { it.recommendationTitle().key }.toHashSet()
                     // Completed family films remain browsable for rewatching, outside primary picks.
@@ -2443,9 +2445,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                     val allMovies = baseRows.flatMap { it.second }.distinctBy { "${it.type}:${it.id}" }
                     val rank = com.example.discovery.RecommendationEngine.rank(allMovies.map { it.recommendationTitle() }, profile.id,
                         preferred = com.example.discovery.RecommendationEngine.preferredGenres(profile.favoriteGenres),
-                        history = _tasteSignals.value,
-                        ratings = allMovies.filter { it.id in _likedMovieIds.value }.associate { it.recommendationTitle().key to "LIKE" },
-                        community = communityDiscovery.counts.value, limit = allMovies.size)
+                        history = tasteSnapshot,
+                        ratings = allMovies.filter { it.id in likedSnapshot }.associate { it.recommendationTitle().key to "LIKE" },
+                        community = communitySnapshot, limit = allMovies.size)
                     val byKey = allMovies.associateBy { it.recommendationTitle().key }
                     val ranked = rank.mapNotNull { byKey[it] }
                     val order = rank.withIndex().associate { it.value to it.index }
@@ -2457,6 +2459,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         if (matches.isNotEmpty()) personalized.add("Because you love $genre" to matches.take(20))
                     }
                     baseRows.forEach { row ->
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val movies = if (row.first.contains("Coming Soon")) row.second.sortedBy { it.releaseDate }
                             else row.second.sortedBy { order[it.recommendationTitle().key] ?: Int.MAX_VALUE }
                         personalized.add(row.first to movies)

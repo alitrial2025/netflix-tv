@@ -59,4 +59,22 @@ class PublicIdentityDiscoveryFlowTest {
         assertEquals(episodeId, resolver.resolve("Fixture Show", "2026", "tv", 1, 1, "999998102").contentId)
         assertFalse(seen.any { it.url.encodedPath.endsWith("search.php") || it.url.host.contains("airtel") })
     }
+    @Test fun readyTypedIdentityDoesNotWaitForSlowTmdbMetadata() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val nativeId = "8109090901"
+        val resolver = PublicPlaybackResolver(client(seen) { request -> when (request.url.encodedPath) {
+            "/sparql" -> """{"results":{"bindings":[{"type":{"value":"movie"},"tmdb":{"value":"999998103"},"ott":{"value":"nf"},"nativeId":{"value":"$nativeId"}}]}}"""
+            "/3/movie/999998103" -> { Thread.sleep(3500L); "{}" }
+            "/title/$nativeId" -> """<script type="application/ld+json">{"@type":"Movie","name":"Ready Fixture","datePublished":"2026-01-01"}</script>"""
+            "/mobile/playlist.php" -> """{"sources":[{"file":"https://cdn.example/ready-fixture.m3u8?in=issued"}]}"""
+            "/ready-fixture.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts"
+            else -> throw AssertionError("Ready mapping must skip extra search: ${request.url.encodedPath}")
+        } }, backgroundCatalogRefresh = false)
+        val result = kotlinx.coroutines.withTimeout(2500L) {
+            resolver.resolve("Ready Fixture", "2026", "movie", 0, 0, "999998103")
+        }
+        assertEquals(nativeId, result.contentId)
+        assertFalse(seen.any { it.url.encodedPath.endsWith("search.php") })
+    }
+
 }

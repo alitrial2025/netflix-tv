@@ -124,7 +124,6 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
               }
               return null
             }
-            partnerIdentity(catalog?.hotstarTitles(type,title).orEmpty())?.let { return it }
             if (seeded != null) {
                 typedCandidates.add(seeded to "hs")
                 validateCandidates(listOf(seeded to "hs").filter { it !in attempted }, title, year, type)?.let { return it }
@@ -132,6 +131,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             val indexed = catalog?.candidates(type, tmdbId).orEmpty()
             typedCandidates.addAll(indexed)
             validateCandidates(indexed.filter { it !in attempted }, title, year, type)?.let { return it }
+            partnerIdentity(catalog?.hotstarTitles(type,title).orEmpty())?.let { return it }
             if (!includeDiscovery) return null
             discoverIdentity(tmdbId, type, title, year)?.let { return it }
             if (!liveBrowseChecked) {
@@ -163,7 +163,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
             catch (_: IOException) { null }
             catch (_: org.json.JSONException) { null }
-            data class DiscoveryBatch(val ids: List<Pair<String, String>>, val typed: Boolean)
+            data class DiscoveryBatch(val ids: List<Pair<String, String>>, val typed: Boolean, val metadata: PublicIdentityDiscovery.Metadata? = null)
             val pending = mutableListOf<Deferred<DiscoveryBatch>>()
             val publicCandidates = mutableListOf<Pair<String, String>>()
             try {
@@ -178,37 +178,43 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 val metadataUrl = "https://api.themoviedb.org/3/$type/$tmdbId".toHttpUrl().newBuilder()
                     .addQueryParameter("api_key", com.example.BuildConfig.TMDB_API_KEY)
                     .addQueryParameter("append_to_response", "external_ids,alternative_titles").build()
-                val metadata = publicJson(metadataUrl)?.let { PublicIdentityDiscovery.metadata(it, tmdbId, type, year) }
-                if (metadata != null) {
-                    val before = titleAliases.size
-                    titleAliases += metadata.aliases
-                    if (titleAliases.size != before) attempted.retainAll(unavailable)
-                    typedCandidates.addAll(metadata.homepageIds)
-                    if (metadata.homepageIds.isNotEmpty()) {
-                        catalog?.saveDiscovered(discoveryKey, metadata.homepageIds, titleAliases.toList(), System.currentTimeMillis(), metadata.homepageIds)
-                        validateCandidates(metadata.homepageIds.filter { it !in attempted }, title, year, type)?.let { return@coroutineScope it }
-                    }
-                    validateCandidates(catalog?.candidates(type, tmdbId).orEmpty().filter { it !in attempted }, title, year, type)?.let { return@coroutineScope it }
-                    pending += async {
-                        val searchUrl = "https://www.primevideo.com/-/en/search".toHttpUrl().newBuilder()
-                            .addQueryParameter("phrase", title).build()
-                        val ids = try {
-                            val response = text(searchUrl, publicNetflix = true)
-                            if (response.isSuccessful) PublicIdentityDiscovery.primeSearchIds(response.body, titleAliases.toList(), year, type) else emptyList()
-                        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-                        catch (_: IOException) { emptyList() }
-                        DiscoveryBatch(ids, false)
-                    }
-                    if (metadata.wikidataId.isNotEmpty()) pending += async {
-                        val entity = publicJson("https://www.wikidata.org/wiki/Special:EntityData/${metadata.wikidataId}.json".toHttpUrl())
-                        DiscoveryBatch(entity?.let { PublicProviderIdentity.nativeIds(it.toString(), metadata.wikidataId) }.orEmpty(), true)
-                    }
+                pending += async {
+                    val metadata = publicJson(metadataUrl)?.let { PublicIdentityDiscovery.metadata(it, tmdbId, type, year) }
+                    DiscoveryBatch(metadata?.homepageIds.orEmpty(), true, metadata)
                 }
                 while (pending.isNotEmpty()) {
                     val (completed, batch) = select<Pair<Deferred<DiscoveryBatch>, DiscoveryBatch>> {
                         pending.forEach { task -> task.onAwait { task to it } }
                     }
                     pending.remove(completed)
+                    val metadata = batch.metadata
+                    if (metadata != null) {
+                        val before = titleAliases.size
+                        titleAliases += metadata.aliases
+                        if (titleAliases.size != before) attempted.retainAll(unavailable)
+                        typedCandidates.addAll(metadata.homepageIds)
+                        if (metadata.homepageIds.isNotEmpty()) {
+                            catalog?.saveDiscovered(discoveryKey, metadata.homepageIds, titleAliases.toList(), System.currentTimeMillis(), metadata.homepageIds)
+                            validateCandidates(metadata.homepageIds.filter { it !in attempted }, title, year, type)?.let { return@coroutineScope it }
+                        }
+                        validateCandidates(publicCandidates.filter { it !in attempted }, title, year, type)?.let { return@coroutineScope it }
+                        validateCandidates(catalog?.candidates(type, tmdbId).orEmpty().filter { it !in attempted }, title, year, type)?.let { return@coroutineScope it }
+                        val aliases = titleAliases.toList()
+                        pending += async {
+                            val searchUrl = "https://www.primevideo.com/-/en/search".toHttpUrl().newBuilder()
+                                .addQueryParameter("phrase", title).build()
+                            val ids = try {
+                                val response = text(searchUrl, publicNetflix = true)
+                                if (response.isSuccessful) PublicIdentityDiscovery.primeSearchIds(response.body, aliases, year, type) else emptyList()
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                            catch (_: IOException) { emptyList() }
+                            DiscoveryBatch(ids, false)
+                        }
+                        if (metadata.wikidataId.isNotEmpty()) pending += async {
+                            val entity = publicJson("https://www.wikidata.org/wiki/Special:EntityData/${metadata.wikidataId}.json".toHttpUrl())
+                            DiscoveryBatch(entity?.let { PublicProviderIdentity.nativeIds(it.toString(), metadata.wikidataId) }.orEmpty(), true)
+                        }
+                    }
                     if (batch.typed) typedCandidates.addAll(batch.ids)
                     publicCandidates += batch.ids
                     if (batch.ids.isEmpty()) continue
@@ -394,12 +400,14 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             val issued = source?.optString("file")?.let(base::resolve) ?: throw IOException("Issued HLS URL unavailable")
             val route = ProviderMasterRequest.resolve(issued.toString(), contentId, base.toString())
             if (route.toHttpUrl().queryParameter("in")?.startsWith("unknown") == true) throw IOException("Issued HLS authorization unavailable")
+            val manifests = mutableListOf<Pair<String, String>>()
             var url = route.toHttpUrl(); var expiry = System.currentTimeMillis() + 3_600_000L
             repeat(4) {
                 val response = text(url); requireSuccess(response)
                 if (!response.body.trimStart().startsWith("#EXTM3U")) throw IOException("Playback manifest unavailable")
                 CdnRoutePolicy.earliestManifestExpiry(response.body, System.currentTimeMillis())?.let { expiry = minOf(expiry, it) }
                 if (expiry - System.currentTimeMillis() <= StreamSessionPolicy.EXPIRY_MARGIN_MS) throw IOException("Provider returned an expired playback link")
+                manifests += url.toString() to response.body
                 val lines = response.body.lineSequence().map(String::trim).filter(String::isNotBlank).toList()
                 val index = lines.indexOfFirst { it.startsWith("#EXT-X-STREAM-INF:") }
                 if (index < 0) {
@@ -414,6 +422,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                             if (kind == "thumbnails") kind else if (file.contains(".srt")) "srt" else "vtt", field(track, "srclang", "language", "lang", "code").ifBlank { "en" })
                     }
                     // Keep the issued master so Media3 retains adaptive video and alternate audio.
+                    manifests.forEach { (manifestUrl, body) -> StartupManifestCache.put(manifestUrl, body) }
                     return PublicPlaybackResult(route, mediaHeaders, captions, contentId, ott, expiry)
                 }
                 val child = lines.getOrNull(index + 1)?.takeIf { !it.startsWith('#') } ?: throw IOException("Missing playback video variant")

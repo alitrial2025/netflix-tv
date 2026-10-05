@@ -48,8 +48,34 @@ internal object StreamSessionPolicy {
     private val limitMessage = Regex("""\brate[_ -]?limit(?:ed)?\b|too many requests|limit exceeded""", RegexOption.IGNORE_CASE)
     fun isWaitingVideo(value: String): Boolean = waitingVideo.containsMatchIn(value.replace("\\/", "/"))
 
-    fun isRateLimited(code: Int, body: String): Boolean = code == 429 ||
-        isWaitingVideo(body) || limitMessage.containsMatchIn(body)
+    fun isRateLimited(code: Int, body: String): Boolean {
+        if (code == 429) return true
+        val text = body.trimStart()
+        if (text.startsWith("#EXTM3U")) return isWaitingVideo(text)
+        // Public title/search HTML can contain these words as ordinary content.
+        // HTTP 429 and the known waiting playback URL remain authoritative.
+        if (text.startsWith("<")) return isWaitingVideo(text)
+        if (text.startsWith("{") || text.startsWith("[")) {
+            val value = runCatching { org.json.JSONTokener(text).nextValue() }.getOrNull()
+            fun limited(item: org.json.JSONObject): Boolean {
+                // Titles, plot summaries and captions can contain these words.
+                val error = listOf("error", "message", "status").any { field ->
+                    val evidence = item.opt(field) as? String ?: return@any false
+                    limitMessage.containsMatchIn(evidence)
+                }
+                val sources = item.optJSONArray("sources")
+                return error || (0 until (sources?.length() ?: 0)).any {
+                    isWaitingVideo(sources?.optJSONObject(it)?.optString("file").orEmpty())
+                }
+            }
+            return when (value) {
+                is org.json.JSONObject -> limited(value)
+                is org.json.JSONArray -> (0 until value.length()).any { value.optJSONObject(it)?.let(::limited) == true }
+                else -> false
+            }
+        }
+        return isWaitingVideo(text) || limitMessage.containsMatchIn(text)
+    }
 
     fun isSessionRejected(code: Int, body: String): Boolean = code == 401 || code == 403 ||
         // playlist.php may legitimately provide an unsigned master URL that

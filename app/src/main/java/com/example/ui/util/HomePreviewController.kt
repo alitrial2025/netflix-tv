@@ -77,7 +77,7 @@ class HomePreviewController(
     private val _caption = MutableStateFlow("")
     val caption: StateFlow<String> = _caption.asStateFlow()
 
-    private data class Request(val owner: String, val movie: Movie, val audible: Boolean, val trailerOnly: Boolean)
+    private data class Request(val owner: String, val movie: Movie, val audible: Boolean, val trailerOnly: Boolean, val waitForHomeReady: Boolean)
     private data class Choice(val season: Int, val episode: Int, var startMs: Long? = null)
     private val choices = object : LinkedHashMap<String, Choice>(24, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Choice>?): Boolean = size > 24
@@ -98,16 +98,16 @@ class HomePreviewController(
 
     init { this.context.registerComponentCallbacks(memoryCallbacks) }
 
-    fun request(owner: String, movie: Movie, audible: Boolean) = onMain {
-        requestOnMain(owner, movie, audible)
+    fun request(owner: String, movie: Movie, audible: Boolean, waitForHomeReady: Boolean = false) = onMain {
+        requestOnMain(owner, movie, audible, waitForHomeReady)
     }
 
-    private fun requestOnMain(owner: String, movie: Movie, audible: Boolean) {
+    private fun requestOnMain(owner: String, movie: Movie, audible: Boolean, waitForHomeReady: Boolean) {
         val trailerOnly = !viewModel.isUserLoggedIn() || viewModel.isMovieLocked(movie) || movie.isComingSoon
         val previousRequest = desired
         if (previousRequest?.owner == owner && key(previousRequest.movie) == key(movie) &&
-            previousRequest.audible == audible && previousRequest.trailerOnly == trailerOnly && work?.isActive == true) return
-        val request = Request(owner, movie, audible, trailerOnly)
+            previousRequest.audible == audible && previousRequest.trailerOnly == trailerOnly && previousRequest.waitForHomeReady == waitForHomeReady && work?.isActive == true) return
+        val request = Request(owner, movie, audible, trailerOnly, waitForHomeReady)
         val requestedAt = RuntimeTiming.start()
         desired = request
         val ticket = ++generation
@@ -119,14 +119,14 @@ class HomePreviewController(
             // Some providers finish cancellation asynchronously. Do not overlap
             // their cleanup with a new resolution or keep a queue of old cards.
             previousWork?.join()
-            delay(2_800L)
-            HomeStartupGate.awaitBrowsingIdle()
+            delay(if (lowMemory) 6_000L else 2_800L)
+            awaitPreviewIdle(waitForHomeReady)
             try {
                 repeat(2) { attempt ->
                     // A CDN rate limit also blocks playback from cached manifests;
                     // caching a URL does not exempt its segment requests from limits.
                     while (budget.cooldownMillis() > 0L) delay(budget.cooldownMillis())
-                    HomeStartupGate.awaitBrowsingIdle()
+                    awaitPreviewIdle(waitForHomeReady)
                     val choice = if (trailerOnly) Choice(1, 1, 0L)
                         else withTimeoutOrNull(8_000L) { choose(movie) } ?: return@launch
                     currentCoroutineContext().ensureActive()
@@ -134,7 +134,7 @@ class HomePreviewController(
                     var stream = if (trailerOnly) null else viewModel.getCachedStream(movie, choice.season, choice.episode, purpose)
                     if (stream == null) {
                         while (budget.waitMillis() > 0L) delay(budget.waitMillis())
-                        HomeStartupGate.awaitBrowsingIdle()
+                        awaitPreviewIdle(waitForHomeReady)
                         currentCoroutineContext().ensureActive()
                         // A foreground request may have populated the cache while waiting.
                         stream = if (trailerOnly) null else viewModel.getCachedStream(movie, choice.season, choice.episode, purpose)
@@ -183,6 +183,10 @@ class HomePreviewController(
                 }
             }
         }
+    }
+
+    private suspend fun awaitPreviewIdle(waitForHomeReady: Boolean) {
+        if (waitForHomeReady) HomeStartupGate.awaitIdle() else HomeStartupGate.awaitBrowsingIdle()
     }
 
     fun stop(owner: String, releaseImmediately: Boolean = false) = onMain {
