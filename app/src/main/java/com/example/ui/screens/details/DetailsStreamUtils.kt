@@ -51,7 +51,7 @@ suspend fun resolveAndPlayStream(
         if (trailerOnly) kotlinx.coroutines.withTimeoutOrNull(55_000L) {
             viewModel.resolveTrailerStream(movie)?.toNetMirrorStream(movie.title, "trailer_${movie.id}")
         }
-        else viewModel.resolveStream(movie, currentSeason, currentEpisode)
+        else viewModel.resolveStream(movie, currentSeason, currentEpisode, com.example.data.StreamPurpose.HERO_PREVIEW)
     }
     currentCoroutineContext().ensureActive()
     if (stream == null || !viewModel.ownsSharedPlayback(playbackOwner)) return null
@@ -64,9 +64,9 @@ suspend fun resolveAndPlayStream(
         cw.playbackPositionMs.coerceAtLeast(0L) else 0L
     onCaptions(stream.captions)
     exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
-        .setMaxVideoSize(Int.MAX_VALUE, if (trailerOnly) 1080 else viewModel.userSubscription.value.maxVideoHeight.coerceAtLeast(480))
-        .setMaxVideoBitrate(Int.MAX_VALUE)
-        .setMaxVideoFrameRate(Int.MAX_VALUE)
+        .setMaxVideoSize(960, minOf(540, viewModel.userSubscription.value.maxVideoHeight.coerceAtLeast(480)))
+        .setMaxVideoBitrate(1_500_000)
+        .setMaxVideoFrameRate(30)
         .setForceLowestBitrate(false)
         .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_AUDIO, false)
         .clearOverridesOfType(androidx.media3.common.C.TRACK_TYPE_AUDIO)

@@ -1,5 +1,6 @@
 package com.example.ui.screens.details
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -38,11 +39,14 @@ fun UpgradePlanModal(
     onUpgradeConfirm: (planId: String, planName: String) -> Unit,
     onWatchTrailer: () -> Unit
 ) {
-    var selectedPlanId by remember { mutableStateOf(if (currentPlanName == "Guest") "plan_basic" else "plan_standard") }
     val plans = remember {
         SubscriptionPlans.PLANS.filter { it.id != "plan_mobile" }
     }
+    var selectedPlanId by remember(currentPlanName) {
+        mutableStateOf(plans.firstOrNull { it.name.equals(currentPlanName, ignoreCase = true) }?.id ?: "plan_basic")
+    }
     val initialPlanFocusRequester = remember { FocusRequester() }
+    BackHandler(onBack = onDismiss)
 
     LaunchedEffect(Unit) {
         delay(200)
@@ -82,11 +86,11 @@ fun UpgradePlanModal(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = stringResource(R.string.upgrade_modal_lock_icon_desc),
-                        tint = Color(0xFFFFC107),
+                        tint = NetflixRed,
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = "Subscribe to watch the full story",
+                        text = "Watch the full story",
                         color = Color.White,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
@@ -96,7 +100,7 @@ fun UpgradePlanModal(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "$lockReason\nChoose a plan in the NetflixPro mobile app using this account. Or continue with the official trailer.",
+                    text = "$lockReason\nChoose or renew a plan on your phone using the same account. You can watch the official trailer while you decide.",
                     color = Color.LightGray,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center
@@ -108,13 +112,13 @@ fun UpgradePlanModal(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    for ((index, plan) in plans.withIndex()) {
+                    for (plan in plans) {
                         val isSelected = selectedPlanId == plan.id
                         Surface(
                             onClick = { selectedPlanId = plan.id },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .then(if (index == 0) Modifier.focusRequester(initialPlanFocusRequester) else Modifier),
+                                .then(if (isSelected) Modifier.focusRequester(initialPlanFocusRequester) else Modifier),
                             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
                             colors = ClickableSurfaceDefaults.colors(
                                 containerColor = if (isSelected) Color(0xFF2B2B2B) else Color(0xFF202020),
@@ -125,14 +129,14 @@ fun UpgradePlanModal(
                                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
                             )
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -158,18 +162,25 @@ fun UpgradePlanModal(
                                             }
                                         }
                                     }
-                                    Text(
-                                        text = stringResource(R.string.upgrade_modal_plan_summary, plan.resolution, plan.supportedDevices),
-                                        color = Color.Gray,
-                                        fontSize = 13.sp
-                                    )
+                                    Text("KES ${plan.priceKes} / ${plan.durationDays} days", color = Color.White,
+                                        fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text("Full available catalog" + if (plan.id == "plan_basic") " • one linked device" else "",
+                                        color = Color.Gray, fontSize = 12.sp)
                                 }
-                                Text(
-                                    text = stringResource(R.string.upgrade_modal_price_per_month, "KSh ${plan.priceKes}"),
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text("${plan.resolution} • ${plan.maxProfiles} profiles • ${plan.screens} simultaneous screen${if (plan.screens == 1) "" else "s"}",
+                                    color = Color.LightGray, fontSize = 12.sp)
+                                Text("${plan.maxDownloads} offline titles per profile • ${plan.catalogAccess}",
+                                    color = Color.LightGray, fontSize = 12.sp)
+                                val extras = buildList {
+                                    if (plan.smartNextEpisode) add("Download Next Episode")
+                                    if (plan.downloadsForYou) add("Downloads for You")
+                                    if (plan.games) add("Games")
+                                    if (plan.clips) add("Clips")
+                                    if (plan.spatialAudio) add("Spatial Audio")
+                                }
+                                if (extras.isNotEmpty()) Text(extras.joinToString(" • "), color = Color.White, fontSize = 12.sp)
+                                if (plan.id == "plan_premium") Text("4K, HDR and spatial audio require a supported title and device.",
+                                    color = Color.Gray, fontSize = 11.sp)
                             }
                         }
                     }
@@ -208,7 +219,7 @@ fun UpgradePlanModal(
                         ) {
                             Text(
                                 text = "Subscribe on your phone",
-                                color = Color.White,
+                                color = if (isUpgradeFocused) Color.Black else Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -238,8 +249,8 @@ fun UpgradePlanModal(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Continue with trailer",
-                                color = Color.White,
+                                text = "Continue watching trailer",
+                                color = if (isWatchTrailerFocused) Color.Black else Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )

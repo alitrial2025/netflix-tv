@@ -40,6 +40,23 @@ class SubscriptionPolicyTest {
         } finally { UserSubscription.clock = previousClock }
     }
 
+    @Test fun paidCatalogAccessDoesNotDependOnTitleHashAndStillRespectsTvAndAccountRestrictions() {
+        val previous = UserSubscription.clock
+        UserSubscription.clock = { 1_000L }
+        try {
+            for (plan in SubscriptionPlans.PLANS) {
+                val active = UserSubscription(status = "ACTIVE", planId = plan.id, expiresAt = 2_000L)
+                for (index in 0..250) {
+                    val id = "title_$index"
+                    val title = "Movie $index"
+                    assertFalse(active.isMovieLocked(id, movieTitle = title))
+                    assertEquals(plan.id == "plan_mobile", active.isMovieLocked(id, isTvDevice = true, movieTitle = title))
+                    assertTrue(active.copy(status = "SUSPENDED").isMovieLocked(id, movieTitle = title))
+                }
+            }
+        } finally { UserSubscription.clock = previous }
+    }
+
     @Test fun renewalReminderAndCutoffHaveFixedBoundaries() {
         val previous = UserSubscription.clock
         val expiry = 1_800_000_000_000L
@@ -62,6 +79,19 @@ class SubscriptionPolicyTest {
             assertFalse(sub.copy(status = "GRACE_PERIOD").isActive)
             assertFalse(sub.copy(expiresAt = 0L).isActive)
         } finally { UserSubscription.clock = previous }
+    }
+
+    @Test fun currentServerTimeCorrectsAFastDeviceClockAndStaysAuthoritative() {
+        var wall = 100_000_000L
+        var elapsed = 5_000L
+        val clock = MonotonicSubscriptionClock(wallTime = { wall }, elapsedTime = { elapsed })
+        clock.synchronize(1_000_000L)
+        assertEquals(1_000_000L, clock.now())
+        wall += 86_400_000L
+        elapsed += 120_000L
+        assertEquals(1_120_000L, clock.now())
+        clock.synchronize(1_121_000L)
+        assertEquals(1_121_000L, clock.now())
     }
 
     @Test fun rollingBackThePhoneClockDoesNotAddMembershipTimeAndCheckpointSurvivesRestart() {

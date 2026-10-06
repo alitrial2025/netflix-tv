@@ -37,6 +37,7 @@ class NetflixApplication : Application(), ImageLoaderFactory, Configuration.Prov
 
     override fun onCreate() {
         super.onCreate()
+        HomeStartupGate.configureLowMemory(TvImagePolicy.isLowMemoryDevice(this))
         com.example.ui.util.AppDiagnosticsLogger.init(this)
         com.example.ui.util.AppDiagnosticsLogger.event("AppStartup", "Application onCreate launched.")
         // Firebase first — its analytics transport warms up early, and any

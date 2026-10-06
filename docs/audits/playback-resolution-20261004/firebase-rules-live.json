@@ -1,0 +1,6 @@
+{
+  "productionRulesMatch": true,
+  "ruleset": "projects/netflixpro-cca67/rulesets/6e226d34-48da-4fc5-a9ab-922161aafac8",
+  "sha256": "fe108552ab110280e3cb0e0b5486f0fab8f884afba7c6bbfd91bae67500c5c20",
+  "paidClientWritesDenied": true
+}

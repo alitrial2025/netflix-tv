@@ -112,18 +112,11 @@ fun BillboardSection(
     val configuration = LocalConfiguration.current
     val (backdropWidthPx, backdropHeightPx) = remember(configuration.screenWidthDp, density.density, height, isLowMemoryDevice) {
         with(density) {
-            val requested = TvImagePolicy.backdropSize(
+            TvImagePolicy.billboardSize(
                 (configuration.screenWidthDp.dp - 32.dp).roundToPx(),
                 (height - 10.dp).roundToPx(),
                 isLowMemoryDevice
             )
-            // TMDB backdrops top out at 1280px. Decoding a larger bitmap only
-            // spends heap and upload time; give small-memory TVs a lower ceiling.
-            val widthLimit = if (isLowMemoryDevice) 960 else 1280
-            if (requested.first <= widthLimit) requested else {
-                widthLimit to (requested.second * widthLimit.toFloat() / requested.first)
-                    .roundToInt().coerceAtLeast(1)
-            }
         }
     }
     val logoWidthPx = with(density) { (configuration.screenWidthDp.dp * 0.23f).roundToPx() }.coerceAtMost(420)
@@ -220,7 +213,7 @@ fun BillboardSection(
     val preview by rememberHomePreview(
         owner = previewOwner, movie = currentMovie,
         focused = (isPlayButtonFocused || isInfoButtonFocused) && isBillboardFocused,
-        viewModel = viewModel, audible = true
+        viewModel = viewModel, audible = true, waitForHomeReady = waitForHomeReadyBeforeLogo
     )
     val isPreviewPlaying by rememberUpdatedState(preview.player != null)
     val isDpadOnBillboard = isBillboardFocused && (isPlayButtonFocused || isInfoButtonFocused)
@@ -295,17 +288,9 @@ fun BillboardSection(
 
     val artworkKind = if (currentMovie.backdropUrl.isNotBlank()) TvArtworkKind.BACKDROP else TvArtworkKind.POSTER
     val heroRequest = remember(ctx, backdropUrl, artworkKind, backdropWidthPx, backdropHeightPx) {
-        coil.request.ImageRequest.Builder(ctx)
-            .data(TvImagePolicy.artworkUrl(backdropUrl, backdropWidthPx, artworkKind))
-            .size(backdropWidthPx, backdropHeightPx)
-            .precision(coil.size.Precision.EXACT)
-            .scale(coil.size.Scale.FILL)
-            .crossfade(false)
-            .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-            .allowRgb565(true)
-            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-            .build()
+        com.example.ui.util.TvArtworkRequests.billboard(
+            ctx, backdropUrl, artworkKind, backdropWidthPx to backdropHeightPx
+        )
     }
 
     val cardShape = remember { RoundedCornerShape(14.dp) }

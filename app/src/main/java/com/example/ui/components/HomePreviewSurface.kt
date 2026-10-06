@@ -63,10 +63,14 @@ internal fun rememberHomePreview(
     movie: Movie,
     focused: Boolean,
     viewModel: NetflixViewModel?,
-    audible: Boolean = true
+    audible: Boolean = true,
+    waitForHomeReady: Boolean = false
 ): State<HomePreviewState> {
-    val controller = viewModel?.homePreviewController
-    val subscription = viewModel?.userSubscription?.collectAsStateWithLifecycle()?.value
+    // Leaving this composition group disposes the previous owner's effects and stops it.
+    // Inactive rows collect no preview/subscription flows and register no lifecycle observer.
+    if (!focused || viewModel == null) return rememberUpdatedState(HomePreviewState())
+    val controller = viewModel.homePreviewController
+    val subscription = viewModel.userSubscription.collectAsStateWithLifecycle().value
     val lifecycleOwner = LocalLifecycleOwner.current
     var resumed by remember(lifecycleOwner) {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
@@ -79,8 +83,8 @@ internal fun rememberHomePreview(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    DisposableEffect(controller, owner, movie.id, movie.title, movie.catalogMediaKind(), focused, resumed, audible, subscription) {
-        if (focused && resumed) controller?.request(owner, movie, audible)
+    DisposableEffect(controller, owner, movie.id, movie.title, movie.catalogMediaKind(), focused, resumed, audible, subscription, waitForHomeReady) {
+        if (focused && resumed) controller?.request(owner, movie, audible, waitForHomeReady)
         onDispose { controller?.stop(owner) }
     }
     val ownerState = remember(controller, owner) {

@@ -1,0 +1,8 @@
+{
+  "sourceUrl": "https://lipwa.link/assets/index-sch16kr2.js",
+  "observedDate": "2026-10-04",
+  "sourceSha256": "eb55aa2bee51e6c3748fa36caf2711420f449466b0957b9ce8f7142df838e685",
+  "queryInitialization": "const W=Ht({phone:E.get(\"phone\")||null,amount:E.get(\"amount\")||null,reference:E.get(\"reference\")||null,customerName:E.get(\"name\")||null,channel:E.get(\"channel_id\")||E.get(\"channel\")||null,success_url:E.get(\"success_url\")||null,failed_url:E.get(\"failed_url\")||null,is_public:E.get(\"is_public\")||null,is_invoice:E.get(\"is_invoice\")||null,is_shopify:E.get(\"is_shopify\")||null,isEmbedded:E.get(\"isEmbedded\")||null});_.phone=W.phone,_.amount=W.amount?Math.ceil(parseFloat(W.amount)):null,_.reference=W.reference,_.customerName=W.customerName,_.channel=W.channel;",
+  "stkMethod": "async mpesaSTKPush(t,n,r,s,o,i,a=!1,l=\"m-pesa\",c=null){var u,f;try{const p={amount:n,phone_number:r,channel_id:s,customer_name:o,external_reference:i,goal_id:a?i:null,provider:l};return l===\"sasapay\"&&(p.network_code=\"63902\"),c&&(p.credential_id=c),(await this.backendApi.post(`account/${t}/payments`,p)).data}catch(p){return{success:!1,error_message:((f=(u=p.response)==null?void 0:u.data)==null?void 0:f.error_message)||p.message}}}",
+  "sessionRestore": "const S=sessionStorage.getItem(\"lipwaParams\");if(S){const ie=JSON.parse(S);Object.keys(ie).forEach(et=>{et===\"channel_id\"?W.channel=ie[et]:W[et]=ie[et]}),ie.phone&&(_.phone=ie.phone),ie.amount&&(_.amount=ie.amount?Math.ceil(parseFloat(ie.amount)):null),ie.reference&&(_.reference=ie.reference),ie.name&&(_.customerName=ie.name),ie.channel_id&&(_.channel=ie.channel_id),sessionStorage.removeItem(\"lipwaParams\")}"
+}

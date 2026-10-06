@@ -1,24 +1,22 @@
 {
-  "timestamp": "2026-10-02T08:26:21.768Z",
+  "timestamp": "2026-10-03T16:35:26.359Z",
   "target": {
-    "title": "Smallville",
-    "year": 2001,
-    "tmdbId": "4607",
+    "title": "Ironheart",
+    "year": 2025,
+    "tmdbId": "114472",
     "type": "tv",
-    "season": 4,
-    "episode": 8
+    "season": 1,
+    "episode": 1
   },
   "summary": {
-    "totalTests": 35,
-    "passed": 26,
+    "totalTests": 28,
+    "passed": 21,
     "warnings": 3,
-    "failed": 6,
+    "failed": 4,
     "failedStages": [
       "domain_probe",
       "master_token_test",
       "rate_limit",
-      "cdn_token_probe",
-      "cdn_token_probe",
       "cdn_token_probe"
     ]
   },
@@ -27,7 +25,7 @@
       "mode": "ek_m (current TV hardcoded)",
       "accepted": true,
       "providerIssuedModes": [
-        "::ek::myes"
+        "::ek"
       ]
     },
     {
@@ -38,65 +36,19 @@
   ],
   "cdnTokenAcceptance": [
     {
-      "mode": "provider_original",
-      "shape": "ek::myes",
-      "accepted": true,
-      "httpStatus": 200,
-      "bytes": 8141
-    },
-    {
-      "mode": "su_myes (reconstruct)",
-      "shape": "su::myes",
-      "accepted": false,
-      "httpStatus": 200,
-      "bytes": 44
-    },
-    {
-      "mode": "su_only",
-      "shape": "su",
-      "accepted": false,
-      "httpStatus": 200,
-      "bytes": 44
-    },
-    {
-      "mode": "ek_myes",
-      "shape": "ek::myes",
-      "accepted": true,
-      "httpStatus": 200,
-      "bytes": 8141
-    },
-    {
-      "mode": "ek_only",
-      "shape": "ek",
-      "accepted": true,
-      "httpStatus": 200,
-      "bytes": 8141
-    },
-    {
-      "mode": "ek_m (TV master formula)",
-      "shape": "ek::m",
-      "accepted": true,
-      "httpStatus": 200,
-      "bytes": 8141
-    },
-    {
-      "mode": "sumyes (no separator)",
-      "shape": "sumyes",
-      "accepted": false,
-      "httpStatus": 200,
-      "bytes": 44
+      "accepted": false
     }
   ],
   "cookieBoundary": [
     {
       "test": "cdn_manifest_with_cookie",
       "passed": true,
-      "message": "CDN manifest WITH cookies: HTTP 200 | HLS=true | 8141B"
+      "message": "CDN manifest WITH cookies: HTTP 200 | HLS=true | 7684B"
     },
     {
       "test": "cdn_manifest_no_cookie",
       "passed": true,
-      "message": "CDN manifest NO cookies: HTTP 200 | HLS=true | 8141B"
+      "message": "CDN manifest NO cookies: HTTP 200 | HLS=true | 7684B"
     },
     {
       "test": "search_no_cookie",
@@ -106,47 +58,47 @@
     {
       "test": "net52_hls_no_cookie",
       "passed": true,
-      "message": "Net52 HLS NO cookies: HTTP 200 | HLS=true | 482B"
+      "message": "Net52 HLS NO cookies: HTTP 200 | HLS=true | 373B"
     }
   ],
   "detailedResults": [
     {
       "stage": "domain_probe",
       "status": "OK",
-      "timestamp": "2026-10-02T08:25:28.925Z",
+      "timestamp": "2026-10-03T16:34:41.071Z",
       "domain": "net52.cc",
       "httpStatus": 200,
       "hasAddhash": true,
       "bodyKind": "html",
-      "elapsedMs": 1361,
-      "message": "net52.cc → HTTP 200, addhash=true, 1361ms"
+      "elapsedMs": 827,
+      "message": "net52.cc → HTTP 200, addhash=true, 827ms"
     },
     {
       "stage": "domain_probe",
       "status": "WARN",
-      "timestamp": "2026-10-02T08:25:29.808Z",
+      "timestamp": "2026-10-03T16:34:41.951Z",
       "domain": "netmirror.app",
       "httpStatus": 301,
       "hasAddhash": false,
       "bodyKind": "http_error_301",
-      "elapsedMs": 882,
-      "message": "netmirror.app → HTTP 301, addhash=false, 882ms"
+      "elapsedMs": 878,
+      "message": "netmirror.app → HTTP 301, addhash=false, 878ms"
     },
     {
       "stage": "domain_probe",
       "status": "WARN",
-      "timestamp": "2026-10-02T08:25:30.522Z",
+      "timestamp": "2026-10-03T16:34:42.564Z",
       "domain": "netmirror.gg",
       "httpStatus": 404,
       "hasAddhash": false,
       "bodyKind": "http_error_404",
-      "elapsedMs": 714,
-      "message": "netmirror.gg → HTTP 404, addhash=false, 714ms"
+      "elapsedMs": 612,
+      "message": "netmirror.gg → HTTP 404, addhash=false, 612ms"
     },
     {
       "stage": "domain_probe",
       "status": "FAIL",
-      "timestamp": "2026-10-02T08:25:30.796Z",
+      "timestamp": "2026-10-03T16:34:42.641Z",
       "domain": "mobidetects.com",
       "error": "getaddrinfo ENOTFOUND mobidetects.com",
       "message": "mobidetects.com → getaddrinfo ENOTFOUND mobidetects.com"
@@ -154,28 +106,28 @@
     {
       "stage": "domain_probe",
       "status": "WARN",
-      "timestamp": "2026-10-02T08:25:31.918Z",
+      "timestamp": "2026-10-03T16:34:43.680Z",
       "domain": "mobidetect.art",
       "httpStatus": 404,
       "hasAddhash": false,
       "bodyKind": "http_error_404",
-      "elapsedMs": 1122,
-      "message": "mobidetect.art → HTTP 404, addhash=false, 1122ms"
+      "elapsedMs": 1038,
+      "message": "mobidetect.art → HTTP 404, addhash=false, 1038ms"
     },
     {
       "stage": "handshake_addhash",
       "status": "OK",
-      "timestamp": "2026-10-02T08:25:32.122Z",
+      "timestamp": "2026-10-03T16:34:43.900Z",
       "domain": "net52.cc",
       "httpStatus": 200,
       "addhashParts": 4,
-      "elapsedMs": 203,
+      "elapsedMs": 219,
       "message": "addhash: 4 parts (need ≥3), HTTP 200"
     },
     {
       "stage": "handshake_params",
       "status": "OK",
-      "timestamp": "2026-10-02T08:25:32.123Z",
+      "timestamp": "2026-10-03T16:34:43.901Z",
       "quryParam": "ffr455",
       "vsiteSubdomain": "userver",
       "verifyEndpoint": "/mobile/verify2.php",
@@ -184,108 +136,97 @@
     {
       "stage": "handshake_trigger",
       "status": "OK",
-      "timestamp": "2026-10-02T08:25:32.876Z",
+      "timestamp": "2026-10-03T16:34:44.769Z",
       "message": "Triggered userver.net52.cc"
     },
     {
       "stage": "handshake_verify",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:08.573Z",
-      "attempt": 25,
-      "elapsedMs": 34489,
-      "message": "t_hash_t received on attempt 25 (34489ms)"
+      "timestamp": "2026-10-03T16:35:20.749Z",
+      "attempt": 24,
+      "elapsedMs": 34778,
+      "message": "t_hash_t received on attempt 24 (34778ms)"
     },
     {
       "stage": "search_match",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:08.857Z",
-      "id": "70155584",
-      "title": "Smallville",
+      "timestamp": "2026-10-03T16:35:21.994Z",
+      "id": "1271341039",
+      "title": "Ironheart",
       "year": "",
-      "ott": "nf",
-      "path": "/search.php",
-      "message": "NF found: \"Smallville\" () ID=70155584"
-    },
-    {
-      "stage": "search_match",
-      "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.079Z",
-      "id": "70155584",
-      "title": "Smallville",
-      "year": "",
-      "ott": "nf",
-      "path": "/mobile/search.php",
-      "message": "NF found: \"Smallville\" () ID=70155584"
+      "ott": "hs",
+      "path": "/mobile/hs/search.php",
+      "message": "HS found: \"Ironheart\" () ID=1271341039"
     },
     {
       "stage": "post_detail",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.391Z",
-      "seasonCount": 10,
-      "message": "post.php returned 10 seasons"
+      "timestamp": "2026-10-03T16:35:22.628Z",
+      "seasonCount": 1,
+      "message": "post.php returned 1 seasons"
     },
     {
       "stage": "season_find",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.391Z",
-      "seasonId": "70037632",
-      "message": "Season 4 ID: 70037632"
+      "timestamp": "2026-10-03T16:35:22.628Z",
+      "seasonId": "1271341037",
+      "message": "Season 1 ID: 1271341037"
     },
     {
       "stage": "episodes_page",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.799Z",
+      "timestamp": "2026-10-03T16:35:22.803Z",
       "page": 1,
-      "count": 10,
-      "nextPageShow": 1,
-      "message": "Page 1: 10 episodes, nextPage=1"
+      "count": 6,
+      "nextPageShow": 0,
+      "message": "Page 1: 6 episodes, nextPage=0"
     },
     {
       "stage": "episode_match",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.800Z",
-      "episodeContentId": "82171151",
-      "rawEp": "E8",
-      "message": "S4E8 content ID: 82171151"
+      "timestamp": "2026-10-03T16:35:22.803Z",
+      "episodeContentId": "1271341040",
+      "rawEp": "E1",
+      "message": "S1E1 content ID: 1271341040"
     },
     {
       "stage": "playlist_php",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.998Z",
+      "timestamp": "2026-10-03T16:35:22.981Z",
       "sourceCount": 2,
-      "trackCount": 3,
-      "message": "playlist.php → 2 sources, 3 subtitle tracks"
+      "trackCount": 4,
+      "message": "playlist.php → 2 sources, 4 subtitle tracks"
     },
     {
       "stage": "source_analysis",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.999Z",
-      "file": "/mobile/hls/82171151.m3u8",
+      "timestamp": "2026-10-03T16:35:22.983Z",
+      "file": "/mobile/hs/hls/1271341040.m3u8",
       "hasToken": true,
       "tokenIsUnknown": false,
       "isWaitingVideo": false,
       "tokenMode": "ek",
       "tokenSuffix": "m",
       "tokenShape": "::ek::m",
-      "message": "Source: /mobile/hls/82171151.m3u8 | token=::ek::m | waiting=false"
+      "message": "Source: /mobile/hs/hls/1271341040.m3u8 | token=::ek::m | waiting=false"
     },
     {
       "stage": "source_analysis",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:09.999Z",
-      "file": "/mobile/hls/82171151.m3u8",
+      "timestamp": "2026-10-03T16:35:22.983Z",
+      "file": "/mobile/hs/hls/1271341040.m3u8",
       "hasToken": true,
       "tokenIsUnknown": false,
       "isWaitingVideo": false,
       "tokenMode": "ek",
       "tokenSuffix": "m",
       "tokenShape": "::ek::m",
-      "message": "Source: /mobile/hls/82171151.m3u8 | token=::ek::m | waiting=false"
+      "message": "Source: /mobile/hs/hls/1271341040.m3u8 | token=::ek::m | waiting=false"
     },
     {
       "stage": "master_token_test",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:10.308Z",
+      "timestamp": "2026-10-03T16:35:23.161Z",
       "name": "ek_m (current TV hardcoded)",
       "tokenMode": "ek::m",
       "httpStatus": 200,
@@ -296,15 +237,15 @@
       "hasUnknownToken": false,
       "isVideoIdMissing": false,
       "providerIssuedModes": [
-        "::ek::myes"
+        "::ek"
       ],
-      "bodyBytes": 482,
-      "message": "ek_m (current TV hardcoded): HTTP 200 | manifest=true | variants=true | waiting=false | CDN modes=::ek::myes | 482B"
+      "bodyBytes": 978,
+      "message": "ek_m (current TV hardcoded): HTTP 200 | manifest=true | variants=true | waiting=false | CDN modes=::ek | 978B"
     },
     {
       "stage": "master_token_test",
       "status": "FAIL",
-      "timestamp": "2026-10-02T08:26:11.006Z",
+      "timestamp": "2026-10-03T16:35:23.959Z",
       "name": "su_m (su mode with m suffix)",
       "tokenMode": "su::m",
       "httpStatus": 200,
@@ -315,156 +256,71 @@
       "hasUnknownToken": true,
       "isVideoIdMissing": false,
       "providerIssuedModes": [],
-      "bodyBytes": 314,
-      "message": "su_m (su mode with m suffix): HTTP 200 | manifest=true | variants=true | waiting=true | CDN modes=none | 314B"
+      "bodyBytes": 1058,
+      "message": "su_m (su mode with m suffix): HTTP 200 | manifest=true | variants=true | waiting=true | CDN modes=none | 1058B"
     },
     {
       "stage": "rate_limit",
       "status": "FAIL",
-      "timestamp": "2026-10-02T08:26:11.006Z",
+      "timestamp": "2026-10-03T16:35:23.959Z",
       "message": "Rate limited! Stopping master token tests."
     },
     {
       "stage": "cdn_token_probe",
-      "status": "OK",
-      "timestamp": "2026-10-02T08:26:11.826Z",
-      "name": "provider_original",
-      "tokenShape": "ek::myes",
-      "httpStatus": 200,
-      "bodyKind": "hls",
-      "isHls": true,
-      "isRejected": false,
-      "bodyBytes": 8141,
-      "message": "CDN provider_original (::ek::myes): HTTP 200 | HLS=true | rejected=false | 8141B"
-    },
-    {
-      "stage": "cdn_token_probe",
       "status": "FAIL",
-      "timestamp": "2026-10-02T08:26:12.825Z",
-      "name": "su_myes (reconstruct)",
-      "tokenShape": "su::myes",
-      "httpStatus": 200,
-      "bodyKind": "session_rejected",
-      "isHls": false,
-      "isRejected": true,
-      "bodyBytes": 44,
-      "message": "CDN su_myes (reconstruct) (::su::myes): HTTP 200 | HLS=false | rejected=true | 44B"
-    },
-    {
-      "stage": "cdn_token_probe",
-      "status": "FAIL",
-      "timestamp": "2026-10-02T08:26:13.831Z",
-      "name": "su_only",
-      "tokenShape": "su",
-      "httpStatus": 200,
-      "bodyKind": "session_rejected",
-      "isHls": false,
-      "isRejected": true,
-      "bodyBytes": 44,
-      "message": "CDN su_only (::su): HTTP 200 | HLS=false | rejected=true | 44B"
-    },
-    {
-      "stage": "cdn_token_probe",
-      "status": "OK",
-      "timestamp": "2026-10-02T08:26:14.933Z",
-      "name": "ek_myes",
-      "tokenShape": "ek::myes",
-      "httpStatus": 200,
-      "bodyKind": "hls",
-      "isHls": true,
-      "isRejected": false,
-      "bodyBytes": 8141,
-      "message": "CDN ek_myes (::ek::myes): HTTP 200 | HLS=true | rejected=false | 8141B"
-    },
-    {
-      "stage": "cdn_token_probe",
-      "status": "OK",
-      "timestamp": "2026-10-02T08:26:15.945Z",
-      "name": "ek_only",
-      "tokenShape": "ek",
-      "httpStatus": 200,
-      "bodyKind": "hls",
-      "isHls": true,
-      "isRejected": false,
-      "bodyBytes": 8141,
-      "message": "CDN ek_only (::ek): HTTP 200 | HLS=true | rejected=false | 8141B"
-    },
-    {
-      "stage": "cdn_token_probe",
-      "status": "OK",
-      "timestamp": "2026-10-02T08:26:16.981Z",
-      "name": "ek_m (TV master formula)",
-      "tokenShape": "ek::m",
-      "httpStatus": 200,
-      "bodyKind": "hls",
-      "isHls": true,
-      "isRejected": false,
-      "bodyBytes": 8141,
-      "message": "CDN ek_m (TV master formula) (::ek::m): HTTP 200 | HLS=true | rejected=false | 8141B"
-    },
-    {
-      "stage": "cdn_token_probe",
-      "status": "FAIL",
-      "timestamp": "2026-10-02T08:26:18.003Z",
-      "name": "sumyes (no separator)",
-      "tokenShape": "sumyes",
-      "httpStatus": 200,
-      "bodyKind": "session_rejected",
-      "isHls": false,
-      "isRejected": true,
-      "bodyBytes": 44,
-      "message": "CDN sumyes (no separator) (::sumyes): HTTP 200 | HLS=false | rejected=true | 44B"
+      "timestamp": "2026-10-03T16:35:23.960Z",
+      "message": "Cannot parse token from CDN URL"
     },
     {
       "stage": "media_manifest",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:19.020Z",
-      "segmentCount": 256,
+      "timestamp": "2026-10-03T16:35:24.606Z",
+      "segmentCount": 247,
       "hasEndList": true,
-      "message": "Media manifest: 256 segments, endlist=true"
+      "message": "Media manifest: 247 segments, endlist=true"
     },
     {
       "stage": "segment_probe",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:19.468Z",
+      "timestamp": "2026-10-03T16:35:25.170Z",
       "segmentKind": "mpeg_ts",
-      "bytes": 262144,
-      "httpStatus": 206,
-      "message": "Segment: mpeg_ts | 262144B | HTTP 206"
+      "bytes": 175592,
+      "httpStatus": 200,
+      "message": "Segment: mpeg_ts | 175592B | HTTP 200"
     },
     {
       "stage": "segment_probe",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:19.922Z",
+      "timestamp": "2026-10-03T16:35:25.490Z",
       "segmentKind": "mpeg_ts",
-      "bytes": 262144,
-      "httpStatus": 206,
-      "message": "Segment: mpeg_ts | 262144B | HTTP 206"
+      "bytes": 173524,
+      "httpStatus": 200,
+      "message": "Segment: mpeg_ts | 173524B | HTTP 200"
     },
     {
       "stage": "cookie_boundary",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:20.558Z",
+      "timestamp": "2026-10-03T16:35:25.711Z",
       "test": "cdn_manifest_with_cookie",
       "httpStatus": 200,
-      "bytes": 8141,
+      "bytes": 7684,
       "isHls": true,
-      "message": "CDN manifest WITH cookies: HTTP 200 | HLS=true | 8141B"
+      "message": "CDN manifest WITH cookies: HTTP 200 | HLS=true | 7684B"
     },
     {
       "stage": "cookie_boundary",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:21.164Z",
+      "timestamp": "2026-10-03T16:35:25.933Z",
       "test": "cdn_manifest_no_cookie",
       "httpStatus": 200,
-      "bytes": 8141,
+      "bytes": 7684,
       "isHls": true,
-      "message": "CDN manifest NO cookies: HTTP 200 | HLS=true | 8141B"
+      "message": "CDN manifest NO cookies: HTTP 200 | HLS=true | 7684B"
     },
     {
       "stage": "cookie_boundary",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:21.528Z",
+      "timestamp": "2026-10-03T16:35:26.168Z",
       "test": "search_no_cookie",
       "httpStatus": 200,
       "bytes": 914,
@@ -474,12 +330,12 @@
     {
       "stage": "cookie_boundary",
       "status": "OK",
-      "timestamp": "2026-10-02T08:26:21.764Z",
+      "timestamp": "2026-10-03T16:35:26.355Z",
       "test": "net52_hls_no_cookie",
       "httpStatus": 200,
-      "bytes": 482,
+      "bytes": 373,
       "isHls": true,
-      "message": "Net52 HLS NO cookies: HTTP 200 | HLS=true | 482B"
+      "message": "Net52 HLS NO cookies: HTTP 200 | HLS=true | 373B"
     }
   ]
 }

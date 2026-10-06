@@ -1,0 +1,39 @@
+{
+  "website": "https://npro-app.vercel.app",
+  "releases": [
+    {
+      "channel": "tv",
+      "version": "3.10.2026.3",
+      "versionCode": 29092037,
+      "bytes": 7579835,
+      "hashMatches": true,
+      "certificateMatches": true,
+      "apkUrl": "https://npro-app.vercel.app/downloads/tv/29092037-53fee93afa38d4c6.apk"
+    },
+    {
+      "channel": "mobile",
+      "version": "1.11",
+      "versionCode": 12,
+      "bytes": 14128068,
+      "hashMatches": true,
+      "certificateMatches": true,
+      "apkUrl": "https://npro-app.vercel.app/downloads/mobile/12-ad3704a5e8224a24.apk"
+    }
+  ],
+  "streamingConfigMatches": true,
+  "previousAliasMatches": true,
+  "deploymentId": "dpl_AGbHnUuGS81NEcWjVYTTGWaPnmjD",
+  "builds": {
+    "tv": {
+      "commit": "cd6d29d4e9219258ba9fd26620888279cb0695ef",
+      "workflowUrl": "https://github.com/alitrial2025/netflix-tv/actions/runs/37142490958",
+      "artifactId": 11281425926
+    },
+    "mobile": {
+      "commit": "c7f7dfaed119eb3112f1855031330b7d995e2b8c",
+      "workflowUrl": "https://github.com/alitrial2025/netflix-mobile/actions/runs/37142499741",
+      "artifactId": 11281216705
+    }
+  },
+  "signingCertificateSha256": "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
+}

@@ -118,4 +118,45 @@ class HomeStartupSchedulerTest {
         waiting.cancel()
     }
 
+    @Test fun smallTvEntryDefersOptionalWorkWithoutDelayingCategoryOrLaterInput() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime }, initialEntryQuietMs = 4_000)
+        gate.markHomeReady()
+        var background = false
+        var category = false
+        launch { gate.awaitIdle(); background = true }
+        launch { gate.awaitBrowsingIdle(); category = true }
+        advanceTimeBy(1_000); runCurrent()
+        assertTrue(category)
+        assertFalse(background)
+        advanceTimeBy(2_999); runCurrent()
+        assertFalse(background)
+        advanceTimeBy(1); runCurrent()
+        assertTrue(background)
+        gate.onInteraction()
+        var later = false
+        launch { gate.awaitIdle(); later = true }
+        advanceTimeBy(999); runCurrent()
+        assertFalse(later)
+        advanceTimeBy(1); runCurrent()
+        assertTrue(later)
+    }
+
+    @Test fun smallTvReentryRestartsQuietWindowButSplashDoesNotWait() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime }, initialEntryQuietMs = 4_000)
+        gate.setPreparing(true)
+        gate.awaitIdle()
+        gate.setPreparing(false)
+        gate.markHomeReady()
+        advanceTimeBy(4_000)
+        gate.awaitIdle()
+        gate.markHomeHidden()
+        gate.markHomeReady()
+        var ready = false
+        launch { gate.awaitIdle(); ready = true }
+        advanceTimeBy(3_999); runCurrent()
+        assertFalse(ready)
+        advanceTimeBy(1); runCurrent()
+        assertTrue(ready)
+    }
+
 }
