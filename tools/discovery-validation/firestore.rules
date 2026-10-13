@@ -4,12 +4,18 @@ service cloud.firestore {
     // Existing application collections retain their supplied account ownership permissions.
     function accountOwner(uid) { return request.auth != null && request.auth.uid == uid; }
     match /users/{uid} {
-      allow read, write: if accountOwner(uid);
+      allow read: if accountOwner(uid);
+      allow create: if accountOwner(uid) &&
+        (!('subscriptionPlanId' in request.resource.data) || request.resource.data.subscriptionPlanId == 'plan_guest') &&
+        (!('subscriptionStatus' in request.resource.data) || request.resource.data.subscriptionStatus == 'NONE');
+      allow update: if accountOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['subscriptionPlanId', 'subscriptionStatus']);
+      allow delete: if false;
     }
     // Quotas and immutable votes must not inherit a recursive write grant.
     match /users/{uid}/{collection}/{document=**} {
       allow read, write: if accountOwner(uid) &&
-        !(collection in ['profiles', 'discovery_votes', 'discovery_days', 'device_binding', 'stream_slots']);
+        !(collection in ['profiles', 'discovery_votes', 'discovery_days', 'device_binding', 'stream_slots', 'subscription']);
     }
     match /users/{uid}/profiles/{profile} {
       allow read, write: if accountOwner(uid);
@@ -18,8 +24,20 @@ service cloud.firestore {
     match /users/{uid}/profiles/{profile}/{collection}/{document=**} {
       allow read, write: if accountOwner(uid) && collection != 'release_reminders';
     }
+    // Only the trusted payment service's IAM identity writes entitlements and receipts.
+    match /users/{uid}/subscription/{document} {
+      allow read: if owner(uid);
+      allow write: if false;
+    }
     match /subscriptions/{uid} {
-      allow read, write: if accountOwner(uid);
+      allow read: if owner(uid);
+      allow write: if false;
+    }
+    match /used_receipts/{receipt} {
+      allow read, write: if false;
+    }
+    match /billing_attempts/{uid} {
+      allow read, write: if false;
     }
     // Removed client-only pairing must not expose account/session data anonymously.
     match /tv_sessions/{sessionCode}/{document=**} {

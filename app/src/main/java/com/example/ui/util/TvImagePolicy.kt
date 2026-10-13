@@ -18,9 +18,29 @@ object TvImagePolicy {
     private val backdropWidths = intArrayOf(300, 780, 1280)
     private val logoWidths = intArrayOf(45, 92, 154, 185, 300, 500)
 
-    fun isLowMemoryDevice(context: Context): Boolean {
-        val manager = context.getSystemService(ActivityManager::class.java)
-        return manager?.isLowRamDevice == true || (manager?.memoryClass ?: 128) <= 128
+    @Volatile private var cachedLowMemory: Boolean? = null
+
+    fun isLowMemoryDevice(context: Context): Boolean = cachedLowMemory ?: synchronized(this) {
+        cachedLowMemory ?: run {
+            val manager = context.getSystemService(ActivityManager::class.java)
+            val totalRam = runCatching {
+                ActivityManager.MemoryInfo().also { manager?.getMemoryInfo(it) }.totalMem
+            }.getOrDefault(0L)
+            usesConservativeResources(manager?.isLowRamDevice == true, manager?.memoryClass ?: 128, totalRam)
+                .also { cachedLowMemory = it }
+        }
+    }
+
+    /** Cheap 1–2 GiB TVs often report a large application heap and no low-RAM flag. */
+    internal fun usesConservativeResources(lowRam: Boolean, memoryClassMb: Int, totalRamBytes: Long): Boolean =
+        lowRam || memoryClassMb <= 128 || (totalRamBytes in 1L..(2L * 1024 * MEBIBYTE))
+
+    fun billboardSize(widthPx: Int, heightPx: Int, lowMemory: Boolean): Pair<Int, Int> {
+        val requested = backdropSize(widthPx, heightPx, lowMemory)
+        val widthLimit = if (lowMemory) 960 else 1280
+        return if (requested.first <= widthLimit) requested else {
+            widthLimit to (requested.second * widthLimit.toFloat() / requested.first).roundToInt().coerceAtLeast(1)
+        }
     }
 
     fun memoryCacheBytes(maxHeapBytes: Long, isLowRamDevice: Boolean): Int {

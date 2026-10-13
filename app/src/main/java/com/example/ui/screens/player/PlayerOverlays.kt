@@ -429,6 +429,7 @@ fun PlayerLoadingOverlay(
 
 @Composable
 fun PlayerErrorOverlay(
+    message: String = "Unable to play this title",
     onRetry: () -> Unit
 ) {
     val retryRequester = remember { FocusRequester() }
@@ -447,7 +448,7 @@ fun PlayerErrorOverlay(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Text(
-                text = "Unable to play this title",
+                text = message,
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold

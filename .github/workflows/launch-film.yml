@@ -76,11 +76,12 @@ jobs:
           name: native-ui-${{ matrix.device }}
           path: launch-film/public/screens/
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
       - name: Upload native capture diagnostics
         if: failure()
         uses: actions/upload-artifact@v5
         with:
+          retention-days: 1
           name: native-capture-errors-${{ matrix.device }}
           path: |
             app/build/reports/tests/
@@ -124,7 +125,7 @@ jobs:
             launch-film/out/preview/
             launch-film/public/screens/manifest.json
             launch-film/public/score.wav
-          retention-days: 30
+          retention-days: 1
 
   render:
     name: Native 4K / shard ${{ matrix.shard }}
@@ -167,7 +168,7 @@ jobs:
           name: launch-film-shard-${{ matrix.shard }}
           path: launch-film/out/chunk-*.mp4
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
   exports:
     name: Assemble, downsample and verify MP4s
@@ -193,4 +194,4 @@ jobs:
             launch-film/out/contact-sheet.jpg
             launch-film/out/verification.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 7

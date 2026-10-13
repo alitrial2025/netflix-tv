@@ -121,21 +121,31 @@ object BillboardAlgorithm {
         isKidProfile: Boolean = false,
         limit: Int = 8
     ): List<Movie> {
-        if (catalog.isEmpty()) return emptyList()
+        if (catalog.isEmpty() || limit <= 0) return emptyList()
 
-        val filtered = if (isKidProfile) {
-            catalog.filter { isKidSafeMovie(it) }
-        } else {
-            catalog
+        data class Candidate(val movie: Movie, val score: Int, val index: Int)
+        val bestFirst = compareByDescending<Candidate> { it.score }.thenBy { it.index }
+        val top = java.util.PriorityQueue(bestFirst.reversed())
+        val selected = mutableMapOf<String, Candidate>()
+        catalog.forEachIndexed { index, movie ->
+            if (movie.isComingSoon || movie.backdropUrl.isBlank() ||
+                !com.example.discovery.ReleasePolicy.isPlayableDate(movie.releaseDate) ||
+                (isKidProfile && !isKidSafeMovie(movie))) return@forEachIndexed
+            val score = calculateBillboardScore(movie, tab)
+            if (score <= 0) return@forEachIndexed
+            val candidate = Candidate(movie, score, index)
+            val existing = selected[movie.id]
+            if (existing != null) {
+                if (bestFirst.compare(candidate, existing) >= 0) return@forEachIndexed
+                top.remove(existing)
+            } else if (top.size >= limit) {
+                if (bestFirst.compare(candidate, top.peek()) >= 0) return@forEachIndexed
+                selected.remove(top.remove().movie.id)
+            }
+            top.add(candidate)
+            selected[movie.id] = candidate
         }
-
-        return filtered
-            .filter { !it.isComingSoon && com.example.discovery.ReleasePolicy.isPlayableDate(it.releaseDate) && it.backdropUrl.isNotBlank() }
-            .map { movie -> movie to calculateBillboardScore(movie, tab) }
-            .filter { it.second > 0 }
-            .sortedByDescending { it.second }
-            .map { it.first }
-            .distinctBy { it.id }
-            .take(limit)
+        // Stable ties and duplicate IDs preserve the original curation order.
+        return top.sortedWith(bestFirst).map { it.movie }
     }
 }

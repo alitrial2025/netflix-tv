@@ -48,4 +48,16 @@ class TvImagePolicyTest {
             "https://image.tmdb.org/t/p/custom/poster.jpg"
         )) assertEquals(url, TvImagePolicy.artworkUrl(url, 100, TvArtworkKind.LOGO))
     }
+    @Test fun inexpensiveLargeHeapTvsStillGetBoundedImageAndStartupResources() {
+        val gib = 1024L * 1024 * 1024
+        assertTrue(TvImagePolicy.usesConservativeResources(false, 256, 2 * gib))
+        assertTrue(TvImagePolicy.usesConservativeResources(false, 512, gib))
+        assertTrue(TvImagePolicy.usesConservativeResources(true, 512, 4 * gib))
+        assertTrue(TvImagePolicy.usesConservativeResources(false, 128, 4 * gib))
+        org.junit.Assert.assertFalse(TvImagePolicy.usesConservativeResources(false, 256, 4 * gib))
+        org.junit.Assert.assertFalse(TvImagePolicy.usesConservativeResources(false, 256, 0))
+        assertEquals(960 to 540, TvImagePolicy.billboardSize(1920, 1080, true))
+        assertEquals(1280 to 720, TvImagePolicy.billboardSize(1920, 1080, false))
+    }
+
 }

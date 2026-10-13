@@ -35,4 +35,11 @@ class DeviceAccessGuardTest {
         assertEquals(1, ScreenLease.availableSlot(listOf("a", "b"),listOf(100_000,100_000),listOf(false,true),"c",110_000))
         assertEquals(listOf(1,1,2,4,0),listOf("plan_mobile","plan_basic","plan_standard","plan_premium","unknown").map(DeviceAccessPolicy::screenCount))
     }
+    @org.junit.Test fun advertisedScreensMatchTheLeasePolicyForEveryPaidPlan() {
+        for (plan in com.example.model.SubscriptionPlans.PLANS) {
+            org.junit.Assert.assertEquals(plan.screens, DeviceAccessPolicy.screenCount(plan.id))
+            org.junit.Assert.assertEquals(plan.id in setOf("plan_mobile", "plan_basic"), DeviceAccessPolicy.isSingleDevice(plan.id))
+        }
+    }
+
 }

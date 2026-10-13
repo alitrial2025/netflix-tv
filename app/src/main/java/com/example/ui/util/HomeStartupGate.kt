@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 /** Keeps optional startup work out of the first Home layout and remote-driven scrolling. */
 object HomeStartupGate {
     private val scheduler = HomeStartupScheduler(SystemClock::uptimeMillis)
+    fun configureLowMemory(lowMemory: Boolean) = scheduler.setEntryQuietMs(if (lowMemory) 4_000L else 1_000L)
     fun setPreparing(preparing: Boolean) = scheduler.setPreparing(preparing)
     fun markHomeReady() = scheduler.markHomeReady()
     fun markHomeHidden() = scheduler.markHomeHidden()
@@ -22,17 +23,24 @@ object HomeStartupGate {
 /** Clock injection lets scheduling be checked without a device or real-time sleeps. */
 internal class HomeStartupScheduler(
     private val nowMs: () -> Long,
-    private val inputQuietMs: Long = 1_000L
+    private val inputQuietMs: Long = 1_000L,
+    private val initialEntryQuietMs: Long = inputQuietMs
 ) {
     private data class State(
         val homeReady: Boolean = false,
         val preparing: Boolean = false,
         val scrolling: Boolean = false,
-        val lastInteractionMs: Long = 0L
+        val lastInteractionMs: Long = 0L,
+        val homeReadyAtMs: Long = 0L,
+        val entryQuietMs: Long = 1_000L
     )
 
     private val lock = Any()
-    private val state = MutableStateFlow(State(lastInteractionMs = nowMs()))
+    private val state = MutableStateFlow(State(lastInteractionMs = nowMs(), entryQuietMs = initialEntryQuietMs))
+
+    fun setEntryQuietMs(quietMs: Long) = synchronized(lock) {
+        state.value = state.value.copy(entryQuietMs = quietMs.coerceAtLeast(inputQuietMs))
+    }
 
     fun setPreparing(preparing: Boolean) = synchronized(lock) {
         state.value = state.value.copy(preparing = preparing, lastInteractionMs = nowMs())
@@ -40,7 +48,7 @@ internal class HomeStartupScheduler(
 
     fun markHomeReady() = synchronized(lock) {
         if (!state.value.homeReady) {
-            state.value = state.value.copy(homeReady = true, lastInteractionMs = nowMs())
+            state.value = state.value.copy(homeReady = true, lastInteractionMs = nowMs(), homeReadyAtMs = nowMs())
         }
     }
 
@@ -68,7 +76,10 @@ internal class HomeStartupScheduler(
         while (true) {
             currentCoroutineContext().ensureActive()
             val candidate = state.first { (!requireHome || it.homeReady || it.preparing) && !it.scrolling }
-            val remaining = if (candidate.preparing) 0L else inputQuietMs - (nowMs() - candidate.lastInteractionMs)
+            val remaining = if (candidate.preparing) 0L else maxOf(
+                inputQuietMs - (nowMs() - candidate.lastInteractionMs),
+                if (requireHome) candidate.entryQuietMs - (nowMs() - candidate.homeReadyAtMs) else 0L
+            )
             if (remaining > 0L) {
                 delay(remaining)
                 continue

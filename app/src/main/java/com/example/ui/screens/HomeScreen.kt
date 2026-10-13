@@ -492,6 +492,8 @@ fun HomeScreen(
             if (!tabRowsCache.containsKey(tab)) tabRowsCache[tab] = rows
         }
         prepareRows(contentTab)
+        // Keep the current tab cached; small TVs build other tabs only when opened.
+        if (isLowMemoryDevice) return@LaunchedEffect
         // Warm only lists and ranking data after input is quiet. No offscreen
         // composables, artwork requests or players are created for these tabs.
         for (tab in listOf("Home", "Series", "Films", "My Netflix")) {
@@ -558,12 +560,11 @@ fun HomeScreen(
     val isAtCategories = !isKidProfile && contentTab == "Home" && currentFocusLevel == 0
     LaunchedEffect(currentHeroMovie.id, currentHeroMovie.backdropUrl, currentHeroMovie.posterUrl, isAtRows, isAtCategories) {
         // The metadata tint is already present on the first frame. Sampling the
-        // artwork starts another image request and palette decode; on small TVs
-        // keep the tint, and elsewhere wait until the initial row and session
-        // work has passed before doing this optional refinement.
-        if (isAtRows || isAtCategories || isLowMemoryDevice) return@LaunchedEffect
+        // artwork starts another image request and palette decode. Defer the
+        // refinement further on small TVs while preserving the same final tint.
+        if (isAtRows || isAtCategories) return@LaunchedEffect
         try {
-            kotlinx.coroutines.delay(4_000L)
+            kotlinx.coroutines.delay(if (isLowMemoryDevice) 8_000L else 4_000L)
             viewModel.awaitHomeIdle()
             extractedMoodColor = PaletteExtractor.extractColorFromMovie(context, currentHeroMovie)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {

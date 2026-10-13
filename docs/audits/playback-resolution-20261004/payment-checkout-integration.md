@@ -1,0 +1,7 @@
+# Public hosted-checkout integration audit
+
+Read-only inspection of `https://lipwa.link/7976` on 2026-10-04 identified its public bundle `https://lipwa.link/assets/index-sch16kr2.js` (SHA-256 `eb55aa2bee51e6c3748fa36caf2711420f449466b0957b9ce8f7142df838e685`). No payment was submitted, and no customer data was used.
+
+The existing phone query is correct: `amount` and `reference`. The live public initialization reads `reference` from URLSearchParams into the payment form. Before its clean-URL redirect, the frontend stores query parameters as `lipwaParams`; after redirect it restores the exact `reference` into the form. The pre-filled reference input is disabled. Its STK action passes that form reference into `mpesaSTKPush`, which serializes it as PayHero `external_reference` in the merchant's `account/7976/payments` request. This matches the trusted verification service's required checkout reference.
+
+Two offline executable regressions use the exact observed public initialization, session restoration and STK serializer snippets. Network calls are stubbed; no payment UI is mounted and no STK push is sent. The normal URL and clean-URL redirect both preserve the original account/plan reference, and the serializer output is accepted by the server's reference parser. These tests and the 12 payment-service regressions pass (14 total). The public frontend can change independently; this observation validates its current published bundle, not a future version.

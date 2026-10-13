@@ -1,0 +1,27 @@
+{
+  "tv": {
+    "commit": "dae15b3a652da4bfb0df12620387a83e2403513f",
+    "runId": 37186957667,
+    "artifactId": 11297996193,
+    "ciConclusion": "success"
+  },
+  "backendDeployment": "https://netflixpro-cdj47nnec-alitrial2025-9479.vercel.app",
+  "mobile": {
+    "commit": "36d7111340e6fd736d13ffad14f7767dd5a815d8",
+    "runId": 37186999869,
+    "artifactId": 11297416521,
+    "ciConclusion": "success"
+  },
+  "backendChecks": {
+    "merchantAndCheckoutTests": 14,
+    "rulesTests": 18,
+    "liveRulesMatch": true,
+    "copiedAndFabricatedRejected": true
+  },
+  "websiteDeployment": {
+    "id": "dpl_28KGKQcFem5YAsKFPkzWbxHn5HS8",
+    "url": "https://netflixpro-5b23l4nun-alitrial2025-9479.vercel.app",
+    "productionUrl": "https://npro-app.vercel.app",
+    "readyState": "READY"
+  }
+}

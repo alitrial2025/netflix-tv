@@ -33,3 +33,13 @@ debug.keystore
 # Production APKs are deployed to Vercel; keep binaries out of source commits.
 /marketing-site/downloads/mobile/*.apk
 /marketing-site/downloads/tv/*.apk
+
+# Local Firebase verification runtime
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# Site server dependencies and deployment state
+marketing-site/node_modules/
+.vercel
+/app/src/test/java/com/example/ShowcaseTvCaptureTest.kt

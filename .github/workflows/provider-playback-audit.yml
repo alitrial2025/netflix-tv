@@ -29,6 +29,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
+          retention-days: 1
           name: native-provider-playback-audit
           if-no-files-found: warn
           path: |

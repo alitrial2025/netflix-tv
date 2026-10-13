@@ -1,0 +1,46 @@
+{
+  "showId": "70155584",
+  "title": "Smallville",
+  "seasons": {
+    "S1": {
+      "seasonId": "60031634",
+      "episodeCount": 10
+    },
+    "S2": {
+      "seasonId": "60037350",
+      "episodeCount": 10
+    },
+    "S3": {
+      "seasonId": "70015697",
+      "episodeCount": 10
+    },
+    "S4": {
+      "seasonId": "70037632",
+      "episodeCount": 10
+    },
+    "S5": {
+      "seasonId": "70052575",
+      "episodeCount": 10
+    },
+    "S6": {
+      "seasonId": "70054949",
+      "episodeCount": 10
+    },
+    "S7": {
+      "seasonId": "70075079",
+      "episodeCount": 10
+    },
+    "S8": {
+      "seasonId": "70096959",
+      "episodeCount": 10
+    },
+    "S9": {
+      "seasonId": "70117377",
+      "episodeCount": 10
+    },
+    "S10": {
+      "seasonId": "70148114",
+      "episodeCount": 10
+    }
+  }
+}

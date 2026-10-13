@@ -1,0 +1,20 @@
+[
+  {
+    "apk": "NetflixProTv-4.10.2026.1-release.apk",
+    "bytes": 7579840,
+    "sha256": "c05a782fc6688d573a4b66807f9a62df6acf7247ad20e99356e75d28665b8903",
+    "originalSigningCertificate": true,
+    "debuggable": false,
+    "merchantCredentialAbsent": true,
+    "manifest": "package: name='com.netflixprotv.apk' versionCode='29092039' versionName='4.10.2026.1' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'"
+  },
+  {
+    "apk": "NetflixProMobile-1.13-release.apk",
+    "bytes": 14128052,
+    "sha256": "77c37b64a73ed2c6bb4017b550a3cfae0959dab09d597356dcc6bff32e20a6f9",
+    "originalSigningCertificate": true,
+    "debuggable": false,
+    "merchantCredentialAbsent": true,
+    "manifest": "package: name='com.netflixpro.apk' versionCode='14' versionName='1.13' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'"
+  }
+]

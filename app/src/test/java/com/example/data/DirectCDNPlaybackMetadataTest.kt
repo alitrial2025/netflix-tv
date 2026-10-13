@@ -24,6 +24,7 @@ class DirectCDNPlaybackMetadataTest {
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             val req = chain.request(); seen += req; assertNull(req.header("Cookie"))
             val body = when (req.url.encodedPath) {
+                "/mobile/post.php" -> "{}"
                 "/3/movie/fixture" -> """{"title":"Fixture","release_date":"2001-01-01"}"""
                 "/search.php" -> """{"searchResult":[{"id":"8100000002","t":"Fixture","y":"2001"}]}"""
                 "/title/8100000002" -> """<script type="application/ld+json">{"@type":"Movie","name":"Fixture","datePublished":"2001-01-01"}</script>"""
@@ -32,7 +33,9 @@ class DirectCDNPlaybackMetadataTest {
                 "/video/media.m3u8" -> { assertEquals(video, req.url.toString()); "#EXTM3U\n#EXTINF:10,\ns.jpg" }
                 else -> throw AssertionError("Unexpected handshake ${req.url.encodedPath}")
             }
-            Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("fixture").body(body.toResponseBody()).build()
+            Response.Builder().request(req).protocol(Protocol.HTTP_1_1)
+                .code(if (req.url.encodedPath == "/mobile/post.php") 404 else 200)
+                .message("fixture").body(body.toResponseBody()).build()
         }.build()
         val movie = Movie(id = "fixture", title = "Fixture", year = "2001", type = "Movie", duration = "", description = "", backdropUrl = "", posterUrl = "")
         val resolver = DirectCDNResolver(context, client)

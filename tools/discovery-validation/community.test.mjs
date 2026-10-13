@@ -5,7 +5,7 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 let env;
 const day = () => new Date().toISOString().slice(0,10);
-before(async () => { assert.equal(await readFile('firestore.rules','utf8'), await readFile('../../firestore.rules','utf8'), 'fixture must match production rules'); env = await initializeTestEnvironment({projectId:'demo-netflixpro-discovery',firestore:{host:'127.0.0.1',port:8787,rules:await readFile('firestore.rules','utf8')}}); });
+before(async () => { assert.equal(await readFile(new URL('./firestore.rules',import.meta.url),'utf8'), await readFile(new URL('../../firestore.rules',import.meta.url),'utf8'), 'fixture must match production rules'); env = await initializeTestEnvironment({projectId:process.env.FIRESTORE_TEST_PROJECT ?? 'demo-netflixpro-discovery',firestore:{host:'127.0.0.1',port:8787,rules:await readFile(new URL('./firestore.rules',import.meta.url),'utf8')}}); });
 after(async () => env?.cleanup());
 beforeEach(async () => env.clearFirestore());
 const db = uid => env.authenticatedContext(uid).firestore();
@@ -89,7 +89,7 @@ test('legacy reminder migration cannot overwrite a concurrent disable', {timeout
 test('owned app data remains private and removed anonymous TV pairing is denied', async()=> {
  const alice=db('alice');const bob=db('bob');
  for(const path of ['users/alice','users/alice/profiles/home','users/alice/profiles/home/watch_history/tv_1',
-  'users/alice/history/movie_1','users/alice/profiles/home/preferences/player','subscriptions/alice']) {
+  'users/alice/history/movie_1','users/alice/profiles/home/preferences/player']) {
   await assertSucceeds(setDoc(doc(alice,path),{fixture:true}));
   await assertSucceeds(getDoc(doc(alice,path)));
   await assertFails(getDoc(doc(bob,path)));
@@ -100,7 +100,7 @@ test('owned app data remains private and removed anonymous TV pairing is denied'
  await assertFails(setDoc(doc(publicPairing,'tv_sessions/session/remote_commands/command'),{fixture:true}));
 });
 
-// Membership documents are seeded with administrative privileges; payment remains a client flow.
+// Membership documents are seeded with administrative privileges; membership writes belong to the trusted server.
 const deviceA='a'.repeat(64), deviceB='b'.repeat(64);
 async function paidAccount(plan='plan_basic') {
  await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),{planId:plan,status:'ACTIVE',expiresAt:Date.now()+86400000}));
@@ -148,4 +148,17 @@ test('expired and suspended memberships cannot claim playback',async()=>{
   await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),sub));
   await assertFails(setDoc(doc(store,'users/alice/stream_slots/0'),slotData(deviceA)));
  }
+});
+
+
+test('clients cannot forge subscription mirrors, receipt consumption or verification locks', async()=> {
+ const alice=db('alice');
+ for (const path of ['users/alice/subscription/current','subscriptions/alice','used_receipts/TEST123456','billing_attempts/alice']) {
+  await assertFails(setDoc(doc(alice,path),{planId:'plan_premium',status:'ACTIVE',expiresAt:Date.now()+86400000}));
+ }
+ await assertFails(setDoc(doc(alice,'users/alice'),{subscriptionPlanId:'plan_premium',subscriptionStatus:'ACTIVE'}));
+ await assertSucceeds(setDoc(doc(alice,'users/alice'),{email:'fixture@example.invalid',subscriptionPlanId:'plan_guest',subscriptionStatus:'NONE'}));
+ await assertFails(setDoc(doc(alice,'users/alice'),{subscriptionPlanId:'plan_premium'},{merge:true}));
+ await assertSucceeds(setDoc(doc(alice,'users/alice'),{displayName:'Fixture'},{merge:true}));
+ await assertFails(deleteDoc(doc(alice,'users/alice')));
 });
