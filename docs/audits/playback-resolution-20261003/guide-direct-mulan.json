@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-10-03T17:10:05.825Z",
+  "scope": "Guide direct provider HLS, no cookies, no handshake, preserve returned CDN URLs",
+  "title": "Mulan",
+  "ott": "hs",
+  "contentId": "1260048586",
+  "success": false,
+  "error": "waiting_video_returned",
+  "failedStage": "video_manifest",
+  "events": [
+    {
+      "stage": "identity",
+      "host": "net52.cc",
+      "path": "/mobile/hs/post.php",
+      "queryKeys": [
+        "id"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 1030,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 681
+    },
+    {
+      "stage": "video_manifest",
+      "host": "net52.cc",
+      "path": "/mobile/hs/hls/1260048586.m3u8",
+      "queryKeys": [
+        "hd",
+        "lang",
+        "hp",
+        "in"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 1345,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": true
+      },
+      "error": "waiting_video_returned",
+      "elapsedMs": 350
+    }
+  ]
+}

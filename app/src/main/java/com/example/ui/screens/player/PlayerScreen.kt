@@ -103,6 +103,7 @@ fun PlayerScreen(
     val isLoggedIn = viewModel.isUserLoggedIn()
     val userSubscription by viewModel.userSubscription.collectAsStateWithLifecycle()
     val appSessionReady by viewModel.appSessionReady.collectAsStateWithLifecycle()
+    val playbackAccessError by viewModel.playbackAccessError.collectAsStateWithLifecycle()
     var trailerChosen by remember(movie.id) { mutableStateOf(false) }
     val isTrailerPlayback = trailerOnly || !isLoggedIn || trailerChosen
     val playbackAccessLocked = remember(movie, userSubscription, isTrailerPlayback) {
@@ -164,6 +165,10 @@ fun PlayerScreen(
     }
     var playbackError by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf<String?>(null) }
     var loadAttempt by remember(movie.id, currentSeason, currentEpisode) { mutableIntStateOf(0) }
+    var markerDurationMs by remember(initialTargetMediaId, loadAttempt) {
+        mutableLongStateOf(if (exoPlayer.currentMediaItem?.mediaId == initialTargetMediaId)
+            exoPlayer.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L else 0L)
+    }
     val playbackStartedAt = remember(movie.id, currentSeason, currentEpisode, loadAttempt) {
         com.example.ui.util.RuntimeTiming.start()
     }
@@ -192,6 +197,17 @@ fun PlayerScreen(
         PlayerJobHolder()
     }
     val resolutionJobHolder = remember(initialTargetMediaId) { PlayerJobHolder() }
+
+    LaunchedEffect(playbackAccessError, ownsPlayback, isTrailerPlayback) {
+        val error = playbackAccessError
+        if (error != null && !isTrailerPlayback && viewModel.ownsSharedPlayback(playbackOwner)) {
+            resolutionJobHolder.job?.cancel()
+            fallbackJobHolder.job?.cancel()
+            isLoading = false
+            isBuffering = false
+            playbackError = error
+        }
+    }
 
     var showSubtitleModal by remember { mutableStateOf(false) }
     val selectedSubLang by viewModel.selectedSubtitleLanguage.collectAsStateWithLifecycle()
@@ -256,6 +272,7 @@ fun PlayerScreen(
 
     val nextEpisodeJobHolder = remember(movie.id) { PlayerJobHolder() }
     fun playNextEpisode() {
+        if (isLoading || isBuffering) return
         if (isTrailerPlayback || !viewModel.ownsSharedPlayback(playbackOwner)) return
         if (!movie.isSeriesContent() && currentSeason <= 1 && currentEpisode <= 1 && currentEpisodeName.isBlank()) return
         if (nextEpisodeJobHolder.job?.isActive == true) return
@@ -323,6 +340,11 @@ fun PlayerScreen(
             return mediaId == listenerMediaId
         }
         val listener = object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (ownsCurrentMedia()) {
+                    markerDurationMs = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L
+                }
+            }
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (!ownsCurrentMedia()) return
                 isBuffering = (playbackState == Player.STATE_BUFFERING)
@@ -588,7 +610,7 @@ fun PlayerScreen(
             playbackError = "Playback is temporarily rate limited.\nPlease wait and press Retry."
         } catch (e: Exception) {
             android.util.Log.e("PlayerScreen", "Stream load exception", e)
-            playbackError = "This title could not be played."
+            playbackError = viewModel.playbackAccessError.value ?: "This title could not be played."
         } finally {
             if (resolutionJobHolder.job === thisAttempt) resolutionJobHolder.job = null
             if (isActive && viewModel.ownsSharedPlayback(playbackOwner)) isLoading = false
@@ -618,7 +640,7 @@ fun PlayerScreen(
         currentEpisodeName.isNotBlank())
     }
 
-    LaunchedEffect(movie.id, currentSeason, currentEpisode, isTvShow, isTrailerPlayback, playbackActive, ownsPlayback) {
+    LaunchedEffect(movie.id, currentSeason, currentEpisode, isTvShow, isTrailerPlayback, playbackActive, ownsPlayback, loadAttempt) {
         verifiedNextTarget = null
         if (isTvShow && !isTrailerPlayback && playbackActive && viewModel.ownsSharedPlayback(playbackOwner)) {
             verifiedNextTarget = withContext(Dispatchers.IO) {
@@ -627,11 +649,11 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(activeStream, isTvShow, isLoading, playbackActive) {
+    LaunchedEffect(activeStream, isTvShow, isLoading, playbackActive, ownsPlayback, markerDurationMs) {
         playbackMarkers = PlaybackMarkers()
         val stream = activeStream ?: return@LaunchedEffect
         if (isLoading || !playbackActive || !viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
-        val durationMs = runCatching { exoPlayer.duration }.getOrDefault(0L)
+        val durationMs = markerDurationMs
         if (durationMs <= 0 || durationMs == C.TIME_UNSET) return@LaunchedEffect
         val markers = withContext(Dispatchers.IO) {
             val imdbId = try {
@@ -644,16 +666,6 @@ fun PlayerScreen(
         }
         ensureActive()
         if (viewModel.ownsSharedPlayback(playbackOwner)) playbackMarkers = markers
-    }
-
-    LaunchedEffect(movie.id, currentSeason, currentEpisode, activeStream, isLoading, isTvShow, playbackActive, verifiedNextTarget) {
-        if (!playbackActive || !viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
-        if (!isTrailerPlayback && isTvShow && activeStream != null && !isLoading) {
-            val next = verifiedNextTarget ?: return@LaunchedEffect
-            delay(8000L)
-            ensureActive()
-            if (viewModel.ownsSharedPlayback(playbackOwner)) viewModel.preloadNextEpisodeStream(movie, next.first, next.second)
-        }
     }
 
     LaunchedEffect(activeStream, playbackActive) {

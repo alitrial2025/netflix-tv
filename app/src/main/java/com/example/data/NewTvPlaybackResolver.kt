@@ -96,8 +96,10 @@ internal object PlaybackMetadataTracks {
 internal class CookieFreeManifestValidator(
     private val fetch: suspend (HttpUrl, Map<String, String>) -> HttpTextResponse
 ) {
-    suspend fun validate(master: HttpUrl, headers: Map<String, String>): Long {
+    suspend fun validate(master: HttpUrl, headers: Map<String, String>, sourceId: String? = null): Long {
         val visited = mutableSetOf<String>()
+        val verified = linkedMapOf<String, String>()
+        var vod = true
         var expiry = System.currentTimeMillis() + 3_600_000L
         suspend fun visit(url: HttpUrl, depth: Int) {
             currentCoroutineContext().ensureActive()
@@ -106,6 +108,7 @@ internal class CookieFreeManifestValidator(
             val response = fetch(url, headers)
             if (!response.isSuccessful || !response.body.trimStart().startsWith("#EXTM3U"))
                 throw IOException("Playback manifest unavailable (HTTP ${response.code})")
+            verified[url.toString()] = response.body
             CdnRoutePolicy.earliestManifestExpiry(response.body, System.currentTimeMillis())?.let { expiry = minOf(expiry, it) }
             val lines = response.body.lineSequence().map(String::trim).filter(String::isNotBlank).toList()
             var videoCount = 0
@@ -132,11 +135,15 @@ internal class CookieFreeManifestValidator(
                 else if (!line.startsWith('#')) PlaybackUrlPolicy.resolve(url, line)
             }
             if (videoCount == 0 && mediaCount == 0) throw IOException("Media playlist unavailable")
+            if (mediaCount > 0 && "#EXT-X-ENDLIST" !in lines) vod = false
             for (child in children) visit(child, depth + 1)
         }
         visit(master, 0)
         if (expiry - System.currentTimeMillis() <= StreamSessionPolicy.EXPIRY_MARGIN_MS)
             throw IOException("Provider returned an expired playback link")
+        if (vod) verified.forEach { (url, body) ->
+            VerifiedManifestHandoff.offer(url, headers, body, validatedVod = true, sourceId = sourceId)
+        }
         return expiry
     }
 }
@@ -250,7 +257,7 @@ internal class NewTvPlaybackResolver(
         val refererUrl = PlaybackUrlPolicy.resolve("https://net52.cc/".toHttpUrl(), referer)
         if (refererUrl.host != "net52.cc") throw IOException("Invalid NewTV referer")
         val headers = mapOf("User-Agent" to apiHeaders.getValue("User-Agent"), "Referer" to refererUrl.toString())
-        val expiry = CookieFreeManifestValidator(::fetch).validate(master, headers)
+        val expiry = CookieFreeManifestValidator(::fetch).validate(master, headers, sourceId = "[NewTV]")
         return PublicPlaybackResult(master.toString(), headers, PlaybackMetadataTracks.parse(data, url), contentId, ott, expiry, PlaybackRoute.NEWTV)
     }
 }

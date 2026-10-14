@@ -38,6 +38,7 @@ class DirectCDNWarmRouteTest {
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             val req = chain.request(); requested += req.url.encodedPath
             val body = when (req.url.encodedPath) {
+                "/mobile/post.php" -> "{}"
                 "/3/movie/fixture" -> """{"title":"Fixture","release_date":"2001-01-01"}"""
                 "/mobile/playlist.php" -> JSONObject().put("sources", JSONArray().put(JSONObject().put("file", url))).put("tracks", JSONArray()).toString()
                 "/search.php" -> """{"searchResult":[{"id":"8100000003","t":"Fixture","y":"2001"}]}"""
@@ -48,7 +49,9 @@ class DirectCDNWarmRouteTest {
                 }
                 else -> throw AssertionError("Unexpected handshake or metadata call: ${req.url.encodedPath}")
             }
-            Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("OK").body(body.toResponseBody()).build()
+            Response.Builder().request(req).protocol(Protocol.HTTP_1_1)
+                .code(if (req.url.encodedPath == "/mobile/post.php") 404 else 200)
+                .message("OK").body(body.toResponseBody()).build()
         }.build()
         // A silent preview uses the exact video route and requires no optional audio/caption probes.
         val resolver = DirectCDNResolver(context, client)

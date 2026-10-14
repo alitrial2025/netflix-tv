@@ -2,6 +2,7 @@ package com.example.ui.screens.player
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -23,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowLooper
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -56,7 +60,19 @@ class SeekFilmstripAnimationTest {
         assertTrue(middle.left < end.left)
         assertEquals(208f, end.left - initial.left, 1f)
         assertEquals(initial.width, end.width, 0f)
+        rule.waitUntil(5_000L) {
+            ShadowLooper.idleMainLooper()
+            rule.mainClock.advanceTimeByFrame()
+            rule.onAllNodes(hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate)).fetchSemanticsNodes().isEmpty()
+        }
         val output = File("build/reports/tv-player-review").apply { mkdirs() }
-        rule.onRoot().captureRoboImage(File(output, "seek-filmstrip.png").path)
+        val screenshot = File(output, "seek-filmstrip.png")
+        // Roborazzi renders Robolectric's native canvas; captureToImage requires a real window draw.
+        rule.onRoot().captureRoboImage(screenshot.path)
+        val pixels = requireNotNull(BitmapFactory.decodeFile(screenshot.path))
+        assertEquals(colors[0], pixels.getPixel(272, 270))
+        assertEquals(colors[1], pixels.getPixel(480, 270))
+        assertEquals(colors[2], pixels.getPixel(688, 270))
+        pixels.recycle()
     }
 }

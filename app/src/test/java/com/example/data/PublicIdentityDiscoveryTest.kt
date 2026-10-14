@@ -55,6 +55,12 @@ class PublicIdentityDiscoveryTest {
         assertNull(PublicIdentityDiscovery.metadata(data, "1", "movie", "2026"))
     }
 
+    @Test fun primeTvShowCardsUseExactTitleYearAndOfficialLinks() {
+        val html = """<script>{"init":{"preparations":{"body":{"containers":[{"entities":[{"title":"Lioness","entityType":"TV Show","releaseYear":2023,"link":{"url":"/detail/0SVGUHKPBBP0BH7FC5VO19ALDR?ref_=search"}},{"title":"Lioness","entityType":"TV Show","releaseYear":2021,"link":{"url":"/detail/0WRONGYEAR12345"}},{"title":"Lioness","entityType":"TV Show","releaseYear":2023,"link":{"url":"https://evil.example/detail/0EVIL123456789"}}]}]}}}}</script>"""
+        assertEquals(listOf("0SVGUHKPBBP0BH7FC5VO19ALDR" to "pv"), PublicIdentityDiscovery.primeSearchIds(html, listOf("Lioness"), "2023", "tv"))
+        assertTrue(PublicIdentityDiscovery.primeSearchIds(html, listOf("Lioness"), "2023", "movie").isEmpty())
+    }
+
     @Test fun titleOnlyLaterSeasonsCannotIdentifySameNameRemakes() {
         val html = """<script>{"init":{"preparations":{"body":{"containers":[{"entities":[{"title":"Dark Matter - Season 2","entityType":"TVSeason","releaseYear":2016,"link":{"url":"/detail/0WRONGSHOW123456"}}]}]}}}}</script>"""
         assertTrue(PublicIdentityDiscovery.primeSearchIds(html, listOf("Dark Matter"), "2024", "tv").isEmpty())

@@ -142,6 +142,17 @@ data class SubscriptionPlan(
     val tier: SubscriptionTier = SubscriptionTier.fromPlanId(id)
 ) {
     val durationDays: Int get() = 30
+    val maxProfiles: Int get() = when (id) {
+        "plan_mobile" -> 1; "plan_basic" -> 2; "plan_standard" -> 4
+        "plan_premium" -> 5; else -> 1
+    }
+    val catalogAccess: String get() = when (id) {
+        "plan_mobile" -> "Selected catalog (some titles locked)"
+        "plan_basic" -> "Expanded catalog (fewer titles locked)"
+        "plan_standard" -> "Unlimited full catalog"
+        "plan_premium" -> "Unlimited full catalog + 4K HDR"
+        else -> "No full playback"
+    }
     val maxVideoHeight: Int get() = when (id) {
         "plan_mobile" -> 480; "plan_basic" -> 720; "plan_standard" -> 1080
         "plan_premium" -> 2160; else -> 0

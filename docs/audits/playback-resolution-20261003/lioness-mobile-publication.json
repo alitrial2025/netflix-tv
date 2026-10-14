@@ -1,0 +1,51 @@
+{
+  "website": "https://npro-app.vercel.app",
+  "releases": [
+    {
+      "channel": "tv",
+      "version": "3.10.2026.3",
+      "versionCode": 29092037,
+      "bytes": 7579835,
+      "sha256": "53fee93afa38d4c6e5b262d6e655f631b5e71640c65ec8d2c2398d0a5ab7a466",
+      "hashMatches": true,
+      "certificateMatches": true,
+      "apkUrl": "https://npro-app.vercel.app/downloads/tv/29092037-53fee93afa38d4c6.apk"
+    },
+    {
+      "channel": "mobile",
+      "version": "1.12",
+      "versionCode": 13,
+      "bytes": 14128063,
+      "sha256": "e084693a834593d959db5b1417b77538f16fd0b4e91e44d06095b501c48bd3ea",
+      "hashMatches": true,
+      "certificateMatches": true,
+      "apkUrl": "https://npro-app.vercel.app/downloads/mobile/13-e084693a834593d9.apk"
+    }
+  ],
+  "streamingConfigMatches": true,
+  "previousAliasMatches": true,
+  "retainedApks": [
+    "downloads/tv/29092035-348c5f34969b7b15.apk",
+    "downloads/tv/29092036-6d8411db4bd067ee.apk",
+    "downloads/tv/29092037-53fee93afa38d4c6.apk",
+    "downloads/mobile/10-8b6162ac1103f75d.apk",
+    "downloads/mobile/13-e084693a834593d9.apk",
+    "downloads/mobile/12-ad3704a5e8224a24.apk",
+    "downloads/mobile/11-99d4522c1b12bde5.apk"
+  ],
+  "builds": {
+    "mobile": {
+      "commit": "84c86b4719890e36878916bf8875bc25ab67f380",
+      "workflowUrl": "https://github.com/alitrial2025/netflix-mobile/actions/runs/37144857496",
+      "artifactId": 11281114559
+    }
+  },
+  "userPlaybackConfirmation": {
+    "title": "Lioness",
+    "season": 1,
+    "episode": 1,
+    "app": "mobile",
+    "version": "1.12",
+    "result": "User confirmed it plays after the update"
+  }
+}

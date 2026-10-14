@@ -214,6 +214,7 @@ fun PlayerScreen(
 
     val nextEpisodeJobHolder = remember(movie.id) { object { var job: kotlinx.coroutines.Job? = null } }
     fun playNextEpisode() {
+        if (isLoading || isBuffering) return
         val movieIdLong = movie.id.toLongOrNull() ?: 0L
         if (nextEpisodeJobHolder.job?.isActive == true) return
         nextEpisodeJobHolder.job = coroutineScope.launch {
@@ -537,18 +538,6 @@ fun PlayerScreen(
         }
     }
 
-    // Background pre-resolution of next episode stream to eliminate transition delay
-    LaunchedEffect(movie.id, currentSeason, currentEpisode, activeStream, isLoading, isTvShow) {
-        if (isTvShow && activeStream != null && !isLoading) {
-            // Wait 8 seconds after smooth playback begins before kicking off background pre-fetch
-            delay(8000L)
-            val nextEpNum = currentEpisode + 1
-            viewModel.preloadNextEpisodeStream(movie, currentSeason, nextEpNum)
-        }
-    }
-
-    // perf: thumbnail VTT fetch + parse is a network/IO operation; move it off the
-    // main thread to keep recomposition smooth while the result streams in.
     LaunchedEffect(activeStream, isLoading) {
         if (activeStream != null && !isLoading) {
             val thumbTrack = activeStream?.captions?.find { it.type == "thumbnails" }

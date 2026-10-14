@@ -1,0 +1,70 @@
+{
+  "checkedAt": "2026-10-03T17:37:58.594Z",
+  "scope": "Guide Lanterns pipeline, no cookies or warming, issued signatures preserved",
+  "title": "Lanterns",
+  "ott": "hs",
+  "showId": "1271680756",
+  "success": false,
+  "identityVerified": true,
+  "contentId": "1271684191",
+  "tokenGeneration": true,
+  "masterRequestMode": "existing_app_public_ek_m",
+  "error": "waiting_video_returned",
+  "failedStage": "video_manifest",
+  "events": [
+    {
+      "stage": "identity",
+      "host": "net52.cc",
+      "path": "/mobile/hs/post.php",
+      "queryKeys": [
+        "id"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 2013,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 552
+    },
+    {
+      "stage": "playlist",
+      "host": "net52.cc",
+      "path": "/mobile/hs/playlist.php",
+      "queryKeys": [
+        "id",
+        "t",
+        "tm"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 657,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": false
+      },
+      "elapsedMs": 416
+    },
+    {
+      "stage": "video_manifest",
+      "host": "net52.cc",
+      "path": "/mobile/hs/hls/1271684191.m3u8",
+      "queryKeys": [
+        "in",
+        "hd",
+        "lang",
+        "hp"
+      ],
+      "status": 200,
+      "retryAfter": null,
+      "sampledBytes": 918,
+      "responseSignals": {
+        "explicitRateLimit": false,
+        "waitingVideoReturned": true
+      },
+      "error": "waiting_video_returned",
+      "elapsedMs": 463
+    }
+  ]
+}

@@ -105,9 +105,6 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     private val LAST_QURY_KEY = "last_qury_param"
     private val LAST_TOKEN_MODE_KEY = "last_token_mode"
     private val LAST_TOKEN_SUFFIX_KEY = "last_token_suffix"
-    private val REMOTE_CONFIG_URL = "https://npro-app.vercel.app/updates/streaming.json"
-    private val REMOTE_CONFIG_KEY = "remote_config_cache"
-    private val REMOTE_CONFIG_TTL_MS = 6 * 60 * 60 * 1000L // 6 hours
 
     private val cookieJar = AppCookieJar()
 
@@ -119,7 +116,9 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         .followSslRedirects(true)
         .build()
 
-    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context), backgroundCatalogRefresh = clientOverride == null,
+    private val publicConfig = ProviderRuntimeConfig(context, client, "directcdn_prefs")
+    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context),
+        backgroundCatalogRefresh = clientOverride == null, runtimeConfig = publicConfig,
         newTv = NewTvPlaybackResolver(client, endpointCache = NewTvEndpointCache(context)))
     val requiresWarmSession: Boolean get() = false
 
@@ -268,9 +267,9 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     private val DOMAIN_POOL = listOf("net52.cc", "netmirror.app", "netmirror.gg", "mobidetect.art")
 
     private suspend fun resolveActiveDomain(): String = withContext(Dispatchers.IO) {
-        // A saved mirror can still return a public Home page after its cookie
-        // handshake stops working. Start each new session at the known origin.
-        val preferred = DOMAIN_POOL.first()
+        // Capture the configured origin and fallback pool once for this attempt.
+        val domainCandidates = publicConfig.snapshot().bootstrapDomains(DOMAIN_POOL)
+        val preferred = domainCandidates.first()
 
         // Fast probe preferred domain (max ~2.5s)
         try {
@@ -293,7 +292,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         } catch (error: Exception) { rethrowControlFailure(error);}
 
         // Concurrent race across candidates
-        val candidates = DOMAIN_POOL.filter { it != preferred }
+        val candidates = domainCandidates.drop(1)
         val resultChannel = kotlinx.coroutines.channels.Channel<String>(capacity = candidates.size)
         val jobs = candidates.map { cand ->
             launch {
@@ -549,13 +548,16 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         throw java.io.IOException("Stored playback session could not be verified", lastFailure)
     }
 
-    private suspend fun ensureSession(allowWebViewFallback: Boolean? = null): StoredSession = withContext(Dispatchers.IO) {
+    private suspend fun ensureSession(allowWebViewFallback: Boolean? = null, requiredDomain: String? = null): StoredSession = withContext(Dispatchers.IO) {
         val mayUseWebView = allowWebViewFallback ?: (currentCoroutineContext()[PreviewResolutionContext] == null)
         // One foreground session; no detached pool top-up competing with playback or home entry.
         val lockStartedAt = com.example.ui.util.RuntimeTiming.start()
         sessionMutex.withLock {
             com.example.ui.util.RuntimeTiming.elapsed("session_wait_for_generation", lockStartedAt)
-            val cached = synchronized(sessionStateLock) { loadStoredSessions().maxByOrNull { it.fetchedAt } }
+            if (requiredDomain != null && !ProviderRuntimeConfig.sessionMatches(requiredDomain, requiredDomain))
+                throw java.io.IOException("Invalid session origin")
+            val available = synchronized(sessionStateLock) { loadStoredSessions() }
+            val cached = available.filter { ProviderRuntimeConfig.sessionMatches(it.domain, requiredDomain) }.maxByOrNull { it.fetchedAt }
             if (cached != null) {
                 com.example.ui.util.AppDiagnosticsLogger.event("DirectCDN", "ensureSession retrieved cached session for domain: ${cached.domain} (t_hash_t cookie is present)")
                 return@withLock cached
@@ -564,12 +566,14 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
             val generation = sessionGeneration.get()
             // A rejected cookie must never ride along in a new handshake.
             cookieJar.clear()
-            val session = withTimeoutOrNull(58_000L) { generateNewSession(mayUseWebView) }
+            val session = withTimeoutOrNull(58_000L) { generateNewSession(mayUseWebView, requiredDomain) }
                 ?: throw java.io.IOException("Session warmup timed out. Please retry.")
             currentCoroutineContext().ensureActive()
+            if (!ProviderRuntimeConfig.sessionMatches(session.domain, requiredDomain))
+                throw java.io.IOException("Generated session does not match the playback origin")
             synchronized(sessionStateLock) {
                 if (generation != sessionGeneration.get()) throw SessionChangedException()
-                saveStoredSessions(listOf(session))
+                saveStoredSessions(listOf(session) + available.filter { it.domain != session.domain })
             }
             com.example.ui.util.AppDiagnosticsLogger.event("DirectCDN", "Successfully generated and saved new session for domain: ${session.domain}")
             session
@@ -746,9 +750,9 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         }
     }
 
-    private suspend fun generateNewSession(allowWebViewFallback: Boolean): StoredSession = withContext(Dispatchers.IO) {
+    private suspend fun generateNewSession(allowWebViewFallback: Boolean, requiredDomain: String? = null): StoredSession = withContext(Dispatchers.IO) {
         Log.d("DirectCDN", "🔑 Performing standalone session warmup for DirectCDN...")
-        val domain = resolveActiveDomain()
+        val domain = requiredDomain ?: resolveActiveDomain()
 
         var finalDomain = domain
         var addhashEncoded = ""
@@ -978,35 +982,9 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
 
     // ---- Remote config (zero-update resilience) ----
 
-    /** Optional master-request hints. Never revoke provider-issued routes based on a hint. */
+    /** Settings refresh independently of warming and never revoke issued media. */
     suspend fun checkRemoteConfig() = withContext(Dispatchers.IO) {
-        remoteConfigMutex.withLock {
-            val prefs = getPrefs()
-            val now = System.currentTimeMillis()
-            val elapsed = now - prefs.getLong("remote_config_checked_at", 0L)
-            if (elapsed >= 0 && elapsed < REMOTE_CONFIG_TTL_MS) return@withLock
-            // Back off failures too; an unavailable website must not be hammered on every Play.
-            prefs.edit().putLong("remote_config_checked_at", now).apply()
-            try {
-                val res = fastProbeClient.fetchText(Request.Builder().url(REMOTE_CONFIG_URL)
-                    .header("User-Agent", MOBILE_UA).build())
-                if (!res.isSuccessful) return@withLock
-                val config = JSONObject(res.body)
-                val editor = prefs.edit().putString(REMOTE_CONFIG_KEY, config.toString())
-                config.optJSONObject("tokenHint")?.let { hint ->
-                    hint.optString("masterMode").takeIf { it.matches(Regex("[a-zA-Z0-9_-]{1,32}")) }
-                        ?.let { editor.putString("remote_master_mode", it) }
-                    hint.optString("hash1").takeIf { it.matches(Regex("[a-fA-F0-9]{32}")) }
-                        ?.let { editor.putString("remote_master_hash1", it) }
-                }
-                config.optString("quryParam").takeIf { it.matches(Regex("[a-zA-Z0-9_-]{1,64}")) }
-                    ?.let { editor.putString("remote_qury_param", it) }
-                editor.apply()
-            } catch (e: Exception) {
-                rethrowControlFailure(e)
-                Log.d("DirectCDN", "Optional streaming config unavailable")
-            }
-        }
+        publicConfig.refresh()
     }
 
     // ---- Routing table (contentId -> freecdn host) ----

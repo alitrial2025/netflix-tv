@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "source": "production Kotlin PublicPlaybackResolver",
+  "cookies": false,
+  "warming": false,
+  "generatedAt": 1791052546048,
+  "results": [
+    {
+      "title": "Lioness",
+      "year": "2023",
+      "type": "tv",
+      "tmdbId": "113962",
+      "season": 1,
+      "episode": 1,
+      "success": false,
+      "errorType": "PlaybackRateLimitedException",
+      "error": "Playback service is busy. Please wait before retrying.",
+      "elapsedMs": 5907,
+      "httpRequests": 8
+    }
+  ],
+  "requests": [
+    {
+      "request": 1,
+      "host": "raw.githubusercontent.com",
+      "kind": "public-metadata",
+      "httpStatus": 200
+    },
+    {
+      "request": 2,
+      "host": "net52.cc",
+      "kind": "public-metadata",
+      "httpStatus": 200
+    },
+    {
+      "request": 3,
+      "host": "net52.cc",
+      "kind": "public-metadata",
+      "httpStatus": 200
+    },
+    {
+      "request": 4,
+      "host": "api.themoviedb.org",
+      "kind": "tmdb-metadata",
+      "httpStatus": 200
+    },
+    {
+      "request": 6,
+      "host": "www.primevideo.com",
+      "kind": "public-metadata",
+      "httpStatus": 200
+    },
+    {
+      "request": 5,
+      "host": "query.wikidata.org",
+      "kind": "wikidata-metadata",
+      "httpStatus": 200
+    },
+    {
+      "request": 7,
+      "host": "net52.cc",
+      "kind": "episodes",
+      "httpStatus": 200,
+      "rateLimited": false,
+      "waitingVideo": false,
+      "seasonId": "0LEE086T9L711TRMJ0ODBQHZGS",
+      "seriesId": "0LEE086T9L711TRMJ0ODBQHZGS"
+    },
+    {
+      "request": 8,
+      "host": "net52.cc",
+      "kind": "playlist",
+      "httpStatus": 200,
+      "rateLimited": false,
+      "waitingVideo": false,
+      "contentId": "0KVBLO9DOW99VWB40BUV66DI2U"
+    },
+    {
+      "request": 9,
+      "host": "net52.cc",
+      "kind": "issued-manifest",
+      "httpStatus": 200,
+      "rateLimited": false,
+      "waitingVideo": false
+    }
+  ]
+}

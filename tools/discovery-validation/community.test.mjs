@@ -1,5 +1,5 @@
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, runTransaction, serverTimestamp, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, getDoc, getDocs, collection, setDoc, deleteDoc } from 'firebase/firestore';
 import { readFile } from 'node:fs/promises';
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -89,7 +89,7 @@ test('legacy reminder migration cannot overwrite a concurrent disable', {timeout
 test('owned app data remains private and removed anonymous TV pairing is denied', async()=> {
  const alice=db('alice');const bob=db('bob');
  for(const path of ['users/alice','users/alice/profiles/home','users/alice/profiles/home/watch_history/tv_1',
-  'users/alice/history/movie_1','users/alice/profiles/home/preferences/player','subscriptions/alice']) {
+  'users/alice/history/movie_1','users/alice/profiles/home/preferences/player']) {
   await assertSucceeds(setDoc(doc(alice,path),{fixture:true}));
   await assertSucceeds(getDoc(doc(alice,path)));
   await assertFails(getDoc(doc(bob,path)));
@@ -100,7 +100,7 @@ test('owned app data remains private and removed anonymous TV pairing is denied'
  await assertFails(setDoc(doc(publicPairing,'tv_sessions/session/remote_commands/command'),{fixture:true}));
 });
 
-// Membership documents are seeded with administrative privileges; payment remains a client flow.
+// Membership documents are seeded with administrative privileges, matching the trusted payment service.
 const deviceA='a'.repeat(64), deviceB='b'.repeat(64);
 async function paidAccount(plan='plan_basic') {
  await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),{planId:plan,status:'ACTIVE',expiresAt:Date.now()+86400000}));
@@ -147,5 +147,38 @@ test('expired and suspended memberships cannot claim playback',async()=>{
  for(const sub of [{planId:'plan_premium',status:'SUSPENDED',expiresAt:Date.now()+86400000},{planId:'plan_premium',status:'ACTIVE',expiresAt:Date.now()-3*86400000}]){
   await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),sub));
   await assertFails(setDoc(doc(store,'users/alice/stream_slots/0'),slotData(deviceA)));
+ }
+});
+
+// A successful client lookup is not payment evidence: only the trusted service writes entitlements.
+const receiptCode = 'TEST123456';
+test('missing receipt lookup is private by exact code; guests and enumeration are denied',async()=>{
+ await assertSucceeds(getDoc(doc(db('alice'),`used_receipts/${receiptCode}`)));
+ await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),`used_receipts/${receiptCode}`)));
+ const anon=env.authenticatedContext('guest',{firebase:{sign_in_provider:'anonymous'}}).firestore();
+ await assertFails(getDoc(doc(anon,`used_receipts/${receiptCode}`)));
+ await assertFails(getDocs(collection(db('alice'),'used_receipts')));
+});
+test('clients cannot forge receipt approvals or paid membership mirrors',async()=>{
+ const store=db('alice');
+ await assertFails(setDoc(doc(store,`used_receipts/${receiptCode}`),{receipt:receiptCode,usedByUserId:'alice',planId:'plan_premium'}));
+ await assertFails(setDoc(doc(store,'users/alice/subscription/current'),{planId:'plan_premium',status:'ACTIVE',expiresAt:Date.now()+2592000000}));
+ await assertFails(setDoc(doc(store,'subscriptions/alice'),{planId:'plan_premium',status:'ACTIVE'}));
+ await assertFails(setDoc(doc(store,'users/alice'),{subscriptionPlanId:'plan_premium',subscriptionStatus:'ACTIVE'}));
+ await assertSucceeds(setDoc(doc(store,'users/alice'),{email:'test@example.test',subscriptionPlanId:'plan_guest',subscriptionStatus:'NONE'}));
+ await assertFails(setDoc(doc(store,'users/alice'),{subscriptionPlanId:'plan_premium'},{merge:true}));
+ await assertSucceeds(setDoc(doc(store,'users/alice'),{displayName:'Home'},{merge:true}));
+});
+test('server-applied membership and immutable receipt are visible only to their owner',async()=>{
+ await env.withSecurityRulesDisabled(async c=>{
+  await setDoc(doc(c.firestore(),`used_receipts/${receiptCode}`),{receipt:receiptCode,usedByUserId:'alice',planId:'plan_premium'});
+  await setDoc(doc(c.firestore(),'users/alice/subscription/current'),{planId:'plan_premium',status:'ACTIVE'});
+  await setDoc(doc(c.firestore(),'subscriptions/alice'),{planId:'plan_premium',status:'ACTIVE'});
+ });
+ for(const path of [`used_receipts/${receiptCode}`,'users/alice/subscription/current','subscriptions/alice']) {
+  await assertSucceeds(getDoc(doc(db('alice'),path)));
+  await assertFails(getDoc(doc(db('bob'),path)));
+  await assertFails(setDoc(doc(db('alice'),path),{planId:'plan_mobile'}));
+  await assertFails(deleteDoc(doc(db('alice'),path)));
  }
 });

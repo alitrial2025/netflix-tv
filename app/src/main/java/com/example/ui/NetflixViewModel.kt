@@ -88,6 +88,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
 
     private val prefs = application.getSharedPreferences("netflix_prefs", android.content.Context.MODE_PRIVATE)
     private val appSessionMutex = Mutex()
+    private val appSessionAdmissionRevision = java.util.concurrent.atomic.AtomicLong()
+    private val subscriptionListenerRevision = java.util.concurrent.atomic.AtomicLong()
     private val _appSessionReady = MutableStateFlow(false)
     val appSessionReady: StateFlow<Boolean> = _appSessionReady.asStateFlow()
     private val _appSessionError = MutableStateFlow<String?>(null)
@@ -1129,6 +1131,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         val uid = user.uid
 
                         val previousUid = prefs.getString("paired_user_id", null)
+                        _playbackAccessError.value = null
+                        subscriptionCloudReceived.set(false)
                         if (!previousUid.isNullOrBlank() && previousUid != uid) {
                             com.example.data.DeviceAccessGuard.clear()
                             stopStreamHeartbeat()
@@ -1254,6 +1258,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     fun signOutFromTv() {
         _appSessionReady.value = false
         _appSessionError.value = null
+        _playbackAccessError.value = null
+        subscriptionCloudReceived.set(false)
         com.example.data.DeviceAccessGuard.clear()
         stopStreamHeartbeat()
         if (releaseRefreshJob != null) sharedReleaseReminders.close()
@@ -1903,6 +1909,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     private val _userSubscription = MutableStateFlow(com.example.model.UserSubscription())
     private val subscriptionCloudReceived = java.util.concurrent.atomic.AtomicBoolean(false)
     val userSubscription: StateFlow<com.example.model.UserSubscription> = _userSubscription.asStateFlow()
+    private val _playbackAccessError = MutableStateFlow<String?>(null)
+    val playbackAccessError: StateFlow<String?> = _playbackAccessError.asStateFlow()
 
     private val catalogLoadInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
     private val catalogStarted = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -1983,7 +1991,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         _profiles.value.isEmpty() && loaded.isNotEmpty()) {
                         _profiles.value = loaded
                     }
-                    if (authenticatedUid() == startupUid && !subscriptionCloudReceived.get() &&
+                    if (startupUid != null && authenticatedUid() == startupUid && !subscriptionCloudReceived.get() &&
                         (sub.planId != "plan_guest" || sub.status != "NONE")) {
                         _userSubscription.value = sub
                     }
@@ -2706,7 +2714,6 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             warmupIsImmediate = false
             warmupHasStartedAttempt = false
         }
-        nextEpisodePreloadJob?.cancel()
         directCDNResolver.invalidateSessionByCookie(cookieString)
         streamCache.clear()
     }
@@ -2726,20 +2733,6 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         com.example.data.StreamPurpose.values().forEach { streamCache.remove(streamCacheKey(movie, season, episode, it)) }
         val type = movie.catalogMediaKind()
         directCDNResolver.invalidateStream(movie.id, type, season, episode)
-    }
-
-    private var nextEpisodePreloadJob: kotlinx.coroutines.Job? = null
-    fun preloadNextEpisodeStream(movie: Movie, season: Int, episode: Int) {
-        nextEpisodePreloadJob?.cancel()
-        nextEpisodePreloadJob = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (getCachedStream(movie, season, episode) != null) return@launch
-                android.util.Log.d("NetflixViewModel", "⏩ Pre-resolving next episode S${season}E${episode} for ${movie.title}...")
-                resolveStream(movie, season, episode)
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {}
-        }
     }
 
     suspend fun resolveStream(movie: Movie, season: Int = 1, episode: Int = 1, purpose: com.example.data.StreamPurpose = com.example.data.StreamPurpose.PLAYBACK): com.example.data.NetMirrorStream? {
@@ -2903,6 +2896,8 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     ) {
         val signedIn = try { FirebaseAuth.getInstance().currentUser } catch (_: Exception) { null }
         if (signedIn == null || signedIn.isAnonymous || signedIn.uid != userId) return
+        _playbackAccessError.value = null
+        subscriptionCloudReceived.set(false)
         // Audit fix: previously an empty / guest planId was silently coerced
         // to plan_standard + ACTIVE. That is a free-upgrade: a user who
         // signs in but has no paid plan on the server would still be granted
@@ -2969,25 +2964,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         ).show()
     }
 
-    fun isMovieLocked(movie: Movie): Boolean {
-        val isVipOrBlockbuster = movie.rating.contains("VIP", ignoreCase = true) ||
-                movie.rating.contains("4K", ignoreCase = true) ||
-                movie.title.contains("Dune", ignoreCase = true) ||
-                movie.title.contains("Avatar", ignoreCase = true) ||
-                movie.title.contains("Oppenheimer", ignoreCase = true) ||
-                movie.title.contains("Squid", ignoreCase = true) ||
-                movie.year == "2026" || movie.year == "2025"
-        val sub = _userSubscription.value
-        val uid = authenticatedUid() ?: return true
-        if (!com.example.data.DeviceAccessGuard.isConfirmed(uid, sub.planId, sub.expiresAt, sub.status)) return true
-        return sub.isMovieLocked(
-            movieId = movie.id,
-            releaseYear = movie.year,
-            isTrendingOrVip = isVipOrBlockbuster,
-            isTvDevice = true,
-            movieTitle = movie.title
-        )
-    }
+    /** Plan/catalog restrictions drive upgrade prompts; live device checks run before playback. */
+    fun isMovieLocked(movie: Movie): Boolean =
+        com.example.data.TvPlaybackAccessPolicy.decide(_userSubscription.value, movie,
+            authenticated = authenticatedUid() != null) == com.example.data.TvPlaybackAccessPolicy.Decision.UPGRADE
 
     fun getLockReason(movie: Movie): String {
         val isVipOrBlockbuster = movie.rating.contains("VIP", ignoreCase = true) ||
@@ -3018,11 +2998,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 // [firestoreSubscriptionListener] and remove it on sign-out
                 // and on every re-attach.
                 firestoreSubscriptionListener?.remove()
+                val listenerRevision = subscriptionListenerRevision.incrementAndGet()
+                val snapshotSequence = java.util.concurrent.atomic.AtomicLong()
                 firestoreSubscriptionListener = db.collection("users").document(targetUid)
                     .collection("subscription").document("current")
                     .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE) { snapshot, error ->
                         if (authenticatedUid() != targetUid) return@addSnapshotListener
-                        subscriptionCloudReceived.set(true)
                         if (error != null) {
                             android.util.Log.w("NetflixViewModel", "Firestore subscription listener error: ${error.message}")
                             if (com.example.data.MembershipFailure.isDefinitive(error))
@@ -3030,41 +3011,77 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                             return@addSnapshotListener
                         }
                         if (snapshot?.metadata?.hasPendingWrites() == true || snapshot?.metadata?.isFromCache == true) return@addSnapshotListener
-                        if (snapshot != null && snapshot.exists()) {
-                            if (!snapshot.metadata.isFromCache) runCatching { snapshot.getTimestamp("updatedAt")?.toDate()?.time }.getOrNull()?.let {
-                                com.example.data.SubscriptionTime.observeServerTimestamp(it)
-                            }
-                            val sub = subscriptionFromSnapshot(snapshot)
-                            if (!sub.isTvAllowed) {
-                                // A server-reported suspension/expiry is authoritative, unlike an outage.
-                                com.example.data.DeviceAccessGuard.clear()
-                                stopStreamHeartbeat()
-                                _userSubscription.value = sub
-                                saveStoredSubscription(sub)
-                                _appSessionReady.value = true
-                                _appSessionError.value = null
-                            } else if (com.example.data.DeviceAccessGuard.isConfirmed(targetUid, sub.planId, sub.expiresAt, sub.status) &&
-                                com.example.data.ScreenLease.isAdmitted(targetUid, sub.isTvAllowed)) {
-                                _userSubscription.value = sub
-                                saveStoredSubscription(sub)
-                            } else {
-                                _userSubscription.value = sub
-                                saveStoredSubscription(sub)
-                                com.example.data.DeviceAccessGuard.clear()
-                                stopStreamHeartbeat()
-                                _appSessionReady.value = false
-                                _startupReady.value = false
-                                _appSessionError.value = "Your membership changed. Preparing your account again."
-                                viewModelScope.launch {
-                                    try { prepareAppSession() }
-                                    catch (cancelled: CancellationException) { throw cancelled }
-                                    catch (_: Exception) { /* Entry owns retry; an admitted outage keeps its plan. */ }
+                        val sequence = snapshotSequence.incrementAndGet()
+                        val admissionRevision = appSessionAdmissionRevision.get()
+                        viewModelScope.launch {
+                            var prepareAgain = false
+                            appSessionMutex.withLock {
+                                if (authenticatedUid() != targetUid ||
+                                    subscriptionListenerRevision.get() != listenerRevision ||
+                                    snapshotSequence.get() != sequence) return@withLock
+                                // An entry transaction may have completed while this callback
+                                // waited. Re-read once rather than apply an older queued snapshot
+                                // over its newer proof, including a formerly missing membership.
+                                val authoritative = if (admissionRevision != appSessionAdmissionRevision.get()) {
+                                    try {
+                                        kotlinx.coroutines.withTimeoutOrNull(5_000L) {
+                                            db.collection("users").document(targetUid).collection("subscription")
+                                                .document("current").get(com.google.firebase.firestore.Source.SERVER).await()
+                                        } ?: return@withLock
+                                    } catch (cancelled: CancellationException) { throw cancelled }
+                                    catch (error: Exception) {
+                                        if (authenticatedUid() == targetUid &&
+                                            subscriptionListenerRevision.get() == listenerRevision &&
+                                            snapshotSequence.get() == sequence &&
+                                            com.example.data.MembershipFailure.isDefinitive(error))
+                                            rejectAppSession("Your account could not be authorized. Sign in again.")
+                                        return@withLock
+                                    }
+                                } else snapshot
+                                if (authenticatedUid() != targetUid ||
+                                    subscriptionListenerRevision.get() != listenerRevision ||
+                                    snapshotSequence.get() != sequence) return@withLock
+                                if (authoritative != null && authoritative.exists()) {
+                                    runCatching { authoritative.getTimestamp("updatedAt")?.toDate()?.time }.getOrNull()?.let {
+                                        com.example.data.SubscriptionTime.observeServerTimestamp(it)
+                                    }
+                                    val sub = subscriptionFromSnapshot(authoritative)
+                                    subscriptionCloudReceived.set(true)
+                                    if (!sub.isTvAllowed) {
+                                        // Server suspension/expiry is authoritative; an outage is not.
+                                        com.example.data.DeviceAccessGuard.clear()
+                                        stopStreamHeartbeat()
+                                        _userSubscription.value = sub
+                                        saveStoredSubscription(sub)
+                                        _appSessionReady.value = true
+                                        _appSessionError.value = null
+                                        _playbackAccessError.value = "Your membership no longer allows TV playback."
+                                    } else if (com.example.data.DeviceAccessGuard.isConfirmed(targetUid, sub.planId, sub.expiresAt, sub.status) &&
+                                        com.example.data.ScreenLease.isAdmitted(targetUid, sub.isTvAllowed)) {
+                                        _userSubscription.value = sub
+                                        saveStoredSubscription(sub)
+                                    } else {
+                                        _userSubscription.value = sub
+                                        saveStoredSubscription(sub)
+                                        com.example.data.DeviceAccessGuard.clear()
+                                        stopStreamHeartbeat()
+                                        _appSessionReady.value = false
+                                        _startupReady.value = false
+                                        _appSessionError.value = "Your membership changed. Preparing your account again."
+                                        prepareAgain = true
+                                    }
+                                } else {
+                                    rejectAppSession("No active membership was found for this account.")
+                                    _userSubscription.value = com.example.model.UserSubscription()
+                                    saveStoredSubscription(_userSubscription.value)
                                 }
                             }
-                        } else {
-                            rejectAppSession("No active membership was found for this account.")
-                            _userSubscription.value = com.example.model.UserSubscription()
-                            saveStoredSubscription(_userSubscription.value)
+                            // prepareAppSession acquires the same mutex: never nest the call.
+                            if (prepareAgain && authenticatedUid() == targetUid) {
+                                try { prepareAppSession() }
+                                catch (cancelled: CancellationException) { throw cancelled }
+                                catch (_: Exception) { /* Entry owns retry; a transient outage keeps its plan. */ }
+                            }
                         }
                     }
             }
@@ -3151,9 +3168,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             com.example.data.ScreenLease.isAdmitted(owner, current.isTvAllowed)) return@withLock current
         try {
             val checked = com.example.data.DeviceAccessGuard.confirm(getApplication(), tv = true)
-            val sub = subscriptionFromSnapshot(checked)
-            if (sub.isTvAllowed) com.example.data.ScreenLease.acquire(getApplication(), tv = true)
-            else stopStreamHeartbeat()
+            var sub = subscriptionFromSnapshot(checked)
+            if (sub.isTvAllowed) {
+                val verified = com.example.data.ScreenLease.acquire(getApplication(), tv = true)
+                sub = com.example.data.TvPlaybackAccessPolicy.confirmedSubscription(sub, owner, verified)
+                    ?: throw com.example.data.MembershipRevokedException("Your account changed. Sign in again.")
+            } else stopStreamHeartbeat()
             if (authenticatedUid() != owner) throw com.example.data.MembershipRevokedException("Your account changed. Sign in again.")
             subscriptionCloudReceived.set(true)
             _userSubscription.value = sub
@@ -3162,8 +3182,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 if (firestoreProfileListener == null) listenToFirestoreProfiles(owner)
                 if (firestoreSubscriptionListener == null) listenToFirestoreSubscription(owner)
             }
+            appSessionAdmissionRevision.incrementAndGet()
             _appSessionReady.value = true
             _appSessionError.value = null
+            _playbackAccessError.value = null
             if (sub.isTvAllowed) startAppSessionHeartbeat()
             sub
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -3183,9 +3205,11 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun rejectAppSession(message: String) {
+        com.example.data.DeviceAccessGuard.clear()
         _appSessionReady.value = false
         _startupReady.value = false
         _appSessionError.value = message
+        _playbackAccessError.value = message
         stopStreamHeartbeat()
         if (sharedExoPlayerDelegate.isInitialized()) {
             sharedExoPlayer.stop()
@@ -3193,6 +3217,20 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         }
         stopHomePreviews()
     }
+
+    private suspend fun applyVerifiedPlaybackMembership(owner: String,
+        verified: com.example.data.ScreenLease.VerifiedMembership): com.example.model.UserSubscription? =
+        withContext(Dispatchers.Main.immediate) {
+            if (authenticatedUid() != owner) return@withContext null
+            val confirmed = com.example.data.TvPlaybackAccessPolicy.confirmedSubscription(
+                _userSubscription.value, owner, verified) ?: return@withContext null
+            subscriptionCloudReceived.set(true)
+            if (confirmed != _userSubscription.value) {
+                _userSubscription.value = confirmed
+                saveStoredSubscription(confirmed)
+            }
+            confirmed
+        }
 
     private fun startAppSessionHeartbeat() {
         val owner = authenticatedUid() ?: return
@@ -3202,7 +3240,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             while (isActive && authenticatedUid() == owner && _userSubscription.value.isTvAllowed) {
                 delay(20_000L)
                 if (authenticatedUid() != owner || !_userSubscription.value.isTvAllowed) break
-                try { com.example.data.ScreenLease.acquire(getApplication(), tv = true) }
+                try {
+                    val verified = com.example.data.ScreenLease.acquire(getApplication(), tv = true)
+                    if (applyVerifiedPlaybackMembership(owner, verified) == null) return@launch
+                }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (error: Exception) {
                     if (authenticatedUid() != owner) break

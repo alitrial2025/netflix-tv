@@ -21,6 +21,7 @@ import java.io.IOException
 /** Catalog metadata only. Playback URLs, cookies and membership data are never persisted. */
 internal class PublicProviderCatalog(context: Context) {
     private val app = context.applicationContext
+    internal val episodeCatalog by lazy { ProviderEpisodeCatalog(app) }
     private val file = AtomicFile(File(app.filesDir, "verified_provider_identities_v3.json"))
     private val discoveryFile = AtomicFile(File(app.filesDir, "discovered_provider_identities.json"))
     private val feedFile = AtomicFile(File(app.filesDir, "public_provider_feed_v2.json"))
@@ -32,6 +33,35 @@ internal class PublicProviderCatalog(context: Context) {
     private val persistedFeed: Feed? by lazy {
         try { feedFile.openRead().use { parseFeed(JSONObject(it.bufferedReader().readText()), System.currentTimeMillis(), allowStale = true) } }
         catch (_: Exception) { null }
+    }
+    private val routeSeeds by lazy {
+        try { app.assets.open("public-provider-route-seeds.json").bufferedReader().use {
+            JSONObject(it.readText()).takeIf { root -> root.optInt("schemaVersion") == 1 }
+        } ?: JSONObject() } catch (_: Exception) { JSONObject() }
+    }
+    private fun routeCandidates(type: String, tmdb: String): List<Pair<String, String>> {
+        val rows = routeSeeds.optJSONArray("rows") ?: return emptyList()
+        return (0 until minOf(rows.length(), 1000)).mapNotNull { index ->
+            val row = rows.optJSONArray(index) ?: return@mapNotNull null
+            val ott = row.optString(2); val id = row.optString(3)
+            (id to ott).takeIf { row.optString(0) == type && row.optString(1) == tmdb && valid(ott, id) }
+        }.distinct()
+    }
+    /** Previously verified metadata is a candidate; the live episode endpoint confirms it. */
+    fun seasonCandidates(origin: String, ott: String, showId: String, titles: List<String>): Map<Int, String> {
+        val base = ProviderRuntimeConfig.validBase(origin) ?: return emptyMap()
+        val rows = routeSeeds.optJSONArray("seasonRows") ?: return emptyMap()
+        val result = linkedMapOf<Int, String>()
+        for (index in 0 until minOf(rows.length(), 3600)) {
+            val row = rows.optJSONArray(index) ?: continue
+            if (row.optString(0) != base || row.optString(1) != ott || row.optString(2) != showId ||
+                titles.none { PublicIdentityDiscovery.sameTitle(it, row.optString(5)) }) continue
+            val season = row.optInt(3); val id = row.optString(4)
+            if (season !in 1..60 || !valid(ott, showId) || !valid(ott, id)) continue
+            if (result.containsKey(season) && result[season] != id || result.any { it.key != season && it.value == id }) return emptyMap()
+            result[season] = id
+        }
+        return result
     }
     private val candidates by lazy {
         try {
@@ -74,7 +104,7 @@ internal class PublicProviderCatalog(context: Context) {
         catch (_: Exception) { JSONObject() }
     }
     fun candidates(type: String, tmdb: String): List<Pair<String, String>> =
-        (currentFeed()?.native?.get("$type:$tmdb").orEmpty() + candidates["$type:$tmdb"].orEmpty()).distinct()
+        (currentFeed()?.native?.get("$type:$tmdb").orEmpty() + routeCandidates(type, tmdb) + candidates["$type:$tmdb"].orEmpty()).distinct()
     private fun currentFeed() = liveFeed ?: persistedFeed
     fun refreshInBackground(client: OkHttpClient, force: Boolean = false) {
         if (!refreshQueued.compareAndSet(false,true)) return

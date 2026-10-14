@@ -75,7 +75,7 @@ internal object PublicIdentityDiscovery {
                     val row = rows.optJSONObject(j) ?: continue
                     val title = row.optString("title").ifBlank { row.optString("displayTitle") }
                     val kind = row.optString("entityType").lowercase(Locale.ROOT)
-                    if (kind !in (if (type == "tv") listOf("tvseason", "season", "tvseries", "series") else listOf("movie"))) continue
+                    if (kind !in (if (type == "tv") listOf("tvseason", "season", "tvseries", "series", "tv show") else listOf("movie"))) continue
                     if (aliases.none { sameTitle(seriesTitle(title, type), it) }) continue
                     // A later season's release year cannot establish the parent show's first-air year.
                     val season = Regex("(?i)\\bSeason\\s+(\\d+)\\s*$").find(title)?.groupValues?.get(1)?.toIntOrNull()

@@ -122,6 +122,9 @@ object DeviceAccessGuard {
 
 /** Each account has at most four fixed slots; claims race in one Firestore transaction. */
 object ScreenLease {
+    data class VerifiedMembership(val uid: String, val planId: String, val status: String,
+        val expiresAt: Long, val planName: String)
+    private data class Claim(val slot: Int, val membership: VerifiedMembership)
     private data class Lease(val uid: String, val slot: Int, val device: String, val token: String)
     @Volatile private var lease: Lease? = null
     private val acquireMutex = Mutex()
@@ -134,7 +137,7 @@ object ScreenLease {
             devices[it] == null || released[it] || now - heartbeats[it] >= 45_000L
         }
 
-    suspend fun acquire(context: Context, tv: Boolean) = acquireMutex.withLock {
+    suspend fun acquire(context: Context, tv: Boolean): VerifiedMembership = acquireMutex.withLock {
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser?.takeUnless { it.isAnonymous } ?: throw MembershipCheckException()
         val requestGeneration = generation.get()
@@ -142,7 +145,7 @@ object ScreenLease {
         val db = FirebaseFirestore.getInstance()
         val account = db.collection("users").document(user.uid)
         val token = UUID.randomUUID().toString()
-        val slot = kotlinx.coroutines.withTimeoutOrNull(15_000L) { db.runTransaction { tx ->
+        val claim = kotlinx.coroutines.withTimeoutOrNull(15_000L) { db.runTransaction { tx ->
             val sub = tx.get(account.collection("subscription").document("current"))
             val plan = sub.getString("planId").orEmpty()
             val max = DeviceAccessPolicy.screenCount(plan)
@@ -160,13 +163,16 @@ object ScreenLease {
             tx.set(account.collection("stream_slots").document(available.toString()), mapOf(
                 "deviceId" to device, "deviceType" to if (tv) "tv" else "mobile",
                 "lastHeartbeat" to FieldValue.serverTimestamp(), "released" to false, "leaseToken" to token))
-            available
+            Claim(available, VerifiedMembership(user.uid, plan, sub.getString("status").orEmpty(),
+                sub.getLong("expiresAt") ?: 0L, sub.getString("planName").orEmpty()
+                    .ifBlank { com.example.model.SubscriptionTier.fromPlanId(plan).displayName }))
         }.await() } ?: throw MembershipCheckException()
         if (auth.currentUser?.uid != user.uid || generation.get() != requestGeneration) throw MembershipRevokedException("Your account changed. Sign in again.")
         synchronized(this) {
-            lease = Lease(user.uid, slot, device, token)
+            lease = Lease(user.uid, claim.slot, device, token)
             admission.admit(user.uid)
         }
+        claim.membership
     }
 
     private fun takeLease(): Lease? = synchronized(this) {
