@@ -67,7 +67,7 @@ fun SkipIntroOverlay(
         while (true) {
             delay(500L)
             val pos = try { exoPlayer.currentPosition } catch (_: IllegalStateException) { break } catch (_: Exception) { break }
-            isInsideIntro = pos in introStart..introEnd
+            isInsideIntro = pos >= introStart && pos < introEnd
         }
     }
 
@@ -97,7 +97,7 @@ fun SkipIntroOverlay(
                 onUserActivity()
                 val canSeek = try { exoPlayer.playbackState != Player.STATE_IDLE } catch (_: IllegalStateException) { false } catch (_: Exception) { false }
                 if (canSeek) {
-                    try { exoPlayer.seekTo(introEnd + 500L) } catch (_: IllegalStateException) {} catch (_: Exception) {}
+                    try { exoPlayer.seekTo(introEnd) } catch (_: IllegalStateException) {} catch (_: Exception) {}
                 }
             },
             modifier = Modifier
@@ -153,6 +153,8 @@ fun NextEpisodeCountdownOverlay(
 ) {
     var isCreditsDismissed by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(false) }
     var isAtOutro by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(false) }
+    var isCountdownPlaying by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(false) }
+    var playbackEnded by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(false) }
 
     val countdownTotalSeconds = 30
     val fillAnimatable = remember(movie.id, currentSeason, currentEpisode) { Animatable(0f) }
@@ -163,21 +165,23 @@ fun NextEpisodeCountdownOverlay(
             delay(500L)
             val pos = try { exoPlayer.currentPosition } catch (_: Exception) { continue }
             isAtOutro = pos >= outroStart && !isCreditsDismissed
+            isCountdownPlaying = exoPlayer.isPlaying
+            playbackEnded = exoPlayer.playbackState == Player.STATE_ENDED
         }
     }
 
-    LaunchedEffect(isAtOutro) {
-        if (isAtOutro) {
-            fillAnimatable.snapTo(0f)
+    LaunchedEffect(isAtOutro, isCountdownPlaying, playbackEnded) {
+        if (isAtOutro && (isCountdownPlaying || playbackEnded)) {
             fillAnimatable.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = countdownTotalSeconds * 1000, easing = LinearEasing)
+                animationSpec = tween(durationMillis = if (playbackEnded) 0 else
+                    ((1f - fillAnimatable.value) * countdownTotalSeconds * 1000).toInt(), easing = LinearEasing)
             )
             if (!isNextTriggered) {
                 isNextTriggered = true
                 onTriggerNextEpisode()
             }
-        } else {
+        } else if (!isAtOutro) {
             isNextTriggered = false
             fillAnimatable.snapTo(0f)
         }
@@ -429,6 +433,7 @@ fun PlayerLoadingOverlay(
 
 @Composable
 fun PlayerErrorOverlay(
+    message: String = "Unable to play this title",
     onRetry: () -> Unit
 ) {
     val retryRequester = remember { FocusRequester() }
@@ -447,7 +452,7 @@ fun PlayerErrorOverlay(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Text(
-                text = "Unable to play this title",
+                text = message,
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold

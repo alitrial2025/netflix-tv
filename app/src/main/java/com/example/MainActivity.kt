@@ -167,6 +167,18 @@ class MainActivity : ComponentActivity() {
 
                     val currentBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = currentBackStackEntry?.destination?.route ?: ""
+                    val appSessionReady by viewModel.appSessionReady.collectAsState()
+                    val appSessionError by viewModel.appSessionError.collectAsState()
+                    LaunchedEffect(currentRoute, appSessionReady, appSessionError) {
+                        if (currentRoute.isNotEmpty() && currentRoute != "splash" &&
+                            viewModel.isUserLoggedIn() && !appSessionReady && appSessionError != null) {
+                            viewModel.retryAppSession()
+                            navController.navigate("splash") {
+                                popUpTo(navController.graph.id)
+                                launchSingleTop = true
+                            }
+                        }
+                    }
                     val isPlayerScreen = currentRoute.contains("player", ignoreCase = true)
                     // Keep auth, splash, profile selection and editing visible while idle.
                     val canShowWallpaper = currentRoute == "home" ||
@@ -227,6 +239,15 @@ class MainActivity : ComponentActivity() {
                                 val isWarmupFinished by viewModel.startupReady.collectAsState()
                                 SplashScreen(
                                     isWarmupFinished = isWarmupFinished,
+                                    startupError = appSessionError,
+                                    onRetryStartup = viewModel::retryAppSession,
+                                    onSignOut = {
+                                        viewModel.signOutFromTv()
+                                        navController.navigate("tvAuth") {
+                                            popUpTo(navController.graph.id)
+                                            launchSingleTop = true
+                                        }
+                                    },
                                     onSplashComplete = {
                                         val isLoggedIn = viewModel.isUserLoggedInOrGuest()
                                         val destination = if (isLoggedIn) "profiles" else "tvAuth"
@@ -252,9 +273,8 @@ class MainActivity : ComponentActivity() {
                                 TvAuthScreen(
                                     viewModel = viewModel,
                                     onAuthenticated = { _ ->
-                                        // Firestore profiles arrive asynchronously. The picker
-                                        // owns loading; an empty first frame is not a new account.
-                                        navController.navigate("profiles") {
+                                        viewModel.retryAppSession()
+                                        navController.navigate("splash") {
                                             popUpTo("tvAuth") { inclusive = true }
                                         }
                                     },

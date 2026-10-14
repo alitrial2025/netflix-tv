@@ -49,4 +49,29 @@ class TvStartupPreparationTest {
         runCurrent(); preparation.cancel(); runCurrent()
         assertTrue(dataCancelled); assertTrue(warmCancelled); assertFalse(returned)
     }
+    @Test fun entryAdmissionFinishesBeforeDataOrProviderWorkStarts() = runTest {
+        val events = mutableListOf<String>()
+        val result = prepareTvStartup(
+            admitSession = { events += "entry-start"; delay(5_000); events += "entry-ready" },
+            prepareData = { assertEquals("entry-ready", events.last()); events += "data" },
+            warmSession = { assertTrue("entry-ready" in events); events += "provider"; true }
+        )
+        assertEquals(TvStartupResult(true, true), result)
+        assertEquals(listOf("entry-start", "entry-ready"), events.take(2))
+    }
+
+    @Test fun failedEntryNeverStartsProviderRequestsAndCanBeRetried() = runTest {
+        var providerCalls = 0
+        assertThrows(java.io.IOException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                prepareTvStartup(admitSession = { throw java.io.IOException("Offline") },
+                    prepareData = {}, warmSession = { providerCalls++; true })
+            }
+        }
+        assertEquals(0, providerCalls)
+        assertEquals(TvStartupResult(true, true), prepareTvStartup(admitSession = {},
+            prepareData = {}, warmSession = { providerCalls++; true }))
+        assertEquals(1, providerCalls)
+    }
+
 }

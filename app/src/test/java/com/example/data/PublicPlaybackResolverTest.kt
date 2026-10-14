@@ -18,7 +18,7 @@ import java.io.IOException
 class PublicPlaybackResolverTest {
     @Test fun unlabelledDefaultEpisodesCannotOverrideTheRequestedSeason() = runBlocking {
         val seen = mutableListOf<Request>()
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             when (request.url.encodedPath) {
                 "/mobile/hs/post.php" -> """{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"wrong-default","ep":"E1"}],"season":[{"id":"1271685002","s":"S2"}]}""" to 200
                 "/mobile/hs/episodes.php" -> {
@@ -37,7 +37,7 @@ class PublicPlaybackResolverTest {
     }
     @Test fun staleNetflixPlaylistFallsBackToExactPrimeIdentityWithoutCookies() = runBlocking {
         val seen = mutableListOf<Request>()
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             when (request.url.encodedPath) {
                 "/search.php" -> """{"searchResult":[{"id":"81458416","t":"Fixture Film","y":"2024"}]}""" to 200
                 "/mobile/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
@@ -68,7 +68,7 @@ class PublicPlaybackResolverTest {
         val seen = mutableListOf<Request>()
         val video = "https://s1.freecdn1.top/video/issued.m3u8?in=issued-video&lang=eng"
         val audio = "https://s1.freecdn1.top/audio/eng.m3u8?in=issued-audio"
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             val body = when (request.url.encodedPath) {
                 "/search.php" -> """{"searchResult":[{"id":"70155584","t":"Smallville"}]}"""
                 "/title/70155584" -> html
@@ -102,7 +102,7 @@ class PublicPlaybackResolverTest {
 
     @Test fun rejectsWrongSeasonInsteadOfPlayingAnUnrelatedEpisode() = runBlocking {
         val seen = mutableListOf<Request>()
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             when (request.url.encodedPath) {
                 "/search.php" -> """{"searchResult":[{"id":"70155584","t":"Smallville"}]}""" to 200
                 "/title/70155584" -> html to 200
@@ -118,7 +118,7 @@ class PublicPlaybackResolverTest {
 
     @Test fun refusesAmbiguousTitleIdentity() = runBlocking {
         val seen = mutableListOf<Request>()
-        val resolver = PublicPlaybackResolver(client(seen) {
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) {
             """{"searchResult":[{"id":"one","t":"Road House","y":"2024"},{"id":"two","t":"Road House","y":"2024"}]}""" to 200
         })
         try { resolver.resolve("Road House", "2024", "movie", 0, 0); fail("Ambiguous match accepted") }
@@ -130,7 +130,7 @@ class PublicPlaybackResolverTest {
         val seen = mutableListOf<Request>()
         val nativeId = "0O70LSZ5KT12QBNQRUQGGRIWDP"
         val issued = "https://s1.freecdn1.top/movies/media.m3u8?in=provider-issued&lang=eng"
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             when (request.url.encodedPath) {
                 "/search.php", "/mobile/search.php" -> """{"head":"Top Searches","status":"n","searchResult":[{"id":"wrong","t":"Road House"}]}""" to 200
                 "/mobile/pv/search.php" -> """{"searchResult":[{"id":"$nativeId","t":"Road House","y":"2024"},{"id":"remake","t":"Road House","y":"1989"}]}""" to 200
@@ -171,14 +171,14 @@ class PublicPlaybackResolverTest {
 
     @Test fun authorizationFailureStopsWithoutTryingWarmupOrAnotherCatalog() = runBlocking {
         val seen = mutableListOf<Request>()
-        val resolver = PublicPlaybackResolver(client(seen) { "Invalid User" to 403 })
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { "Invalid User" to 403 })
         try { resolver.resolve("Smallville", "2001", "tv", 1, 1); fail("Unauthorized lookup accepted") }
         catch (e: IOException) { assertEquals("Playback metadata requires authorization", e.message) }
         assertEquals(listOf("/search.php"), seen.map { it.url.encodedPath })
     }
     @Test fun lanternsUsesItsPublicNativeIdWithoutSearchOrCookieHandshake() = runBlocking {
         val seen = mutableListOf<Request>()
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             when (request.url.encodedPath) {
                 "/mobile/hs/post.php" -> """{"status":"y","title":"Lanterns","year":"2026","type":"t","episodes":[{"id":"1271684191","s":"S1","ep":"E1"}]}""" to 200
                 "/mobile/hs/playlist.php" -> """[{"sources":[{"file":"/mobile/hs/hls/1271684191.m3u8?in=unknown::ek"}]}]""" to 200
@@ -195,7 +195,7 @@ class PublicPlaybackResolverTest {
 
     @Test fun unavailableSeasonRetriesAnotherVerifiedHostingIdentity() = runBlocking {
         val seen = mutableListOf<Request>()
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             when (request.url.encodedPath) {
                 "/search.php", "/mobile/search.php" -> """{"searchResult":[{"id":"70155584","t":"Fixture Series","y":"2026","type":"t"}]}""" to 200
                 "/title/70155584" -> """<script type="application/ld+json">{"@type":"TVSeries","name":"Fixture Series","first_air_date":"2022-01-01"}</script><select name="seasonSelect"><option value="60031634">Season 1</option></select>""" to 200
@@ -219,7 +219,7 @@ class PublicPlaybackResolverTest {
     @Test fun newSeriesOutsideBothBundledAndRemoteIndexesIsFoundFromPublishedLinks() = runBlocking {
         val seen = mutableListOf<Request>()
         val path = "/tv-shows/brand-new-show/HOTSTAR_DTH_TVSHOW_1971999001"
-        val resolver = PublicPlaybackResolver(client(seen) { request ->
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen) { request ->
             when (request.url.encodedPath) {
                 "/search.php", "/mobile/search.php", "/mobile/pv/search.php" -> """{"status":"n","head":"Top Searches"}""" to 200
                 "/3/tv/999999001", "/sparql" -> "{}" to 200

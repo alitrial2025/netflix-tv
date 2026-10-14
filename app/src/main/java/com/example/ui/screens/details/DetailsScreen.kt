@@ -65,6 +65,8 @@ import kotlinx.coroutines.flow.collect
 
 private class DetailsPreviewCookie {
     var value: String? = null
+    var sourceId: String? = null
+    var waitingVideo: Boolean = false
 }
 
 @Composable
@@ -286,6 +288,8 @@ fun DetailsScreen(
             (exoPlayer.playbackState == Player.STATE_READY || exoPlayer.playbackState == Player.STATE_BUFFERING)) {
             if (cached != null) {
                 previewCookieHolder.value = cached.headers["Cookie"]
+                previewCookieHolder.sourceId = cached.sourceId
+                previewCookieHolder.waitingVideo = cached.isRateLimited || com.example.data.StreamSessionPolicy.isWaitingVideo(cached.url)
                 streamCaptions = cached.captions
             }
             try { exoPlayer.volume = 0.25f } catch (_: Exception) {}
@@ -314,6 +318,8 @@ fun DetailsScreen(
                 onCaptions = { streamCaptions = it }
             )
             previewCookieHolder.value = stream?.headers?.get("Cookie")
+            previewCookieHolder.sourceId = stream?.sourceId
+            previewCookieHolder.waitingVideo = stream?.let { it.isRateLimited || com.example.data.StreamSessionPolicy.isWaitingVideo(it.url) } == true
         } catch (ce: kotlinx.coroutines.CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -327,8 +333,8 @@ fun DetailsScreen(
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 if (!previewIsTrailer && state == Player.STATE_READY && ownsCurrentMedia() &&
-                    exoPlayer.duration in 535_000L..545_000L) {
-                    viewModel.recordPlaybackRateLimit()
+                    previewCookieHolder.waitingVideo) {
+                    // A cached waiting clip is unavailable; it is not a fresh server rejection.
                     viewModel.evictCachedStream(movie, currentSeason, currentEpisode)
                     isStreamReady = false
                     exoPlayer.stop()
@@ -350,7 +356,11 @@ fun DetailsScreen(
                 if (httpError?.responseCode == 429 || waitingVideo != null) {
                     val retryAfter = httpError?.headerFields?.entries
                         ?.firstOrNull { it.key.equals("Retry-After", true) }?.value?.firstOrNull()
-                    viewModel.recordPlaybackRateLimit(com.example.data.StreamSessionPolicy.retryAfterDelayMs(retryAfter, System.currentTimeMillis()))
+                    // Guarded data sources already recorded this response. A
+                    // propagated local block must not become another rejection.
+                    if (waitingVideo == null) {
+                        viewModel.recordPlaybackRateLimit(com.example.data.StreamSessionPolicy.retryAfterDelayMs(retryAfter, System.currentTimeMillis()), sourceId = previewCookieHolder.sourceId)
+                    }
                     viewModel.evictCachedStream(movie, currentSeason, currentEpisode)
                 } else if (!previewIsTrailer && previewRecovery < 1 &&
                     (httpError?.responseCode == 401 || httpError?.responseCode == 403)) {

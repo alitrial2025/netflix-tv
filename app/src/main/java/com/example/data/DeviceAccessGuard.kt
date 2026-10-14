@@ -9,11 +9,31 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.security.MessageDigest
 import java.util.UUID
 
 class DeviceAccessException(message: String) : java.io.IOException(message)
-class MembershipCheckException : java.io.IOException("We couldn't verify your membership and device. Reconnect and try again.")
+class MembershipCheckException(cause: Throwable? = null) : java.io.IOException("We couldn't verify your membership and device. Reconnect and try again.", cause)
+class MembershipRevokedException(message: String = "Your membership is no longer active. Check your plan before watching.") : java.io.IOException(message)
+
+internal object MembershipFailure {
+    fun isDefinitive(error: Throwable): Boolean = generateSequence(error) { it.cause }.take(16).any {
+        it is DeviceAccessException || it is MembershipRevokedException ||
+            (it is com.google.firebase.firestore.FirebaseFirestoreException && it.code in setOf(
+                com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED,
+                com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAUTHENTICATED))
+    }
+}
+
+/** An admission belongs to this process/account; transport failure cannot revoke it. */
+internal class AppSessionAdmission {
+    private var owner: String? = null
+    @Synchronized fun admit(uid: String) { require(uid.isNotBlank()); owner = uid }
+    @Synchronized fun allows(uid: String?, entitled: Boolean): Boolean = entitled && uid != null && owner == uid
+    @Synchronized fun clear() { owner = null }
+}
 
 internal object DeviceAccessPolicy {
     fun isSingleDevice(planId: String) = planId == "plan_mobile" || planId == "plan_basic"
@@ -35,6 +55,7 @@ internal object DeviceAccessPolicy {
 object DeviceAccessGuard {
     private data class Confirmation(val uid: String, val plan: String, val expiry: Long, val status: String)
     @Volatile private var confirmed: Confirmation? = null
+    private val generation = java.util.concurrent.atomic.AtomicLong()
 
     fun deviceId(context: Context): String {
         val prefs = context.getSharedPreferences("device_access", Context.MODE_PRIVATE)
@@ -49,16 +70,19 @@ object DeviceAccessGuard {
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
-    fun clear() { confirmed = null }
+    fun clear() { generation.incrementAndGet(); confirmed = null }
     fun isConfirmed(uid: String, plan: String, expiry: Long, status: String): Boolean {
         val proof = confirmed ?: return false
         return uid.isNotBlank() && proof.uid == uid && proof.plan == plan && proof.expiry == expiry &&
+            DeviceAccessPolicy.screenCount(plan) > 0 &&
+            RenewalPolicy.grantsAccess(proof.status, proof.expiry, SubscriptionTime.now()) &&
             DeviceAccessPolicy.confirmationStatusMatches(proof.status, status, expiry, SubscriptionTime.now())
     }
 
     suspend fun confirm(context: Context, tv: Boolean): com.google.firebase.firestore.DocumentSnapshot {
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser?.takeUnless { it.isAnonymous } ?: throw MembershipCheckException()
+        val requestGeneration = generation.get()
         val db = FirebaseFirestore.getInstance()
         val subRef = db.collection("users").document(user.uid).collection("subscription").document("current")
         val bindingRef = db.collection("users").document(user.uid).collection("device_binding").document("current")
@@ -82,15 +106,16 @@ object DeviceAccessGuard {
                 }
                 sub
             }.await() } ?: throw MembershipCheckException()
-            if (auth.currentUser?.uid != user.uid) throw MembershipCheckException()
+            if (auth.currentUser?.uid != user.uid || generation.get() != requestGeneration) throw MembershipRevokedException("Your account changed. Sign in again.")
             confirmed = Confirmation(user.uid, snapshot.getString("planId").orEmpty(), snapshot.getLong("expiresAt") ?: 0L, snapshot.getString("status").orEmpty())
             return snapshot
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) {
-            confirmed = null
+            if (MembershipFailure.isDefinitive(error) && generation.get() == requestGeneration) clear()
             val restriction = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<DeviceAccessException>().firstOrNull()
             if (restriction != null) throw restriction
-            throw MembershipCheckException()
+            if (MembershipFailure.isDefinitive(error)) throw MembershipRevokedException()
+            throw MembershipCheckException(error)
         }
     }
 }
@@ -99,15 +124,20 @@ object DeviceAccessGuard {
 object ScreenLease {
     private data class Lease(val uid: String, val slot: Int, val device: String, val token: String)
     @Volatile private var lease: Lease? = null
+    private val acquireMutex = Mutex()
+    private val generation = java.util.concurrent.atomic.AtomicLong()
+    private val admission = AppSessionAdmission()
+    fun isAdmitted(uid: String?, entitled: Boolean): Boolean = admission.allows(uid, entitled)
     internal fun availableSlot(devices: List<String?>, heartbeats: List<Long>, released: List<Boolean>,
                                device: String, now: Long): Int? =
         devices.indexOf(device).takeIf { it >= 0 } ?: devices.indices.firstOrNull {
             devices[it] == null || released[it] || now - heartbeats[it] >= 45_000L
         }
 
-    suspend fun acquire(context: Context, tv: Boolean) {
+    suspend fun acquire(context: Context, tv: Boolean) = acquireMutex.withLock {
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser?.takeUnless { it.isAnonymous } ?: throw MembershipCheckException()
+        val requestGeneration = generation.get()
         val device = DeviceAccessGuard.deviceId(context)
         val db = FirebaseFirestore.getInstance()
         val account = db.collection("users").document(user.uid)
@@ -117,7 +147,7 @@ object ScreenLease {
             val plan = sub.getString("planId").orEmpty()
             val max = DeviceAccessPolicy.screenCount(plan)
             if (max == 0 || !RenewalPolicy.grantsAccess(sub.getString("status").orEmpty(),
-                    sub.getLong("expiresAt") ?: 0L, SubscriptionTime.now())) throw MembershipCheckException()
+                    sub.getLong("expiresAt") ?: 0L, SubscriptionTime.now())) throw MembershipRevokedException()
             val binding = if (DeviceAccessPolicy.isSingleDevice(plan))
                 tx.get(account.collection("device_binding").document("current")).getString("deviceId") else null
             if (!DeviceAccessPolicy.permits(plan, true, tv, binding, device) ||
@@ -132,16 +162,24 @@ object ScreenLease {
                 "lastHeartbeat" to FieldValue.serverTimestamp(), "released" to false, "leaseToken" to token))
             available
         }.await() } ?: throw MembershipCheckException()
-        if (auth.currentUser?.uid != user.uid) throw MembershipCheckException()
-        synchronized(this) { lease = Lease(user.uid, slot, device, token) }
+        if (auth.currentUser?.uid != user.uid || generation.get() != requestGeneration) throw MembershipRevokedException("Your account changed. Sign in again.")
+        synchronized(this) {
+            lease = Lease(user.uid, slot, device, token)
+            admission.admit(user.uid)
+        }
     }
 
+    private fun takeLease(): Lease? = synchronized(this) {
+        generation.incrementAndGet()
+        admission.clear()
+        lease.also { lease = null }
+    }
     fun releaseIn(scope: CoroutineScope) {
-        val captured = synchronized(this) { lease.also { lease = null } } ?: return
+        val captured = takeLease() ?: return
         scope.launch { releaseCaptured(captured) }
     }
     suspend fun release() {
-        val captured = synchronized(this) { lease.also { lease = null } } ?: return
+        val captured = takeLease() ?: return
         releaseCaptured(captured)
     }
     private suspend fun releaseCaptured(captured: Lease) {

@@ -18,7 +18,8 @@ class PlayerSubtitleChoicesTest {
             Caption("https://example.test/en.vtt", "English", "vtt", "en"),
             Caption("https://example.test/en-cc.vtt", "English [CC]", "vtt", "en-cc"),
             Caption("https://example.test/es.srt", "Spanish", "srt", "es", isVerified = false),
-            Caption("https://example.test/sprites.vtt", "Thumbnails", "thumbnails")
+            Caption("https://example.test/sprites.vtt", "Thumbnails", "thumbnails"),
+            Caption("https://example.test/chapters.vtt", "Intro / End Credits", "chapters")
         )
         assertEquals(listOf("Off", "English", "English [CC]"), availableSubtitleOptions(captions))
         assertEquals(listOf("Off"), availableSubtitleOptions(emptyList()))

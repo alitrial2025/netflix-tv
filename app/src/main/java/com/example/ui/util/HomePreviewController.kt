@@ -265,9 +265,10 @@ class HomePreviewController(
                 if (generation != ticket) return
                 if (playbackState == Player.STATE_READY && !seekChosen) {
                     val duration = activePlayer.duration
-                    if (!request.trailerOnly && duration in 535_000L..545_000L) {
+                    if (!request.trailerOnly && (stream.isRateLimited ||
+                        com.example.data.StreamSessionPolicy.isWaitingVideo(stream.url))) {
                         budget.onRateLimited()
-                        viewModel.recordPlaybackRateLimit()
+                        viewModel.evictCachedStream(request.movie, choice.season, choice.episode)
                         finished.complete(Unit)
                         return
                     }
@@ -307,7 +308,10 @@ class HomePreviewController(
                 if (isRateLimited(error)) {
                     val retryAfter = rateLimitDelayMs(error)
                     budget.onRateLimited(retryAfter)
-                    viewModel.recordPlaybackRateLimit(retryAfter)
+                    val alreadyRecorded = generateSequence<Throwable>(error) { it.cause }.take(8)
+                        .any { it is com.example.data.PlaybackRateLimitedException }
+                    if (!alreadyRecorded) viewModel.recordPlaybackRateLimit(retryAfter, sourceId = stream.sourceId)
+                    viewModel.evictCachedStream(request.movie, choice.season, choice.episode)
                 } else {
                     budget.onFailure()
                     // A bad cached URL must not fail forever when focus returns.
@@ -340,7 +344,7 @@ class HomePreviewController(
                 .setConnectTimeoutMs(10_000)
                 .setReadTimeoutMs(10_000)
             // DirectCDN can return a local master manifest with remote segments.
-            val sourceFactory = DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http)))
+            val sourceFactory = DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http), stream.sourceId))
                 .setLoadErrorHandlingPolicy(object : DefaultLoadErrorHandlingPolicy(1) {
                     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long =
                         if (isRateLimited(loadErrorInfo.exception)) C.TIME_UNSET else super.getRetryDelayMsFor(loadErrorInfo)

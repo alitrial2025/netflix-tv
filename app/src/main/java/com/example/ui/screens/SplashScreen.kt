@@ -12,6 +12,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -32,6 +37,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -49,11 +57,18 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SplashScreen(
     isWarmupFinished: Boolean = false,
+    startupError: String? = null,
+    onRetryStartup: () -> Unit = {},
+    onSignOut: () -> Unit = {},
     onSplashComplete: () -> Unit
 ) {
     val context = LocalContext.current.applicationContext
     val currentIsWarmupFinished by rememberUpdatedState(isWarmupFinished)
     var logoSize by remember { mutableStateOf(IntSize.Zero) }
+    val retryFocus = remember { FocusRequester() }
+    LaunchedEffect(startupError) {
+        if (startupError != null) runCatching { retryFocus.requestFocus() }
+    }
 
     // Intercept back button during splash
     BackHandler(enabled = true) { /* no-op: splash in progress */ }
@@ -256,6 +271,20 @@ fun SplashScreen(
                         },
                     contentScale = ContentScale.Fit
                 )
+            }
+        }
+
+        if (startupError != null) {
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter)
+                    .padding(horizontal = 48.dp, vertical = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(startupError, color = Color.White, textAlign = TextAlign.Center)
+                Button(onClick = onRetryStartup, modifier = Modifier.focusRequester(retryFocus)) {
+                    Text("Try again")
+                }
+                TextButton(onClick = onSignOut) { Text("Sign out") }
             }
         }
 

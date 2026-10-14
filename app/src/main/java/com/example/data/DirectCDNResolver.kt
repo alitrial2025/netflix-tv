@@ -119,7 +119,8 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         .followSslRedirects(true)
         .build()
 
-    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context), backgroundCatalogRefresh = clientOverride == null)
+    private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context), backgroundCatalogRefresh = clientOverride == null,
+        newTv = NewTvPlaybackResolver(client, endpointCache = NewTvEndpointCache(context)))
     val requiresWarmSession: Boolean get() = false
 
     private val SEC_CH_UA = "\"Not(A:Brand\";v=\"99\", \"Android WebView\";v=\"133\", \"Chromium\";v=\"133\""
@@ -158,9 +159,18 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     private val sessionMutex = kotlinx.coroutines.sync.Mutex()
     private val sessionDemand = SessionDemand()
     suspend fun <T> withForegroundSessionDemand(block: suspend () -> T): T = sessionDemand.withRequest(block)
-    fun playbackCooldownMillis(): Long = PlaybackServiceGate.remainingMs()
-    fun recordPlaybackRateLimit(retryAfterMs: Long? = null) { PlaybackServiceGate.recordLimit(retryAfterMs) }
-    fun checkPlaybackCooldown() { PlaybackServiceGate.check() }
+    fun playbackCooldownMillis(sourceId: String? = null): Long = when {
+        sourceId?.contains("[NewTV]") == true -> NewTvPlaybackGate.remainingMs()
+        sourceId != null -> PlaybackServiceGate.remainingMs()
+        else -> minOf(PlaybackServiceGate.remainingMs(), NewTvPlaybackGate.remainingMs())
+    }
+    fun recordPlaybackRateLimit(retryAfterMs: Long? = null, sourceId: String? = null) {
+        if (sourceId?.contains("[NewTV]") == true) NewTvPlaybackGate.recordLimit(retryAfterMs)
+        else PlaybackServiceGate.recordLimit(retryAfterMs)
+    }
+    fun checkPlaybackCooldown(sourceId: String? = null) {
+        playbackCooldownMillis(sourceId).takeIf { it > 0L }?.let { throw PlaybackRateLimitedException(it) }
+    }
     private val remoteConfigMutex = Mutex()
     val playbackSourceRevision: Long get() = PlaybackServiceGate.sourceRevision
     @Volatile private var cachedSourceRevision = PlaybackServiceGate.sourceRevision
@@ -2091,7 +2101,12 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
             .distinctBy { it.url }
 
         var cleanedMaster: String? = null
-        if (masterBody != null) PlaybackServiceGate.checkResponse(200, masterBody, null, videoUrl)
+        if (masterBody != null && StreamSessionPolicy.isRateLimited(200, masterBody)) {
+            // This can be a cached master; its original network response already
+            // set the cooldown. Evict it instead of recording another rejection.
+            masterManifestCache.remove(contentId)
+            throw PlaybackRateLimitedException(PlaybackServiceGate.remainingMs())
+        }
         if (masterBody != null && masterBody.contains("#EXT-X-MEDIA:TYPE=AUDIO")) {
             // Reuse the token just validated by the video request, including its original expiry.
             val effectiveToken = inToken
@@ -2143,7 +2158,6 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                         i++
                         var variantLine = lines[i].trim()
                         if (variantLine.isEmpty()) throw java.io.IOException("Missing video variant")
-                        PlaybackServiceGate.checkResponse(200, variantLine, null, videoUrl)
                         variantLine = makeAbsoluteCdnUrl(variantLine, host, contentId, effectiveToken, videoUrl)
                         sb.append(variantLine).append("\n")
                     }
@@ -2279,18 +2293,17 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         }
 
     private suspend fun resolveStreamForPurpose(movie: Movie, season: Int, episode: Int, purpose: StreamPurpose): NetMirrorStream = withTimeoutOrNull(45_000L) {
-        checkPlaybackCooldown()
         val generation = sessionGeneration.get()
         if (cachedSourceRevision != PlaybackServiceGate.sourceRevision) {
-            streamCache.clear()
+            streamCache.entries.removeAll { !it.value.sourceId.contains("[NewTV]") }
             cachedSourceRevision = PlaybackServiceGate.sourceRevision
         }
         val type = movie.catalogMediaKind()
         val key = "${type}_${movie.id}_${season}_${episode}"
-        streamCache[key]?.takeIf { it.sessionVersion == generation && it.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS }?.let { return@withTimeoutOrNull it }
+        streamCache[key]?.takeIf { it.sessionVersion == generation && playbackCooldownMillis(it.sourceId) == 0L && it.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS }?.let { return@withTimeoutOrNull it }
         val info = getTmdbInfo(movie.id, type, movie.title, movie.year)
         val source = publicPlayback.resolve(info.title, info.year, type, season, episode, movie.id)
-        val stream = NetMirrorStream(source.url, source.headers, source.captions, "Public HLS [${source.ott.uppercase()}]", source.expiresAt, info.title, sessionVersion = generation)
+        val stream = NetMirrorStream(source.url, source.headers, source.captions, "Public HLS [${source.ott.uppercase()}] [${source.route.label}]", source.expiresAt, info.title, sessionVersion = generation)
         currentCoroutineContext().ensureActive()
         synchronized(sessionStateLock) {
             if (generation != sessionGeneration.get()) throw SessionChangedException()
@@ -2390,6 +2403,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     }
 
     fun evictCachedStream(tmdbId: String, type: String, season: Int = 0, episode: Int = 0) {
+        publicPlayback.evict(tmdbId, type, season, episode)
         val key = "${type}_${tmdbId}_${season}_${episode}"
         streamCache.remove(key)
         streamCache.remove("${StreamPurpose.HERO_PREVIEW.name}_$key")

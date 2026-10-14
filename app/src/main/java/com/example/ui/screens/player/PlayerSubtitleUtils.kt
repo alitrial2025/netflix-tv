@@ -94,7 +94,7 @@ fun getLanguageDisplayName(code: String): String {
 /** Keep the quick row and modal in sync, including streams with no caption tracks. */
 fun availableSubtitleOptions(captions: List<Caption>?): List<String> =
     listOf("Off") + captions.orEmpty().asSequence()
-        .filter { it.type != "thumbnails" && it.url.isNotBlank() && it.isVerified }
+        .filter { it.type !in setOf("thumbnails", "chapters") && it.url.isNotBlank() && it.isVerified }
         .map { it.language.trim() }
         .filter { it.isNotEmpty() && !it.equals("Off", ignoreCase = true) }
         .distinctBy { it.lowercase(Locale.ROOT) }

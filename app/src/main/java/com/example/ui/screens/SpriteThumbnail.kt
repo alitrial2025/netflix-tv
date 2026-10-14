@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.Coil
 import coil.request.ImageRequest
+import coil.size.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -37,16 +38,18 @@ private object SpriteBitmapCache {
 @Composable
 fun SpriteThumbnail(
     cue: ThumbnailCue?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    headers: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
-    var imageBitmap by remember(cue?.imageUrl) { mutableStateOf<ImageBitmap?>(null) }
-    var isLoading by remember(cue?.imageUrl) { mutableStateOf(false) }
+    val cacheKey = remember(cue?.imageUrl, headers) { "${cue?.imageUrl}:${headers.hashCode()}" }
+    var imageBitmap by remember(cacheKey) { mutableStateOf<ImageBitmap?>(null) }
+    var isLoading by remember(cacheKey) { mutableStateOf(false) }
 
-    LaunchedEffect(cue?.imageUrl) {
+    LaunchedEffect(cacheKey) {
         val url = cue?.imageUrl
         if (!url.isNullOrBlank()) {
-            val cached = SpriteBitmapCache.cache.get(url)
+            val cached = SpriteBitmapCache.cache.get(cacheKey)
             if (cached != null && !cached.isRecycled) {
                 imageBitmap = cached.asImageBitmap()
                 isLoading = false
@@ -57,16 +60,21 @@ fun SpriteThumbnail(
                         val imageLoader = Coil.imageLoader(context)
                         val request = ImageRequest.Builder(context)
                             .data(url)
+                            // VTT coordinates refer to the original sheet, not a downsampled image.
+                            .size(Size.ORIGINAL)
+                            .apply { headers.forEach { (name, value) -> addHeader(name, value) } }
                             .allowHardware(false) // Required for canvas drawing compatibility
                             .build()
                         val result = imageLoader.execute(request)
                         val drawable = result.drawable
                         if (drawable is BitmapDrawable && !drawable.bitmap.isRecycled) {
-                            SpriteBitmapCache.cache.put(url, drawable.bitmap)
+                            SpriteBitmapCache.cache.put(cacheKey, drawable.bitmap)
                             withContext(Dispatchers.Main) {
                                 imageBitmap = drawable.bitmap.asImageBitmap()
                             }
                         }
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
                     } catch (e: Exception) {
                         e.printStackTrace()
                     } finally {
@@ -89,14 +97,12 @@ fun SpriteThumbnail(
         val bitmap = imageBitmap
         if (bitmap != null && cue != null) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val srcW = cue.w.coerceAtMost(bitmap.width - cue.x)
-                val srcH = cue.h.coerceAtMost(bitmap.height - cue.y)
-
-                if (srcW > 0 && srcH > 0) {
+                val crop = spritePreviewCrop(cue, bitmap.width, bitmap.height, size.width, size.height)
+                if (crop != null) {
                     drawImage(
                         image = bitmap,
-                        srcOffset = IntOffset(cue.x, cue.y),
-                        srcSize = IntSize(srcW, srcH),
+                        srcOffset = IntOffset(crop.x, crop.y),
+                        srcSize = IntSize(crop.width, crop.height),
                         dstOffset = IntOffset(0, 0),
                         dstSize = IntSize(size.width.toInt(), size.height.toInt())
                     )

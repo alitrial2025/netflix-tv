@@ -35,6 +35,17 @@ class StreamSessionPolicyTest {
         assertFalse(StreamSessionPolicy.isSessionRejected(429, "Too many requests"))
     }
 
+    @Test fun legitimateTitlesAndHlsPathsCannotStartAProviderCooldown() {
+        assertFalse(StreamSessionPolicy.isRateLimited(200,
+            "#EXTM3U\n#EXTINF:10,\nhttps://cdn.example/rate-limit/segment.ts\n#EXT-X-ENDLIST"))
+        assertFalse(StreamSessionPolicy.isRateLimited(200,
+            """{"title":"Rate Limited","description":"Too many requests for this movie","sources":[]}"""))
+        assertTrue(StreamSessionPolicy.isRateLimited(200, """{"error":"rate_limit"}"""))
+        assertTrue(StreamSessionPolicy.isRateLimited(200, """{"status":"error","message":"Too many requests"}"""))
+        assertTrue(StreamSessionPolicy.isRateLimited(200,
+            "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://cdn.example/files/220884/video.m3u8"))
+    }
+
     @Test fun expiredAuthenticationIsDetected() {
         assertTrue(StreamSessionPolicy.isSessionRejected(401, ""))
         assertTrue(StreamSessionPolicy.isSessionRejected(403, ""))

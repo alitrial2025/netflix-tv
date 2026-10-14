@@ -25,8 +25,9 @@ internal object PlaybackServiceGate {
     fun checkResponse(code: Int, body: String, retryAfter: String?, url: String) {
         if (StreamSessionPolicy.isRateLimited(code, body) || StreamSessionPolicy.isWaitingVideo(url)) {
             val serverDelay = StreamSessionPolicy.retryAfterDelayMs(retryAfter, System.currentTimeMillis())
-            recordLimit(serverDelay ?: if (StreamSessionPolicy.isWaitingVideo(body) ||
-                StreamSessionPolicy.isWaitingVideo(url)) 9 * 60_000L else null)
+            // A waiting clip is evidence of a rejected request, not a nine-minute
+            // Retry-After. Only the provider may specify a longer delay.
+            recordLimit(serverDelay)
             throw PlaybackRateLimitedException(remainingMs())
         }
     }

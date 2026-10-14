@@ -19,12 +19,14 @@ import java.util.concurrent.TimeUnit
 
 internal data class PublicPlaybackResult(
     val url: String, val headers: Map<String, String>, val captions: List<Caption>,
-    val contentId: String, val ott: String, val expiresAt: Long
+    val contentId: String, val ott: String, val expiresAt: Long, val route: PlaybackRoute = PlaybackRoute.ISSUED
 )
 
 /** TMDB title -> exact provider identity -> requested episode -> issued HLS, without a session. */
 internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "https://net52.cc", private val catalog: PublicProviderCatalog? = null,
-    private val backgroundCatalogRefresh: Boolean = true) {
+    private val backgroundCatalogRefresh: Boolean = true,
+    private val cookieFreeRoutes: Boolean = true,
+    private val newTv: NewTvPlaybackResolver = NewTvPlaybackResolver(client)) {
     private val base = baseUrl.toHttpUrl()
     private val http = client.newBuilder().cookieJar(CookieJar.NO_COOKIES)
         .followRedirects(false).followSslRedirects(false)
@@ -32,11 +34,35 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         .callTimeout(6, TimeUnit.SECONDS).build()
     private data class SeasonCache(val expiresAt: Long, val seasons: Map<Int, String>)
     private val netflixSeasons = ConcurrentHashMap<String, SeasonCache>()
+    private data class VerifiedContent(val contentId: String, val ott: String, val expiresAt: Long)
+    private val verifiedContents = ConcurrentHashMap<String, VerifiedContent>()
+    private val resolutionMutex = kotlinx.coroutines.sync.Mutex()
+    private val completed = ConcurrentHashMap<String, PublicPlaybackResult>()
+    private fun contentKey(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String) =
+        "$tmdbId:$type:${normalize(title)}:$year:$season:$episode"
+
+    /** A failed media URL must not survive an explicit player retry in a lower cache. */
+    fun evict(tmdbId: String, type: String, season: Int, episode: Int) {
+        val prefix = "$tmdbId:$type:"
+        val suffix = ":$season:$episode"
+        completed.entries.filter { it.key.startsWith(prefix) && it.key.endsWith(suffix) }
+            .forEach { completed.remove(it.key, it.value) }
+    }
 
     suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String = ""): PublicPlaybackResult = withTimeout(28_000L) {
         if (normalize(title).isEmpty() || type !in listOf("movie", "tv") || type == "tv" && (season < 1 || episode < 1))
             throw IOException("Invalid title or episode selection")
-        Run().resolve(title, year, type, season, episode, tmdbId)
+        val key = contentKey(title, year, type, season, episode, tmdbId)
+        resolutionMutex.lock()
+        try {
+            if (cookieFreeRoutes) completed[key]?.takeIf { it.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS &&
+                (if (it.route == PlaybackRoute.NEWTV) NewTvPlaybackGate.remainingMs() else PlaybackServiceGate.remainingMs()) == 0L }
+                ?.let { return@withTimeout it }
+            Run().resolve(title, year, type, season, episode, tmdbId).also {
+                if (completed.size >= 32) completed.keys.firstOrNull()?.let(completed::remove)
+                if (cookieFreeRoutes) completed[key] = it
+            }
+        } finally { resolutionMutex.unlock() }
     }
 
     private inner class Run {
@@ -69,12 +95,12 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 }
             }.build()
             val execute: suspend () -> HttpTextResponse = {
-                PlaybackServiceGate.check()
+                if (!publicNetflix) PlaybackServiceGate.check()
                 val response = http.fetchText(request, if (publicNetflix) 6L * 1024 * 1024 else 1024L * 1024)
                 if (!publicNetflix) PlaybackServiceGate.checkResponse(response.code, response.body, response.header("Retry-After"), url.toString())
                 response
             }
-            return if (url.host == base.host) PlaybackServiceGate.request(block = execute) else execute()
+            return if (url.host == base.host && !publicNetflix) PlaybackServiceGate.request(block = execute) else execute()
         }
 
         private fun requireSuccess(response: HttpTextResponse) {
@@ -352,7 +378,11 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         }
 
         suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult {
-            if (backgroundCatalogRefresh) catalog?.refreshInBackground(http)
+            if (backgroundCatalogRefresh && PlaybackServiceGate.remainingMs() == 0L) catalog?.refreshInBackground(http)
+            if (cookieFreeRoutes) verifiedContents[contentKey(title, year, type, season, episode, tmdbId)]
+                ?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let { known ->
+                    earlyRoutes(known.contentId, known.ott, season, episode)?.let { return it }
+                }
             val identityKey = key(tmdbId, type, title, year)
             var last: IOException? = null
             repeat(3) {
@@ -380,6 +410,31 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             throw last ?: IOException("No available public playback source")
         }
 
+        private val primaryAttempted = mutableSetOf<Pair<String, String>>()
+        private val directAttempted = mutableSetOf<Pair<String, String>>()
+        private var primaryRateLimited = false
+        private suspend fun earlyRoutes(contentId: String, ott: String, season: Int, episode: Int): PublicPlaybackResult? {
+            if (ott !in setOf("hs", "nf", "pv") || !contentId.matches(Regex("[A-Za-z0-9]{5,40}"))) return null
+            // Never retry the same provider after its 429, even when identity fallback continues.
+            if (!primaryRateLimited && primaryAttempted.add(contentId to ott)) {
+                try { return newTv.resolve(contentId, ott, season, episode) }
+                catch (rate: PlaybackRateLimitedException) { primaryRateLimited = true }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: IOException) { }
+            }
+            if (!directAttempted.add(contentId to ott)) return null
+            PlaybackServiceGate.check()
+            val direct = base.newBuilder().encodedPath("${prefix(ott)}/hls/$contentId.m3u8").query(null).build()
+            return try {
+                val expiry = kotlinx.coroutines.withTimeoutOrNull(6_000L) {
+                    CookieFreeManifestValidator { url, _ -> text(url) }.validate(direct, mediaHeaders)
+                } ?: throw IOException("Direct playback timed out")
+                PublicPlaybackResult(direct.toString(), mediaHeaders, emptyList(), contentId, ott, expiry, PlaybackRoute.DIRECT)
+            } catch (rate: PlaybackRateLimitedException) { throw rate }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: IOException) { null }
+        }
+
         private suspend fun resolveOne(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult {
             selected = null
             val (showId, ott) = search(title, year, type, tmdbId)
@@ -387,6 +442,12 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             attempted.add(showId to ott)
             unavailable.add(showId to ott)
             val contentId = if (type == "tv") episodeId(showId, ott, title, season, episode) else showId
+            if (cookieFreeRoutes) {
+                val key = contentKey(title, year, type, season, episode, tmdbId)
+                if (verifiedContents.size >= 64) verifiedContents.keys.firstOrNull()?.let(verifiedContents::remove)
+                verifiedContents[key] = VerifiedContent(contentId, ott, System.currentTimeMillis() + 3_600_000L)
+                earlyRoutes(contentId, ott, season, episode)?.let { return it }
+            }
             val data = json("${prefix(ott)}/playlist.php", "id" to contentId, "t" to title, "tm" to (System.currentTimeMillis() / 1000).toString())
             val item = (data as? JSONObject) ?: (data as? JSONArray)?.optJSONObject(0) ?: throw IOException("Issued playlist unavailable")
             val sources = objects(item.optJSONArray("sources") ?: JSONArray())
@@ -404,15 +465,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 val index = lines.indexOfFirst { it.startsWith("#EXT-X-STREAM-INF:") }
                 if (index < 0) {
                     if (!response.body.contains("#EXTINF:")) throw IOException("Media playlist unavailable")
-                    val tracks = item.optJSONArray("tracks") ?: item.optJSONArray("captions") ?: item.optJSONArray("subtitles") ?: JSONArray()
-                    val captions = objects(tracks).mapNotNull { track ->
-                        val file = field(track, "file", "src", "url").takeIf(String::isNotBlank) ?: return@mapNotNull null
-                        val absolute = base.resolve(file)?.takeIf { it.isHttps } ?: return@mapNotNull null
-                        val kind = track.optString("kind")
-                        if (kind.isNotBlank() && kind !in listOf("subtitles", "captions", "vtt", "thumbnails")) return@mapNotNull null
-                        Caption(absolute.toString(), field(track, "label", "language", "name", "lang").ifBlank { "English" },
-                            if (kind == "thumbnails") kind else if (file.contains(".srt")) "srt" else "vtt", field(track, "srclang", "language", "lang", "code").ifBlank { "en" })
-                    }
+                    val captions = PlaybackMetadataTracks.parse(item, base)
                     // Keep the issued master so Media3 retains adaptive video and alternate audio.
                     return PublicPlaybackResult(route, mediaHeaders, captions, contentId, ott, expiry)
                 }

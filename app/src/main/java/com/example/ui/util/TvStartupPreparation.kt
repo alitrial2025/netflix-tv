@@ -10,9 +10,12 @@ internal data class TvStartupResult(val completed: Boolean, val sessionWarmed: B
 /** One overall deadline; a provider failure never prevents signing in or browsing. */
 internal suspend fun prepareTvStartup(
     timeoutMs: Long = 45_000L,
+    admitSession: suspend () -> Unit = {},
     prepareData: suspend () -> Unit,
     warmSession: suspend () -> Boolean
 ): TvStartupResult = withTimeoutOrNull(timeoutMs) {
+    // No provider work or ready UI before the account/device/screen admission completes.
+    admitSession()
     coroutineScope {
         val data = async { prepareData() }
         val warm = async {

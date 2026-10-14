@@ -30,7 +30,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -40,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
@@ -51,12 +51,15 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.example.data.NetMirrorStream
+import com.example.data.SeekFrameExtractor
 import com.example.model.Movie
 import com.example.ui.screens.SpriteThumbnail
 import com.example.ui.screens.ThumbnailCue
 import com.example.ui.theme.NetflixRed
 import com.example.ui.util.TvMotion
 import kotlinx.coroutines.delay
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 @Composable
 fun PlayerTopBar(
@@ -70,7 +73,8 @@ fun PlayerTopBar(
     isTrailerPlayback: Boolean = false,
     onBack: () -> Unit,
     onReplay10: () -> Unit,
-    onNextEpisode: () -> Unit
+    onNextEpisode: () -> Unit,
+    hasNextEpisode: Boolean = isTvShow
 ) {
     Row(
         modifier = Modifier
@@ -139,7 +143,7 @@ fun PlayerTopBar(
                 }
 
                 // Next Episode Button (for TV Shows)
-                if (isTvShow) {
+                if (hasNextEpisode) {
                     var isNextEpFocused by remember { mutableStateOf(false) }
                     Surface(
                         onClick = onNextEpisode,
@@ -443,12 +447,12 @@ fun PlayerBottomControls(
 
     val animatedProgress by animateFloatAsState(
         targetValue = if (isScrubbing) scrubProgress else currentProgress,
-        animationSpec = tween(durationMillis = 500, easing = LinearEasing),
+        animationSpec = tween(durationMillis = if (isScrubbing) 120 else 80, easing = LinearEasing),
         label = "progressBar"
     )
     LaunchedEffect(exoPlayer) {
         while (true) {
-            delay(500L)
+            withFrameNanos { }
             val safeSnapshot: Pair<Long, Long>? = try {
                 val dur = exoPlayer.duration
                 if (dur <= 0) null
@@ -490,10 +494,7 @@ fun PlayerBottomControls(
                 activeScrubTimeMs = activeScrubTimeMs,
                 totalSeconds = totalSeconds,
                 thumbnailCues = thumbnailCues,
-                movie = movie,
-                currentSeason = currentSeason,
-                currentEpisode = currentEpisode,
-                isTvShow = isTvShow
+                activeStream = activeStream
             )
         }
 
@@ -561,12 +562,13 @@ fun PlayerBottomControls(
                             if (canSeek) {
                                 try { exoPlayer.seekTo((scrubProgress * totalSeconds * 1000L).toLong()) } catch (_: IllegalStateException) {} catch (_: Exception) {}
                             }
+                            currentProgress = scrubProgress
                             isScrubbing = false
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(if (isProgressFocused) 10.dp else 4.dp)
+                        .height(if (isProgressFocused) 6.dp else 4.dp)
                         .focusRequester(progressRequester)
                         .onFocusChanged {
                             isProgressFocused = it.isFocused
@@ -581,21 +583,14 @@ fun PlayerBottomControls(
                             if (keyEvent.type == KeyEventType.KeyDown) {
                                 when (keyEvent.nativeKeyEvent.keyCode) {
                                     KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                        // The first LEFT press can still move focus to Play.
-                                        // A held seek arriving after the player opened the
-                                        // controls starts scrubbing back on repeat events.
-                                        if (!isScrubbing && keyEvent.nativeKeyEvent.repeatCount > 0) {
+                                        onUserActivity()
+                                        if (!isScrubbing) {
                                             isScrubbing = true
                                             scrubProgress = currentProgress
                                         }
-                                        if (isScrubbing) {
-                                            onUserActivity()
-                                            val step = 10f / totalSeconds.coerceAtLeast(1)
-                                            scrubProgress = (scrubProgress - step).coerceIn(0f, 1f)
-                                            true
-                                        } else {
-                                            false
-                                        }
+                                        val step = 10f / totalSeconds.coerceAtLeast(1)
+                                        scrubProgress = (scrubProgress - step).coerceIn(0f, 1f)
+                                        true
                                     }
                                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
                                         onUserActivity()
@@ -614,6 +609,7 @@ fun PlayerBottomControls(
                                             if (canSeek) {
                                                 try { exoPlayer.seekTo((scrubProgress * totalSeconds * 1000L).toLong()) } catch (_: IllegalStateException) {} catch (_: Exception) {}
                                             }
+                                            currentProgress = scrubProgress
                                             isScrubbing = false
                                         }
                                         true
@@ -633,7 +629,7 @@ fun PlayerBottomControls(
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f)
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        val activeProgress = if (isScrubbing) scrubProgress else animatedProgress
+                        val activeProgress = animatedProgress
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -645,7 +641,7 @@ fun PlayerBottomControls(
             }
 
             Text(
-                text = formatTime(totalSeconds),
+                text = formatTime((totalSeconds - if (isScrubbing) (scrubProgress * totalSeconds).toInt() else elapsedSeconds).coerceAtLeast(0)),
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
@@ -777,136 +773,77 @@ fun ThumbnailSeekingBand(
     activeScrubTimeMs: Long,
     totalSeconds: Int,
     thumbnailCues: List<ThumbnailCue>,
-    movie: Movie,
-    currentSeason: Int,
-    currentEpisode: Int,
-    isTvShow: Boolean
+    activeStream: NetMirrorStream? = null
 ) {
+    val context = LocalContext.current
+    val frameExtractor = remember(activeStream?.url, activeStream?.headers) { SeekFrameExtractor(context) }
+    val extractedFrames = remember(activeStream?.url, activeStream?.headers) { mutableStateMapOf<Int, ThumbnailCue>() }
+    val frameCount = ((totalSeconds.toLong() + 9) / 10).coerceIn(1, 8640).toInt()
+    val selectedFrame = (activeScrubTimeMs / 10_000L).toInt().coerceIn(0, frameCount - 1)
+    LaunchedEffect(activeStream, selectedFrame, frameCount, thumbnailCues) {
+        val stream = activeStream ?: return@LaunchedEffect
+        if (thumbnailCues.isNotEmpty()) return@LaunchedEffect
+        // A held remote button changes targets quickly. Fetch after it settles,
+        // and prioritize the selected scene before its neighboring frames.
+        delay(250L)
+        val first = (selectedFrame - 1).coerceIn(0, (frameCount - 3).coerceAtLeast(0))
+        val indices = (listOf(selectedFrame) + (first..(first + 3).coerceAtMost(frameCount - 1))).distinct()
+        for (index in indices) {
+            if (index !in extractedFrames) {
+                frameExtractor.frame(stream, index * 10_000L)?.let { cue ->
+                    extractedFrames[index] = cue.copy(startMs = index * 10_000L, endMs = (index + 1) * 10_000L)
+                }
+            }
+        }
+        // Keep the UI's frame references bounded while the extractor caches on disk.
+        extractedFrames.keys.filter { kotlin.math.abs(it - selectedFrame) > 12 }.forEach(extractedFrames::remove)
+    }
+    val previewCues = if (thumbnailCues.isNotEmpty()) thumbnailCues else if (activeStream != null) {
+        List(frameCount) { index -> extractedFrames[index]
+            ?: ThumbnailCue(index * 10_000L, (index + 1) * 10_000L, "", 0, 0, 1, 1) }
+    } else emptyList()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (thumbnailCues.isNotEmpty()) {
-            val currentCue = remember(activeScrubTimeMs, thumbnailCues) {
-                findCue(thumbnailCues, activeScrubTimeMs)
-            }
-            val leftCue = remember(activeScrubTimeMs, thumbnailCues) {
-                findCue(thumbnailCues, (activeScrubTimeMs - 15000L).coerceAtLeast(0))
-            }
-            val rightCue = remember(activeScrubTimeMs, thumbnailCues, totalSeconds) {
-                findCue(thumbnailCues, (activeScrubTimeMs + 15000L).coerceAtMost(totalSeconds * 1000L))
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Left Thumbnail
-                Box(
-                    modifier = Modifier
-                        .size(width = 140.dp, height = 80.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
-                ) {
-                    SpriteThumbnail(
-                        cue = leftCue,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
-                }
-
-                // Middle Focused Thumbnail
-                Box(
-                    modifier = Modifier
-                        .size(width = 200.dp, height = 112.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(3.dp, Color.White, RoundedCornerShape(8.dp))
-                ) {
-                    SpriteThumbnail(
-                        cue = currentCue,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                // Right Thumbnail
-                Box(
-                    modifier = Modifier
-                        .size(width = 140.dp, height = 80.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
-                ) {
-                    SpriteThumbnail(
-                        cue = rightCue,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(width = 200.dp, height = 112.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(2.5.dp, Color.White, RoundedCornerShape(8.dp))
-            ) {
-                val previewImage = movie.backdropUrl.ifBlank { movie.posterUrl }
-                if (previewImage.isNotBlank()) {
-                    val ctx = LocalContext.current
-                    val density = LocalDensity.current
-                    val w = with(density) { 200.dp.roundToPx() }
-                    val h = with(density) { 112.dp.roundToPx() }
-                    val imageRequest = remember(previewImage, w, h) {
-                        buildPlayerImageRequest(
-                            context = ctx,
-                            url = previewImage,
-                            widthPx = w,
-                            heightPx = h,
-                            memoryCacheKey = "scrubber_preview_$previewImage"
-                        )
-                    }
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
-                            )
-                        )
-                )
-                if (isTvShow) {
-                    Text(
-                        text = "S${currentSeason}:E${currentEpisode}",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(6.dp)
-                            .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(3.dp))
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(4.dp))
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = formatTime((activeScrubTimeMs / 1000L).toInt()),
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
+        if (previewCues.isNotEmpty()) {
+            val selectedIndex = seekPreviewIndex(previewCues, activeScrubTimeMs)
+            val animatedIndex by animateFloatAsState(
+                targetValue = selectedIndex.toFloat(),
+                animationSpec = tween(160, easing = FastOutSlowInEasing),
+                label = "seekFilmstrip"
             )
+            val windowStart = seekPreviewWindowStart(animatedIndex, previewCues.size)
+            BoxWithConstraints(
+                modifier = Modifier.widthIn(max = 616.dp).fillMaxWidth()
+                    .testTag("seek_thumbnail_filmstrip")
+            ) {
+                val gap = 8.dp
+                val cardWidth = (maxWidth - gap * 2) / 3
+                val cardHeight = cardWidth * 9 / 16
+                val density = LocalDensity.current
+                val stridePx = with(density) { (cardWidth + gap).toPx() }
+                Box(Modifier.fillMaxWidth().height(cardHeight + 8.dp).clip(RoundedCornerShape(8.dp))) {
+                    // Render neighboring cues while the strip glides beneath the outline.
+                    val first = floor(windowStart).toInt().coerceAtLeast(0)
+                    for (index in first..(first + 3).coerceAtMost(previewCues.lastIndex)) {
+                        Box(
+                            Modifier.offset { IntOffset(((index - windowStart) * stridePx).roundToInt(), 0) }
+                                .padding(vertical = 4.dp)
+                                .size(cardWidth, cardHeight)
+                                .clip(RoundedCornerShape(6.dp))
+                        ) {
+                            SpriteThumbnail(previewCues[index], Modifier.fillMaxSize(), activeStream?.headers.orEmpty())
+                        }
+                    }
+                    Box(
+                        Modifier.offset { IntOffset(((animatedIndex - windowStart) * stridePx).roundToInt(), 0) }
+                            .size(cardWidth, cardHeight + 8.dp)
+                            .border(3.dp, Color.White, RoundedCornerShape(8.dp))
+                            .testTag("seek_thumbnail_ring")
+                    )
+                }
+            }
         }
     }
 }

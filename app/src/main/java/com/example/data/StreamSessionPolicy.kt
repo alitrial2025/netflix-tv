@@ -46,10 +46,20 @@ internal object StreamSessionPolicy {
     // Duration alone is not evidence: children's episodes can legitimately be nine minutes.
     private val waitingVideo = Regex("""/files/220884(?:[/?."\s]|$)""", RegexOption.IGNORE_CASE)
     private val limitMessage = Regex("""\brate[_ -]?limit(?:ed)?\b|too many requests|limit exceeded""", RegexOption.IGNORE_CASE)
+    private val errorField = Regex(""""(?:error|message|detail|reason|status|code)"\s*:\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
     fun isWaitingVideo(value: String): Boolean = waitingVideo.containsMatchIn(value.replace("\\/", "/"))
 
-    fun isRateLimited(code: Int, body: String): Boolean = code == 429 ||
-        isWaitingVideo(body) || limitMessage.containsMatchIn(body)
+    fun isRateLimited(code: Int, body: String): Boolean {
+        if (code == 429 || isWaitingVideo(body)) return true
+        val payload = body.trimStart()
+        // Titles and segment paths can contain these words too. Healthy HLS and
+        // ordinary JSON metadata must not poison the provider's shared queue.
+        if (payload.startsWith("#EXTM3U")) return false
+        if (payload.startsWith('{') || payload.startsWith('[')) {
+            return errorField.findAll(payload).any { limitMessage.containsMatchIn(it.groupValues[1]) }
+        }
+        return limitMessage.containsMatchIn(payload)
+    }
 
     fun isSessionRejected(code: Int, body: String): Boolean = code == 401 || code == 403 ||
         // playlist.php may legitimately provide an unsigned master URL that

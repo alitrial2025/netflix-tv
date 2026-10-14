@@ -34,7 +34,7 @@ fun playbackMediaSource(
     streamMimeTypeForUrl(url)?.let(item::setMimeType)
     // HLS subtitle playlists belong to the manifest, not the single-file VTT loader.
     val subtitles = stream.captions.filter {
-        it.isVerified && it.type != "thumbnails" && it.url.isNotBlank() &&
+        it.isVerified && it.type !in setOf("thumbnails", "chapters") && it.url.isNotBlank() &&
             !it.url.substringBefore('?').endsWith(".m3u8", ignoreCase = true)
     }.distinctBy { it.url }.map { caption ->
         MediaItem.SubtitleConfiguration.Builder(Uri.parse(caption.url))
@@ -47,7 +47,7 @@ fun playbackMediaSource(
             .build()
     }
     item.setSubtitleConfigurations(subtitles)
-    return DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http)))
+    return DefaultMediaSourceFactory(com.example.data.GuardedPlaybackDataSourceFactory(DefaultDataSource.Factory(context, http), stream.sourceId))
         .setLoadErrorHandlingPolicy(com.example.data.PlaybackLoadErrorPolicy())
         .createMediaSource(item.build())
 }
