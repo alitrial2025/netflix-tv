@@ -186,6 +186,13 @@ internal class NewTvPlaybackResolver(
         .connectTimeout(4, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS).callTimeout(6, TimeUnit.SECONDS).build()
     private val discoveryMutex = Mutex()
     @Volatile private var cachedBase: Pair<HttpUrl, Long>? = null
+    // A rejected player endpoint is an unavailable optional service, not a
+    // provider rate limit. Keep it in memory so a fresh app start can retry.
+    @Volatile private var apiUnavailableUntilMs = 0L
+    private fun checkApiAvailability() {
+        if (android.os.SystemClock.elapsedRealtime() < apiUnavailableUntilMs)
+            throw IOException("NewTV API temporarily unavailable")
+    }
     private val apiHeaders = mapOf(
         "X-Requested-With" to "NetmirrorNewTV v1.0",
         "User-Agent" to "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/133.0.0.0 Mobile Safari/537.36 /OS.GatuNewTV v1.0",
@@ -198,11 +205,20 @@ internal class NewTvPlaybackResolver(
             throw IOException("Untrusted NewTV API base")
         return url
     }
-    private suspend fun fetch(url: HttpUrl, headers: Map<String, String>): HttpTextResponse = gate.request {
+    private suspend fun fetch(url: HttpUrl, headers: Map<String, String>, primaryApi: Boolean = false): HttpTextResponse = gate.request {
+        // Recheck while serialized so queued titles do not repeat a rejected probe.
+        if (primaryApi) checkApiAvailability()
         val request = Request.Builder().url(PlaybackUrlPolicy.resolve(url, url.toString())).apply {
             headers.forEach { (name, value) -> header(name, value) }
         }.build()
-        http.fetchText(request, 1024L * 1024).also { gate.checkResponse(it.code, it.body, it.header("Retry-After"), url.toString()) }
+        http.fetchText(request, 1024L * 1024).also {
+            gate.checkResponse(it.code, it.body, it.header("Retry-After"), url.toString())
+            // Only the actual player API rejection disables this optional probe.
+            // A title's CDN failure or timeout must not disable other titles.
+            if (primaryApi && (it.code == 403 || it.code == 404)) {
+                apiUnavailableUntilMs = android.os.SystemClock.elapsedRealtime() + 60_000L
+            }
+        }
     }
     private suspend fun apiBase(): HttpUrl = discoveryMutex.withLock {
         cachedBase?.takeIf { it.second > nowMs() }?.let { return@withLock it.first }
@@ -243,9 +259,10 @@ internal class NewTvPlaybackResolver(
         if (ott !in setOf("hs", "nf", "pv") || !contentId.matches(Regex("[A-Za-z0-9]{5,40}")))
             throw IOException("Invalid provider content identity")
         gate.check()
+        checkApiAvailability()
         val base = apiBase()
         val url = base.newBuilder().encodedPath("/newtv/player.php").addQueryParameter("id", contentId).build()
-        val response = fetch(url, apiHeaders + ("Ott" to ott))
+        val response = fetch(url, apiHeaders + ("Ott" to ott), primaryApi = true)
         if (!response.isSuccessful) throw IOException("NewTV playback unavailable (HTTP ${response.code})")
         val data = try { JSONObject(response.body) } catch (error: org.json.JSONException) { throw IOException("Invalid NewTV playback metadata", error) }
         val status = data.optString("status").lowercase(java.util.Locale.ROOT)
@@ -267,7 +284,8 @@ internal class NewTvPlaybackResolver(
         val refererUrl = PlaybackUrlPolicy.resolve("https://net52.cc/".toHttpUrl(), referer)
         if (refererUrl.host != "net52.cc") throw IOException("Invalid NewTV referer")
         val headers = mapOf("User-Agent" to apiHeaders.getValue("User-Agent"), "Referer" to refererUrl.toString())
-        val expiry = CookieFreeManifestValidator(::fetch).validate(master, headers, sourceId = "[NewTV]")
+        val expiry = CookieFreeManifestValidator { manifestUrl, manifestHeaders -> fetch(manifestUrl, manifestHeaders) }
+            .validate(master, headers, sourceId = "[NewTV]")
         return PublicPlaybackResult(master.toString(), headers, PlaybackMetadataTracks.parse(data, url), contentId, ott, expiry, PlaybackRoute.NEWTV)
     }
 }

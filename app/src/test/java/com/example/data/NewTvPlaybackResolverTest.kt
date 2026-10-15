@@ -478,4 +478,54 @@ https://cdn.example/video/720.m3u8?in=provider-issued
         assertFalse(synchronized(seen) { seen.any { it.url.encodedPath.contains("/hls/") || it.url.encodedPath.endsWith("/playlist.php") } })
     }
 
+    @Test fun unavailablePrimaryIsSkippedAcrossTitlesUntilBoundedRecoveryWindowExpires() = runBlocking {
+        for (rejectionCode in listOf(403, 404)) {
+            isolateProviderGate()
+            val seen = mutableListOf<Request>()
+            var primaryAvailable = false
+            val primaryGate = CookieFreePlaybackGate()
+            val http = client(seen) { request -> when (request.url.encodedPath) {
+                "/mobile/hs/post.php" -> Fixture("""{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"1271684191","s":"S1","ep":"E1"},{"id":"1271684192","s":"S1","ep":"E2"},{"id":"1271684193","s":"S1","ep":"E3"}]}""")
+                "/checknewtv.php" -> discovery()
+                "/newtv/player.php" -> if (primaryAvailable) Fixture("""{"video_link":"https://cdn.example/recovered.m3u8"}""") else Fixture("Page Not Found", rejectionCode)
+                "/mobile/hs/hls/1271684191.m3u8", "/mobile/hs/hls/1271684192.m3u8" ->
+                    Fixture("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://cdn.example/files/220884/video.m3u8")
+                "/mobile/hs/playlist.php" -> Fixture("""{"sources":[{"file":"https://cdn.example/issued.m3u8?in=provider-issued"}]}""")
+                "/issued.m3u8", "/recovered.m3u8" -> media
+                else -> throw AssertionError("Unexpected endpoint ${request.url}")
+            } }
+            val primary = newTv(http, gate = primaryGate)
+            val resolver = PublicPlaybackResolver(http, backgroundCatalogRefresh = false, newTv = primary)
+            assertEquals(PlaybackRoute.ISSUED, resolver.resolve("Lanterns", "2026", "tv", 1, 1, "95350").route)
+            assertEquals(1, seen.count { it.url.encodedPath == "/newtv/player.php" })
+            assertEquals(0L, primaryGate.remainingMs()) // Availability is not a subscription/provider rate limit.
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(59_999L))
+            primaryAvailable = true
+            assertEquals(PlaybackRoute.ISSUED, resolver.resolve("Lanterns", "2026", "tv", 1, 2, "95350").route)
+            assertEquals(1, seen.count { it.url.encodedPath == "/newtv/player.php" })
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(1L))
+            assertEquals(PlaybackRoute.NEWTV, resolver.resolve("Lanterns", "2026", "tv", 1, 3, "95350").route)
+            assertEquals(2, seen.count { it.url.encodedPath == "/newtv/player.php" })
+            assertEquals(1, seen.count { it.url.encodedPath == "/checknewtv.php" })
+            assertEquals(2, seen.count { it.url.encodedPath == "/mobile/hs/playlist.php" })
+            assertEquals(0L, PlaybackServiceGate.remainingMs())
+        }
+    }
+
+    @Test fun rejectedCdnManifestDoesNotDisableThePrimaryApiForOtherTitles() = runBlocking {
+        val seen = mutableListOf<Request>()
+        var cdnAvailable = false
+        val resolver = newTv(client(seen) { request -> when (request.url.encodedPath) {
+            "/checknewtv.php" -> discovery()
+            "/newtv/player.php" -> Fixture("""{"video_link":"https://cdn.example/media.m3u8"}""")
+            "/media.m3u8" -> if (cdnAvailable) media else Fixture("Forbidden", 403)
+            else -> throw AssertionError("Unexpected endpoint")
+        } })
+        try { resolver.resolve("1271684191", "hs"); fail("Unavailable CDN accepted") }
+        catch (error: IOException) { assertFalse(error is PlaybackRateLimitedException) }
+        cdnAvailable = true
+        assertEquals(PlaybackRoute.NEWTV, resolver.resolve("1271684192", "hs").route)
+        assertEquals(2, seen.count { it.url.encodedPath == "/newtv/player.php" })
+    }
+
 }
