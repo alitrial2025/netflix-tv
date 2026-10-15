@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {NoWarmFlow} from './no-warm-flow.mjs';
 import {hotstarIds, primeSeasons, netflixSeasons, PublicCatalogFlow} from './public-catalog-flow.mjs';
 const claim = (value,rank='normal') => ({rank,mainsnak:{datavalue:{value}}});
 test('external IDs accept official catalog identities and reject deprecated and misleading sites', () => {
@@ -42,4 +44,57 @@ test('a new show absent from the snapshot is discovered and its verified episode
   assert.equal(await flow.episode(title,identity,{}),'1971999002');
   assert.equal(calls.filter(p=>p.endsWith('/post.php')).length,1);
   assert.ok(!calls.some(p=>p.includes('wikidata') || p.endsWith('external_ids')));
+});
+
+
+test('HTTP runtime: unavailable primary and unsigned waiting clip retain the working issued fallback', async t => {
+  const requests = [];
+  const server = createServer((request, response) => {
+    requests.push({path: new URL(request.url, 'http://fixture').pathname, headers: request.headers});
+    if (request.url === '/newtv/player.php?id=1271684191') { response.writeHead(403); response.end('Page Not Found'); return; }
+    if (request.url === '/mobile/hs/hls/1271684191.m3u8') {
+      response.end('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://cdn.example/files/220884/video.m3u8'); return;
+    }
+    if (request.url.startsWith('/mobile/hs/playlist.php?')) {
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({sources:[{file:`http://127.0.0.1:${server.address().port}/issued.m3u8?in=provider-issued`}]})); return;
+    }
+    if (request.url === '/issued.m3u8?in=provider-issued') { response.end('#EXTM3U\n#EXTINF:10,\nsegment.ts\n#EXT-X-ENDLIST'); return; }
+    response.writeHead(500); response.end('Unexpected request');
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const primary = new NoWarmFlow({baseUrl, allowLocalFixtures:true, appClientMode:true}); primary.deadline = Date.now()+5000;
+  const legacy = new NoWarmFlow({baseUrl, allowLocalFixtures:true, appClientMode:true}); legacy.deadline = Date.now()+5000;
+  await assert.rejects(primary.request('primary', `${baseUrl}/newtv/player.php?id=1271684191`), error => error.code === 'authorization_required');
+  await assert.rejects(legacy.request('direct_probe', `${baseUrl}/mobile/hs/hls/1271684191.m3u8`), error => error.code === 'unsigned_probe_rejected');
+  assert.equal(legacy.rateLimited, false);
+  const target = {ott:'hs',title:'Lanterns',type:'tv',season:1,episode:1};
+  const run = {};
+  const issued = await legacy.discover(target, '1271684191', run);
+  const manifest = await legacy.request('issued_master', issued);
+  assert.match(manifest.body, /#EXTINF:/);
+  assert.equal(new URL(issued).searchParams.get('in'), 'provider-issued');
+  assert.deepEqual(requests.map(request => request.path), ['/newtv/player.php','/mobile/hs/hls/1271684191.m3u8','/mobile/hs/playlist.php','/issued.m3u8']);
+  assert.ok(requests.every(request => !request.headers.cookie && !request.headers.authorization));
+});
+
+test('HTTP runtime: actual provider 429 and server Retry-After stop same-provider fallback', async t => {
+  for (const code of [429,200]) {
+    let requests = 0;
+    const server = createServer((request,response) => {
+      requests++; response.writeHead(code, {'Retry-After':'120'});
+      response.end(code === 429 ? 'busy' : '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://cdn.example/files/220884/video.m3u8');
+    });
+    await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
+    const baseUrl=`http://127.0.0.1:${server.address().port}`;
+    const flow=new NoWarmFlow({baseUrl,allowLocalFixtures:true}); flow.deadline=Date.now()+5000;
+    try {
+      await assert.rejects(flow.request('direct_probe', `${baseUrl}/mobile/hs/hls/1271684191.m3u8`), error => ['rate_limited','waiting_video_returned'].includes(error.code));
+      await assert.rejects(flow.json('playlist','/mobile/hs/playlist.php',{id:'1271684191'}), error => error.code === 'provider_cooldown');
+      assert.equal(requests,1);
+      assert.equal(flow.events[0].retryAfter,'120');
+    } finally { await new Promise(resolve => server.close(resolve)); }
+  }
 });

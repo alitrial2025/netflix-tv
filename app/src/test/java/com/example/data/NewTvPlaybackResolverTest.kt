@@ -370,4 +370,112 @@ https://cdn.example/video/720.m3u8?in=provider-issued
             VerifiedManifestHandoff.clear()
         }
     }
+    @Test fun unsignedWaitingClipFallsBackToExistingIssuedPlaylistWithoutServiceCooldown() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val revision = PlaybackServiceGate.sourceRevision
+        val http = client(seen) { request -> when (request.url.encodedPath) {
+            "/mobile/hs/post.php" -> Fixture("""{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"1271684191","s":"S1","ep":"E1"}]}""")
+            "/checknewtv.php" -> discovery()
+            "/newtv/player.php" -> Fixture("Page Not Found", 403)
+            "/mobile/hs/hls/1271684191.m3u8" -> {
+                assertNull(request.url.queryParameter("in"))
+                Fixture("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=500000\nhttps://cdn.example/files/220884/video.m3u8")
+            }
+            "/mobile/hs/playlist.php" -> Fixture("""{"sources":[{"file":"https://cdn.example/issued.m3u8?in=provider-issued"}]}""")
+            "/issued.m3u8" -> media
+            else -> throw AssertionError("Rejected unsigned probe must not fetch the waiting clip: ${request.url}")
+        } }
+        val result = PublicPlaybackResolver(http, backgroundCatalogRefresh = false, newTv = newTv(http))
+            .resolve("Lanterns", "2026", "tv", 1, 1, "95350")
+        assertEquals(PlaybackRoute.ISSUED, result.route)
+        assertEquals("https://cdn.example/issued.m3u8?in=provider-issued", result.url)
+        assertEquals(0L, PlaybackServiceGate.remainingMs())
+        assertEquals(revision, PlaybackServiceGate.sourceRevision)
+        val paths = seen.map { it.url.encodedPath }
+        assertTrue(paths.indexOf("/mobile/hs/hls/1271684191.m3u8") < paths.indexOf("/mobile/hs/playlist.php"))
+        assertEquals(1, paths.count { it == "/mobile/hs/playlist.php" })
+    }
+
+    @Test fun unsignedProbeHonorsReal429ExplicitLimitAndServerRetryAfterBeforeIssuedFallback() = runBlocking {
+        for (rejection in listOf(
+            Fixture("busy", 429, mapOf("Retry-After" to "120")),
+            Fixture("Too many requests", 200),
+            Fixture("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://cdn.example/files/220884/video.m3u8", 200, mapOf("Retry-After" to "120"))
+        )) {
+            isolateProviderGate()
+            val seen = mutableListOf<Request>()
+            val http = client(seen) { request -> when (request.url.encodedPath) {
+                "/mobile/hs/post.php" -> Fixture("""{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"1271684191","s":"S1","ep":"E1"}]}""")
+                "/checknewtv.php" -> discovery()
+                "/newtv/player.php" -> Fixture("""{"video_link":""}""")
+                "/mobile/hs/hls/1271684191.m3u8" -> rejection
+                else -> throw AssertionError("Same-provider fallback must stop at a real rate limit")
+            } }
+            try {
+                PublicPlaybackResolver(http, backgroundCatalogRefresh = false, newTv = newTv(http))
+                    .resolve("Lanterns", "2026", "tv", 1, 1, "95350")
+                fail("Real provider rate limit ignored")
+            } catch (_: PlaybackRateLimitedException) { }
+            assertFalse(seen.any { it.url.encodedPath.endsWith("/playlist.php") })
+            assertTrue(PlaybackServiceGate.remainingMs() > 0L)
+            if (rejection.headers.containsKey("Retry-After")) assertEquals(120_000L, PlaybackServiceGate.remainingMs())
+        }
+    }
+
+    @Test fun speculativeRouteBudgetsPreserveTheExistingIssuedRouteWindow() {
+        var nowNanos = 0L
+        val budget = PlaybackProbeBudget(28_000_000_000L) { nowNanos }
+        assertEquals(4_000L, budget.primaryMs())
+        assertEquals(2_000L, budget.directMs())
+        nowNanos += 9_500_000_000L // Public identity discovery consumed most of the spare window.
+        assertEquals(500L, budget.primaryMs())
+        assertEquals(500L, budget.directMs())
+        nowNanos += 500_000_000L
+        assertEquals(0L, budget.primaryMs())
+        assertEquals(0L, budget.directMs())
+    }
+
+    @Test fun slowPrimaryIsCancelledInTimeForTheExistingIssuedRouteToPlay() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val http = client(seen) { request -> when (request.url.encodedPath) {
+            "/mobile/hs/post.php" -> Fixture("""{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"1271684191","s":"S1","ep":"E1"}]}""")
+            "/checknewtv.php" -> discovery()
+            "/newtv/player.php" -> {
+                Thread.sleep(4_300L)
+                Fixture("""{"video_link":"https://cdn.example/slow-primary.m3u8"}""")
+            }
+            "/mobile/hs/hls/1271684191.m3u8" -> Fixture("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://cdn.example/files/220884/video.m3u8")
+            "/mobile/hs/playlist.php" -> Fixture("""{"sources":[{"file":"https://cdn.example/issued.m3u8?in=provider-issued"}]}""")
+            "/issued.m3u8" -> media
+            else -> throw AssertionError("Cancelled primary must not continue fetching manifests: ${request.url}")
+        } }
+        val result = withTimeout(12_000L) {
+            PublicPlaybackResolver(http, backgroundCatalogRefresh = false, newTv = newTv(http))
+                .resolve("Lanterns", "2026", "tv", 1, 1, "95350")
+        }
+        assertEquals(PlaybackRoute.ISSUED, result.route)
+        assertFalse(seen.any { it.url.encodedPath == "/slow-primary.m3u8" })
+        assertEquals(0L, PlaybackServiceGate.remainingMs())
+    }
+
+    @Test fun cancellingTheWholeResolutionCancelsPrimaryWithoutStartingFallback() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val http = client(seen) { request -> when (request.url.encodedPath) {
+            "/mobile/hs/post.php" -> Fixture("""{"status":"y","title":"Lanterns","type":"t","year":"2026","episodes":[{"id":"1271684191","s":"S1","ep":"E1"}]}""")
+            "/checknewtv.php" -> discovery()
+            "/newtv/player.php" -> { Thread.sleep(500L); Fixture("""{"video_link":"https://cdn.example/cancelled.m3u8"}""") }
+            else -> throw AssertionError("External cancellation must not trigger a fallback")
+        } }
+        val pending = async(kotlinx.coroutines.Dispatchers.Default) {
+            PublicPlaybackResolver(http, backgroundCatalogRefresh = false, newTv = newTv(http))
+                .resolve("Lanterns", "2026", "tv", 1, 1, "95350")
+        }
+        withTimeout(3_000L) {
+            while (synchronized(seen) { seen.none { it.url.encodedPath == "/newtv/player.php" } }) kotlinx.coroutines.delay(10L)
+        }
+        pending.cancel()
+        try { pending.await(); fail("Resolution cancellation was swallowed") } catch (_: CancellationException) { }
+        assertFalse(synchronized(seen) { seen.any { it.url.encodedPath.contains("/hls/") || it.url.encodedPath.endsWith("/playlist.php") } })
+    }
+
 }

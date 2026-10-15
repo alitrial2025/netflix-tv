@@ -19,6 +19,16 @@ import java.util.concurrent.TimeUnit
 
 internal enum class PlaybackRoute(val label: String) { NEWTV("NewTV"), DIRECT("Direct"), ISSUED("Issued") }
 
+/** Speculative routes may not consume the existing playlist route's request window. */
+internal class PlaybackProbeBudget(
+    private val deadlineNanos: Long,
+    private val nowNanos: () -> Long = System::nanoTime
+) {
+    private fun availableMs(): Long = ((deadlineNanos - nowNanos()) / 1_000_000L - 18_000L).coerceAtLeast(0L)
+    fun primaryMs(): Long = minOf(4_000L, availableMs())
+    fun directMs(): Long = minOf(2_000L, availableMs())
+}
+
 /** NewTV is an independent service; its Retry-After must never poison the net52 queue. */
 internal open class CookieFreePlaybackGate(nowMs: () -> Long = android.os.SystemClock::elapsedRealtime) {
     private val cooldown = PlaybackRequestCooldown(nowMs)

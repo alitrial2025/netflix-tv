@@ -69,6 +69,7 @@ export class NoWarmFlow {
   }
   async request(stage, raw, binary = false) {
     this.stage = stage;
+    if (this.rateLimited) fail('provider_cooldown', stage);
     const url = new URL(raw, this.base);
     if (url.username || url.password || (!this.allowLocalFixtures && url.protocol !== 'https:')) fail('unsupported_url', stage);
     const remaining = this.deadline - Date.now();
@@ -111,7 +112,11 @@ export class NoWarmFlow {
       const waitingVideo = /\/files\/220884(?:[/?."\s]|$)/i.test(body.replace(/\\\//g, '/'));
       event.responseSignals = { explicitRateLimit: explicitLimit, waitingVideoReturned: waitingVideo };
       if (explicitLimit) { this.rateLimited = true; fail('rate_limited', stage); }
-      // The provider returns this known rate-limit video even with HTTP 200.
+      // Unsigned HLS may reject only this optional probe with HTTP 200.
+      // Keep the normal issued route available unless the provider actually
+      // supplies a limit message, HTTP 429, or Retry-After.
+      if (waitingVideo && stage === 'direct_probe' && response.ok && !event.retryAfter)
+        fail('unsigned_probe_rejected', stage);
       if (waitingVideo) { this.rateLimited = true; fail('waiting_video_returned', stage); }
       if ([401, 403].includes(response.status)) fail('authorization_required', stage);
       if (response.status === 404) fail('endpoint_not_found', stage);
