@@ -18,6 +18,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import com.example.ui.screens.ThumbnailCue
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.RoborazziOptions
+import com.github.takahirom.roborazzi.RoborazziTaskType
 import java.io.File
 import org.junit.Assert.*
 import org.junit.Rule
@@ -34,6 +36,7 @@ import org.robolectric.shadows.ShadowLooper
 class SeekFilmstripAnimationTest {
     @get:Rule val rule = createAndroidComposeRule<ComponentActivity>()
 
+    @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
     @Test fun ringMovesThroughIntermediatePositionsAndEndsOnTheNextFrame() {
         val sprite = File(rule.activity.cacheDir, "seek-preview-test.png")
         val bitmap = Bitmap.createBitmap(960, 90, Bitmap.Config.ARGB_8888)
@@ -67,8 +70,12 @@ class SeekFilmstripAnimationTest {
         }
         val output = File("build/reports/tv-player-review").apply { mkdirs() }
         val screenshot = File(output, "seek-filmstrip.png")
+        if (screenshot.exists()) check(screenshot.delete())
         // Roborazzi renders Robolectric's native canvas; captureToImage requires a real window draw.
-        rule.onRoot().captureRoboImage(screenshot.path)
+        // Record this generated fixture even in the normal unit-test task, which disables captures.
+        rule.onRoot().captureRoboImage(screenshot.path,
+            roborazziOptions = RoborazziOptions(taskType = RoborazziTaskType.Record))
+        assertTrue("The current run must produce the preview image", screenshot.isFile)
         val pixels = requireNotNull(BitmapFactory.decodeFile(screenshot.path))
         assertEquals(colors[0], pixels.getPixel(272, 270))
         assertEquals(colors[1], pixels.getPixel(480, 270))
