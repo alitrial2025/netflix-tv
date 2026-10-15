@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092040,
-  "versionName": "15.10.2026.1",
+  "versionCode": 29092041,
+  "versionName": "15.10.2026.2",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7612589,
-  "sha256": "1b53ce8298042565b9713d70b89e64035da7768629884fcdb4e41d063e31b86e",
+  "sizeBytes": 7612588,
+  "sha256": "5836cb5e9259cffcca906540e457bac35acabac4f90bddf2b805204b26c468ab",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092040-1b53ce8298042565.apk",
-  "releaseNotes": "Adds real scene seek previews with a smooth filmstrip and sliding selection ring. Fixes the first remote play/pause press and stale rate-limit recovery after connection loss. Skip Intro and Next Episode use supplied chapters or verified marker records when available. Preserves app-entry membership checks, production payment verification and episode request controls.",
+  "apkUrl": "/downloads/tv/29092041-5836cb5e9259cffc.apk",
+  "releaseNotes": "Restores the existing playlist fallback when optional stream probes fail. An unsigned placeholder response can no longer create a false service-wide busy cooldown. Optional routes preserve time for the working fallback, while genuine provider rate limits and Retry-After remain enforced.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-15T10:57:58.070Z"
+  "publishedAt": "2026-10-15T12:54:23.622Z"
 }

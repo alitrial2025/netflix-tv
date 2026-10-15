@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 16,
-  "versionName": "1.15",
+  "versionCode": 17,
+  "versionName": "1.16",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14160839,
-  "sha256": "a09d7166fee6361a848c0851c72cc3754daf986965a9d9edf25a693704862493",
+  "sizeBytes": 14160829,
+  "sha256": "70a6a974025f356e2d9ccfc3443283d828da98bfdec29f52e8c6409f05eed4f4",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/16-a09d7166fee6361a.apk",
-  "releaseNotes": "Fixes offline startup and update checks interrupting playback. Updates are checked at app entry; pending updates and resumable downloads wait for the next online entry when the device is offline. Previously verified membership is retained through temporary network failures and restored for downloaded playback within its original expiry. Open once online after installing this release to save verified offline access.",
+  "apkUrl": "/downloads/mobile/17-70a6a974025f356e.apk",
+  "releaseNotes": "Fixes offline splash blocking saved downloads and restores the working playlist fallback when optional playback probes fail. Existing installs can recover previously verified membership without an online screen reservation. Offline playback retains the original account, device, plan and expiry; confirmed revocations remain enforced. Optional stream routes cannot create a false service-wide cooldown from an unsigned placeholder or consume the fallback deadline. Real provider rate limits remain enforced.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-15T10:55:22.807Z"
+  "publishedAt": "2026-10-15T12:54:24.242Z"
 }
