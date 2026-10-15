@@ -1,10 +1,14 @@
 # Mandatory app updates
 
-Both production apps use `https://npro-app.vercel.app/updates/{tv,mobile}.json`. Website download cards read those same manifests. Static Vercel files are sufficient; no payment or update server was introduced.
+Both production apps use `https://npro-app.vercel.app/updates/{tv,mobile}.json`. Website download cards read those same manifests. Update files are served statically by Vercel alongside the existing payment verification service.
 
-The app checks before opening its screens, on return to the foreground, and every 15 minutes while open. Background refreshes keep the current screen visible during the check. Every newer release is mandatory: the gate downloads automatically and offers installation permission, Android confirmation, Retry or Exit app. Back exits the activity; neither Back nor Later can expose app content. Failed metadata requires retry, and a cached required release survives offline checks and manifest rollback. Installation status alone cannot unlock the old version: the installed package version is checked again.
+TV checks before opening its screens, on return to the foreground, and every 15 minutes while open. Mobile 1.15 checks only at app entry, so resume and timers cannot interrupt playback. Mobile offline entry defers updates while retaining the pending manifest, resumable download and installation records for the next online entry. A connection lost during an update download also releases the mobile gate without deleting that download. Unavailable metadata with no known required release permits mobile entry; malformed metadata, TLS failures and invalid APKs remain errors.
 
-The startup check is bounded to eight seconds, after which an unsuccessful check shows Retry. DownloadManager resumes downloads across process exits. Installation verifies size, SHA-256, package, version, minimum Android version and the installed signing certificate from internal storage. Android may require one-time permission to install updates and installation confirmation. Same-key updates preserve account data. Devices on an unsupported Android version remain blocked with an explanation.
+Newer releases remain mandatory at online entry: the gate downloads automatically and offers installation permission, Android confirmation, Retry or Exit app. A cached required release survives manifest rollback. Installation status alone cannot unlock the old version: the installed package version is checked again.
+
+The startup check is bounded to eight seconds; mobile applies the same offline deferral rules on timeout. DownloadManager resumes downloads across process exits. Installation verifies size, SHA-256, package, version, minimum Android version and the installed signing certificate from internal storage. Android may require one-time permission to install updates and installation confirmation. Same-key updates preserve account data. Online enforcement explains when an update requires a newer Android version.
+
+Mobile's verified offline membership checkpoint is created by a successful online app entry, scoped to its account and installation, excluded from backup and limited by the original membership expiry. Updating from 1.14 requires one online opening to create that checkpoint. Offline playback does not start remote membership transactions; reconnecting restores online stream admission in the background.
 
 ## Publishing
 

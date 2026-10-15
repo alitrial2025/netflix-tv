@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 15,
-  "versionName": "1.14",
+  "versionCode": 16,
+  "versionName": "1.15",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14160835,
-  "sha256": "ae770be937ea9bf405f90321b34e4e61c27c72a329cc8ef7fca2d0c95b025765",
+  "sizeBytes": 14160839,
+  "sha256": "a09d7166fee6361a848c0851c72cc3754daf986965a9d9edf25a693704862493",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/15-ae770be937ea9bf4.apk",
-  "releaseNotes": "Improves playback recovery after connection loss and keeps admitted membership sessions through temporary network failures. Uses the new public playback routes before the existing fallback, with independent provider rate limits and verified episode identities. Preserves secure payment verification, download suspension during playback and membership prompts.",
+  "apkUrl": "/downloads/mobile/16-a09d7166fee6361a.apk",
+  "releaseNotes": "Fixes offline startup and update checks interrupting playback. Updates are checked at app entry; pending updates and resumable downloads wait for the next online entry when the device is offline. Previously verified membership is retained through temporary network failures and restored for downloaded playback within its original expiry. Open once online after installing this release to save verified offline access.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-15T07:08:54.136Z"
+  "publishedAt": "2026-10-15T10:55:22.807Z"
 }
