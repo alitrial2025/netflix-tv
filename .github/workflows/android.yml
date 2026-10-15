@@ -38,6 +38,20 @@ jobs:
         run: ./gradlew --no-daemon --max-workers=2 :app:assembleDebug
       - name: Run unit tests
         run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
+      - name: Report failing unit tests
+        if: ${{ failure() }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          def escape(value):
+              return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          for report in Path('app/build/test-results/testDebugUnitTest').glob('TEST-*.xml'):
+              for case in ET.parse(report).getroot().iter('testcase'):
+                  for failure in list(case.findall('failure')) + list(case.findall('error')):
+                      detail = f"{case.get('classname')}.{case.get('name')}: {failure.get('message', '')}\n{failure.text or ''}"
+                      print(f'::error title=Unit test failure::{escape(detail[:6000])}')
+          PY
       - name: Android lint
         if: ${{ !cancelled() }}
         run: ./gradlew --no-daemon --max-workers=2 :app:lintDebug
