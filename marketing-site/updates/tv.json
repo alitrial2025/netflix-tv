@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092039,
-  "versionName": "4.10.2026.1",
+  "versionCode": 29092040,
+  "versionName": "15.10.2026.1",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7579840,
-  "sha256": "c05a782fc6688d573a4b66807f9a62df6acf7247ad20e99356e75d28665b8903",
+  "sizeBytes": 7612589,
+  "sha256": "1b53ce8298042565b9713d70b89e64035da7768629884fcdb4e41d063e31b86e",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092039-c05a782fc6688d57.apk",
-  "releaseNotes": "Reduces next-episode request bursts and reuses verified startup manifests. Focused previews start with a short focus debounce, stop when hidden, and fall back to artwork if startup takes too long. Keeps verified episode identities during transient CDN errors. Includes the existing premium playback and mobile-aligned membership prompts.",
+  "apkUrl": "/downloads/tv/29092040-1b53ce8298042565.apk",
+  "releaseNotes": "Adds real scene seek previews with a smooth filmstrip and sliding selection ring. Fixes the first remote play/pause press and stale rate-limit recovery after connection loss. Skip Intro and Next Episode use supplied chapters or verified marker records when available. Preserves app-entry membership checks, production payment verification and episode request controls.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-04T08:03:22.626Z"
+  "publishedAt": "2026-10-15T10:57:58.070Z"
 }
