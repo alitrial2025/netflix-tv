@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 17,
-  "versionName": "1.16",
+  "versionCode": 18,
+  "versionName": "1.17",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14160829,
-  "sha256": "70a6a974025f356e2d9ccfc3443283d828da98bfdec29f52e8c6409f05eed4f4",
+  "sizeBytes": 14177208,
+  "sha256": "f2686ff08e26f52f9c2a86de4637e872e83fb22c9b31e92e283eaf2e3dfc499f",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/17-70a6a974025f356e.apk",
-  "releaseNotes": "Fixes offline splash blocking saved downloads and restores the working playlist fallback when optional playback probes fail. Existing installs can recover previously verified membership without an online screen reservation. Offline playback retains the original account, device, plan and expiry; confirmed revocations remain enforced. Optional stream routes cannot create a false service-wide cooldown from an unsigned placeholder or consume the fallback deadline. Real provider rate limits remain enforced.",
+  "apkUrl": "/downloads/mobile/18-f2686ff08e26f52f.apk",
+  "releaseNotes": "Background downloads now save verified offline membership before transfer. Expiry and account/device restrictions remain enforced. Failed optional playback services are skipped briefly so the working fallback stays responsive.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-15T12:54:24.242Z"
+  "publishedAt": "2026-10-15T18:08:20.646Z"
 }
