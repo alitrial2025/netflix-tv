@@ -6,6 +6,9 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 /** Native IDs from public catalog metadata. This contains identities, never playback URLs or session tokens. */
 internal object PublicProviderIdentity {
     fun seed(tmdbId: String, type: String, year: String): String? = when {
+        // Public partner catalog + live title/season/episode metadata rechecked 2026-10-16.
+        // The Wikidata ID 1260110208 now returns empty provider metadata.
+        type == "tv" && tmdbId == "94997" && year == "2022" -> "1971002877"
         type == "tv" && tmdbId == "1399" && year == "2011" -> "1971002880"
         type == "tv" && tmdbId == "95350" && year == "2026" -> "1271680756"
         else -> null

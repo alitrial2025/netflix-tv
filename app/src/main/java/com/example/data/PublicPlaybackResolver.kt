@@ -304,12 +304,37 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             return titleAliases.any { PublicProviderIdentity.matches(details, it, year, "movie") }
         }
 
+        /** A typed TMDB/native join supplies type/year; the live search must confirm that exact ID and title.
+         * This avoids making a healthy provider depend on the regional public Netflix website. */
+        private suspend fun typedNetflixSearchMatches(nativeId: String, type: String, year: String): Boolean? {
+            val rows = searchRows["nf"] ?: run {
+                val data = json("/search.php", "s" to titleAliases.first())
+                val obj = data as? JSONObject
+                val found = if (obj?.optString("head") == "Top Searches" || obj?.optString("status") == "n") JSONArray()
+                    else (data as? JSONArray) ?: obj?.optJSONArray("searchResult") ?: JSONArray()
+                searchRows["nf"] = found
+                found
+            }
+            val matches = objects(rows).filter { id(it) == nativeId }
+            if (matches.isEmpty()) return null
+            return matches.size == 1 && matches.all { row ->
+                val kind = field(row, "type", "media_type", "r").lowercase(java.util.Locale.ROOT)
+                val rightType = kind.isBlank() || kind in (if (type == "tv") listOf("t", "tv", "series", "tv show") else listOf("m", "movie", "film"))
+                val release = field(row, "y", "year", "Y", "Year")
+                val raw = field(row, "t", "title", "T", "Title").removeSuffix(" ($year)")
+                rightType && (type == "tv" || release.isBlank() || release == year) &&
+                    titleAliases.any { PublicIdentityDiscovery.sameTitle(raw, it) }
+            }
+        }
+
         private suspend fun validateCandidates(candidates: List<Pair<String, String>>, title: String, year: String, type: String): Pair<String, String>? {
             for ((id, ott) in candidates.distinct().take(6)) {
                 if (!PublicIdentityDiscovery.validId(id, ott)) continue
                 attempted.add(id to ott)
                 try {
-                    val providerMatch = if (type == "movie" && ott in listOf("nf", "pv"))
+                    val providerMatch = if (ott == "nf" && (id to ott) in typedCandidates)
+                        typedNetflixSearchMatches(id, type, year)
+                    else if (type == "movie" && ott in listOf("nf", "pv"))
                         providerMovieMatches(id, ott, year) else null
                     val matches = providerMatch ?: when (ott) {
                         "nf" -> (type == "tv" && netflixSeasons["$base:$id:${normalize(title)}"]?.let { it.expiresAt > System.currentTimeMillis() } == true) ||
