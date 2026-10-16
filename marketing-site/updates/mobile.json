@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 19,
-  "versionName": "1.18",
+  "versionCode": 20,
+  "versionName": "1.19",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14193320,
-  "sha256": "b24fed7627cc59ab834d2476e9b4ee91edd2e5821664eb833b4dcb37f8d51051",
+  "sizeBytes": 14193325,
+  "sha256": "483fa04b79c5c23d36a8f9114e06524cdfa530c735e40e864c87218cfc5feb64",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/19-b24fed7627cc59ab.apk",
-  "releaseNotes": "Updated Home, Clips and My Netflix layouts, floating navigation and taller artwork hero with softer shading. Saved playback moments retain profile and timestamp. Existing subscription and offline access rules are preserved.",
+  "apkUrl": "/downloads/mobile/20-483fa04b79c5c23d.apk",
+  "releaseNotes": "Fix title and episode lookup for Netflix titles and House of the Dragon. Try independent NewTV playback and episode metadata before public website lookups, then direct HLS and the existing playback fallback. Preserve verified episode caching and separate provider rate limits.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-16T16:46:05.136Z"
+  "publishedAt": "2026-10-16T18:57:06.692Z"
 }
