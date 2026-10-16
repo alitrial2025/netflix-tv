@@ -189,6 +189,11 @@ internal class NewTvPlaybackResolver(
     // A rejected player endpoint is an unavailable optional service, not a
     // provider rate limit. Keep it in memory so a fresh app start can retry.
     @Volatile private var apiUnavailableUntilMs = 0L
+    @Volatile private var catalogUnavailableUntilMs = 0L
+    private fun checkCatalogAvailability() {
+        if (android.os.SystemClock.elapsedRealtime() < catalogUnavailableUntilMs)
+            throw IOException("NewTV catalog temporarily unavailable")
+    }
     private fun checkApiAvailability() {
         if (android.os.SystemClock.elapsedRealtime() < apiUnavailableUntilMs)
             throw IOException("NewTV API temporarily unavailable")
@@ -205,9 +210,10 @@ internal class NewTvPlaybackResolver(
             throw IOException("Untrusted NewTV API base")
         return url
     }
-    private suspend fun fetch(url: HttpUrl, headers: Map<String, String>, primaryApi: Boolean = false): HttpTextResponse = gate.request {
+    private suspend fun fetch(url: HttpUrl, headers: Map<String, String>, primaryApi: Boolean = false, catalogApi: Boolean = false): HttpTextResponse = gate.request {
         // Recheck while serialized so queued titles do not repeat a rejected probe.
         if (primaryApi) checkApiAvailability()
+        if (catalogApi) checkCatalogAvailability()
         val request = Request.Builder().url(PlaybackUrlPolicy.resolve(url, url.toString())).apply {
             headers.forEach { (name, value) -> header(name, value) }
         }.build()
@@ -217,6 +223,9 @@ internal class NewTvPlaybackResolver(
             // A title's CDN failure or timeout must not disable other titles.
             if (primaryApi && (it.code == 403 || it.code == 404)) {
                 apiUnavailableUntilMs = android.os.SystemClock.elapsedRealtime() + 60_000L
+            }
+            if (catalogApi && (it.code == 403 || it.code == 404)) {
+                catalogUnavailableUntilMs = android.os.SystemClock.elapsedRealtime() + 60_000L
             }
         }
     }
@@ -251,11 +260,90 @@ internal class NewTvPlaybackResolver(
         endpointCache?.save(base.toString(), savedAt)
         base
     }
-    suspend fun resolve(contentId: String, ott: String, season: Int = 0, episode: Int = 0): PublicPlaybackResult =
-        withTimeoutOrNull(routeTimeoutMs) { resolveWithinBudget(contentId, ott, season, episode) }
+    /** NewTV publishes its own series/episode catalog; Netflix's public website is not a prerequisite. */
+    suspend fun resolveSeriesEpisodeId(showId: String, ott: String, title: String, season: Int, episode: Int,
+        onVerifiedEpisodes: (Map<Int, String>) -> Unit = {}): String =
+        withTimeoutOrNull(routeTimeoutMs) {
+            if (!PublicIdentityDiscovery.validId(showId, ott) || season < 1 || episode < 1)
+                throw IOException("Invalid NewTV series selection")
+            gate.check(); checkCatalogAvailability()
+            val base = apiBase()
+            suspend fun metadata(path: String, vararg params: Pair<String, String>): JSONObject {
+                val url = base.newBuilder().encodedPath(path).apply { params.forEach { addQueryParameter(it.first, it.second) } }.build()
+                val response = fetch(url, apiHeaders + mapOf("Ott" to ott, "Usertoken" to "", "Lastep" to ""), catalogApi = true)
+                if (!response.isSuccessful) throw IOException("NewTV catalog unavailable (HTTP ${response.code})")
+                return try { JSONObject(response.body) } catch (error: org.json.JSONException) {
+                    throw IOException("Invalid NewTV catalog metadata", error)
+                }
+            }
+            val post = metadata("/newtv/post.php", "id" to showId)
+            if (!PublicIdentityDiscovery.sameTitle(post.optString("title"), title) || post.optString("type") != "t" ||
+                post.optString("status") in setOf("n", "false", "error") ||
+                post.optString("ott").isNotBlank() && post.optString("ott") != ott)
+                throw IOException("NewTV series identity mismatch")
+            var contentId = seriesEpisode(post.optJSONArray("episodes"), ott, season, episode, verifiedSeason = false, onVerifiedEpisodes)
+            if (contentId == null) {
+                val rows = post.optJSONArray("season") ?: post.optJSONArray("seasons") ?: org.json.JSONArray()
+                val seasons = linkedMapOf<Int, String>()
+                for (index in 0 until minOf(rows.length(), 60)) {
+                    val row = rows.optJSONObject(index) ?: continue
+                    val number = Regex("(?i)(?:season|s)?\\s*([0-9]+)").matchEntire(row.optString("s").trim())
+                        ?.groupValues?.get(1)?.toIntOrNull() ?: continue
+                    val id = row.optString("id")
+                    if (!PublicIdentityDiscovery.validId(id, ott) || number !in 1..60) continue
+                    if (seasons[number]?.let { it != id } == true || seasons.any { it.key != number && it.value == id })
+                        throw IOException("NewTV season identity is ambiguous")
+                    seasons[number] = id
+                }
+                val seasonId = seasons[season] ?: throw IOException("Requested NewTV season is unavailable")
+                for (page in 1..5) {
+                    val data = metadata("/newtv/episodes.php", "id" to seasonId, "page" to page.toString())
+                    contentId = seriesEpisode(data.optJSONArray("episodes"), ott, season, episode, verifiedSeason = true, onVerifiedEpisodes)
+                    if (contentId != null || data.optString("nextPageShow") != "1") break
+                }
+            }
+            contentId ?: throw IOException("Requested NewTV episode is unavailable")
+        } ?: throw IOException("NewTV episode discovery timed out")
+
+    private fun seriesEpisode(rows: org.json.JSONArray?, ott: String, season: Int, episode: Int, verifiedSeason: Boolean,
+        onVerifiedEpisodes: (Map<Int, String>) -> Unit): String? {
+        val ids = linkedMapOf<Int, String>()
+        if (rows == null || rows.length() > 500) return null
+        for (index in 0 until rows.length()) {
+            val row = rows.optJSONObject(index) ?: continue
+            val tag = Regex("(?i)(?:s([0-9]+)\\s*)?(?:episode|ep|e)?\\s*([0-9]+)")
+                .matchEntire(row.optString("ep").trim()) ?: continue
+            val explicit = row.optString("s").trim()
+            val labelledSeason = if (explicit.isBlank()) {
+                tag.groupValues[1].toIntOrNull()
+            } else {
+                Regex("(?i)(?:season|s)?\\s*([0-9]+)").matchEntire(explicit)?.groupValues?.get(1)?.toIntOrNull()
+                    ?: throw IOException("Invalid NewTV season label")
+            }
+            val embedded = tag.groupValues[1].toIntOrNull()
+            if (labelledSeason != null && labelledSeason != season || embedded != null && embedded != season) {
+                if (verifiedSeason) throw IOException("NewTV returned a different season")
+                continue
+            }
+            if (labelledSeason == null && !verifiedSeason) continue
+            val number = tag.groupValues[2].toIntOrNull()?.takeIf { it in 1..500 } ?: continue
+            val id = row.optString("id").takeIf { PublicIdentityDiscovery.validId(it, ott) } ?: continue
+            if (ids[number]?.let { it != id } == true || ids.any { it.key != number && it.value == id })
+                throw IOException("NewTV episode identity is ambiguous")
+            ids[number] = id
+        }
+        onVerifiedEpisodes(ids)
+        return ids[episode]
+    }
+
+    suspend fun resolve(contentId: String, ott: String, season: Int = 0, episode: Int = 0,
+        expectedMovieTitle: String? = null, expectedMovieYear: String? = null,
+        onMovieIdentityVerified: (() -> Unit)? = null): PublicPlaybackResult =
+        withTimeoutOrNull(routeTimeoutMs) { resolveWithinBudget(contentId, ott, season, episode, expectedMovieTitle, expectedMovieYear, onMovieIdentityVerified) }
             ?: throw IOException("NewTV playback timed out")
 
-    private suspend fun resolveWithinBudget(contentId: String, ott: String, season: Int, episode: Int): PublicPlaybackResult {
+    private suspend fun resolveWithinBudget(contentId: String, ott: String, season: Int, episode: Int,
+        expectedMovieTitle: String?, expectedMovieYear: String?, onMovieIdentityVerified: (() -> Unit)?): PublicPlaybackResult {
         if (ott !in setOf("hs", "nf", "pv") || !contentId.matches(Regex("[A-Za-z0-9]{5,40}")))
             throw IOException("Invalid provider content identity")
         gate.check()
@@ -269,6 +357,14 @@ internal class NewTvPlaybackResolver(
         if (status.isNotBlank() && status !in setOf("otp", "y", "true", "success", "ok", "1") ||
             data.optString("error").isNotBlank() && data.optString("error") !in setOf("false", "0"))
             throw IOException("NewTV playback unavailable")
+        if (expectedMovieTitle != null) {
+            val kind = data.optString("type").lowercase(java.util.Locale.ROOT)
+            val release = data.optString("year")
+            if (!PublicIdentityDiscovery.sameTitle(data.optString("title"), expectedMovieTitle) ||
+                data.optString("ep").isNotBlank() || kind.isNotBlank() && kind !in setOf("m", "movie", "film") ||
+                release.isNotBlank() && release != expectedMovieYear)
+                throw IOException("NewTV movie identity mismatch")
+        }
         val label = data.optString("ep")
         val responseSeason = Regex("(?i)\\bS([0-9]+)\\b").find(label)?.groupValues?.get(1)?.toIntOrNull()
         val responseEpisode = Regex("(?i)\\bE([0-9]+)\\b").find(label)?.groupValues?.get(1)?.toIntOrNull()
@@ -278,6 +374,7 @@ internal class NewTvPlaybackResolver(
         if (data.optString("ott").isNotBlank() && data.optString("ott") != ott ||
             data.optString("id").isNotBlank() && data.optString("id") != contentId)
             throw IOException("NewTV content identity mismatch")
+        if (expectedMovieTitle != null) onMovieIdentityVerified?.invoke()
         val master = PlaybackUrlPolicy.resolve(base, data.optString("video_link"))
         if (!master.encodedPath.endsWith(".m3u8", ignoreCase = true)) throw IOException("Invalid NewTV HLS URL")
         val referer = data.optString("referer").ifBlank { "https://net52.cc/" }

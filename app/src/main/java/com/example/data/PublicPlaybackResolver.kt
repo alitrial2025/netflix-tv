@@ -526,7 +526,48 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             throw IOException("Requested episode S${season}E${episode} is unavailable")
         }
 
+        /** Independent routes must run before optional public-site/provider metadata.
+         * Cold movies use a typed native candidate checked against NewTV's movie metadata.
+         * Episodes use exact verified IDs or NewTV's labelled episode catalog, never the series ID. */
+        private suspend fun catalogRoutes(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult? {
+            if (!tmdbId.matches(Regex("[1-9][0-9]*"))) return null
+            val identityKey = key(tmdbId, type, title, year)
+            val saved = catalog?.verified(identityKey, System.currentTimeMillis())
+            val candidates = (listOfNotNull(saved, PublicProviderIdentity.seed(tmdbId, type, year)?.let { it to "hs" }) +
+                catalog?.candidates(type, tmdbId).orEmpty()).distinct().take(6)
+            for ((showId, ott) in candidates) {
+                val episodeId = if (type == "tv") catalog?.episodeCatalog?.episode(base.toString(), ott, showId,
+                    season, episode, System.currentTimeMillis()) else null
+                val trusted = type == "tv" || saved == (showId to ott)
+                val contentId = if (type == "tv") episodeId ?: run {
+                    if (catalog == null) return@run null
+                    primarySeriesIdentity(showId, ott, title, season, episode)?.also { exactId ->
+                        // Verified metadata survives a NewTV player/CDN failure so direct
+                        // and issued playback can proceed without another metadata service.
+                        val now = System.currentTimeMillis()
+                        catalog.save(identityKey, showId, ott, now, listOf(title))
+                        catalog.episodeCatalog.saveEpisodes(base.toString(), ott, showId, season, mapOf(episode to exactId), now)
+                    }
+                } ?: continue else showId
+                val result = if (trusted) earlyRoutes(contentId, ott, season, episode) else {
+                    primaryRoute(contentId, ott, season, episode, title, year) {
+                        catalog?.save(identityKey, showId, ott, System.currentTimeMillis(), listOf(title))
+                    } ?: if (catalog?.verified(identityKey, System.currentTimeMillis()) == (showId to ott))
+                        earlyRoutes(contentId, ott, season, episode) else null
+                }
+                if (result != null) {
+                    val now = System.currentTimeMillis()
+                    catalog?.save(identityKey, showId, ott, now, listOf(title))
+                    if (type == "tv") catalog?.episodeCatalog?.saveEpisodes(base.toString(), ott, showId, season,
+                        mapOf(episode to result.contentId), now)
+                    return result
+                }
+            }
+            return null
+        }
+
         suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult {
+            if (cookieFreeRoutes) catalogRoutes(title, year, type, season, episode, tmdbId)?.let { return it }
             if (backgroundCatalogRefresh && PlaybackServiceGate.remainingMs() == 0L) catalog?.refreshInBackground(http)
             if (cookieFreeRoutes) verifiedContents["$base:${contentKey(title, year, type, season, episode, tmdbId)}"]
                 ?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let { known ->
@@ -578,19 +619,44 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         private val primaryAttempted = mutableSetOf<Pair<String, String>>()
         private val directAttempted = mutableSetOf<Pair<String, String>>()
         private var primaryRateLimited = false
-        private suspend fun earlyRoutes(contentId: String, ott: String, season: Int, episode: Int): PublicPlaybackResult? {
-            if (ott !in setOf("hs", "nf", "pv") || !contentId.matches(Regex("[A-Za-z0-9]{5,40}"))) return null
+        private val primarySeriesAttempted = mutableSetOf<Pair<String, String>>()
+        private suspend fun primarySeriesIdentity(showId: String, ott: String, title: String, season: Int, episode: Int): String? {
+            val budget = probeBudget.primaryMs()
+            if (budget <= 0L || primaryRateLimited || !primarySeriesAttempted.add(showId to ott)) return null
+            return try {
+                kotlinx.coroutines.withTimeoutOrNull(budget) {
+                    newTv.resolveSeriesEpisodeId(showId, ott, title, season, episode) { episodes ->
+                        catalog?.episodeCatalog?.saveEpisodes(base.toString(), ott, showId, season, episodes, System.currentTimeMillis())
+                    }
+                }
+            } catch (rate: PlaybackRateLimitedException) { primaryRateLimited = true; null }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: IOException) { null }
+        }
+
+        private suspend fun primaryRoute(contentId: String, ott: String, season: Int, episode: Int,
+            expectedMovieTitle: String? = null, expectedMovieYear: String? = null,
+            onMovieIdentityVerified: (() -> Unit)? = null): PublicPlaybackResult? {
+            if (!PublicIdentityDiscovery.validId(contentId, ott)) return null
             // Never retry the same provider after its 429, even when identity fallback continues.
             val primaryBudget = probeBudget.primaryMs()
             if (primaryBudget > 0L && !primaryRateLimited && primaryAttempted.add(contentId to ott)) {
                 try {
-                    kotlinx.coroutines.withTimeoutOrNull(primaryBudget) { newTv.resolve(contentId, ott, season, episode) }
+                    kotlinx.coroutines.withTimeoutOrNull(primaryBudget) {
+                        newTv.resolve(contentId, ott, season, episode, expectedMovieTitle, expectedMovieYear, onMovieIdentityVerified)
+                    }
                         ?.let { return it }
                 }
                 catch (rate: PlaybackRateLimitedException) { primaryRateLimited = true }
                 catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
                 catch (_: IOException) { }
             }
+            return null
+        }
+
+        private suspend fun earlyRoutes(contentId: String, ott: String, season: Int, episode: Int): PublicPlaybackResult? {
+            if (!PublicIdentityDiscovery.validId(contentId, ott)) return null
+            primaryRoute(contentId, ott, season, episode)?.let { return it }
             val directBudget = probeBudget.directMs()
             if (directBudget <= 0L || !directAttempted.add(contentId to ott)) return null
             PlaybackServiceGate.check()

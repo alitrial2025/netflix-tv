@@ -12,7 +12,7 @@ A disconnected active session can outlast Firestore's 45-second screen-slot recl
 
 Playback source order is:
 
-1. The cookie-free NewTV API, using an exact verified provider title/episode identity. API-base discovery is cached for 24 hours. The optional API probe has at most four seconds and checks the returned master, advertised URI syntax and representative audio/video/subtitle renditions. It retains the master for adaptive playback and alternate tracks.
+1. The cookie-free NewTV API, starting from typed catalog candidates or exact verified metadata before optional public-site/provider lookups. Cold movies require matching NewTV movie metadata; cold episodes can use NewTV’s own labelled series/episode catalog. Verified episode identities survive a NewTV player failure for use by the remaining routes. API-base discovery is cached for 24 hours. Each optional API operation has at most four seconds and checks the returned master, advertised URI syntax and representative audio/video/subtitle renditions. It retains the master for adaptive playback and alternate tracks. See [independent playback fallback](independent-playback-fallback.md).
 2. The provider's direct public HLS endpoint, attempted without cookies, fabricated tokens or an authentication workaround. This optional probe has at most two seconds.
 3. The existing issued-playlist resolver, retaining its prior behavior.
 
@@ -20,7 +20,7 @@ The optional probes share the resolution deadline and stop consuming time when o
 
 The guide's fake-CAPTCHA, crafted-token and universal-token bypass instructions are not part of this implementation. No third-party access control or geographic restriction is bypassed.
 
-Exact season/episode selection remains required; an unavailable mapping does not become a guessed content ID. Cold episode discovery can still depend on the existing public provider metadata. A provider cooldown can prevent that prerequisite when no exact identity has previously been verified.
+Exact season/episode selection remains required; an unavailable mapping does not become a guessed content ID. Cold episode discovery can use NewTV’s own catalog without a Netflix public page or net52 metadata lookup. If no independent catalog responds and no exact episode identity has been verified, metadata from another responding source is still required.
 
 A NewTV player API rejection (HTTP 403/404) skips that optional service for 60 seconds using a monotonic, in-memory deadline, then permits an automatic retry. This is service availability handling, not a provider-wide rate limit. Repeated titles continue through the fallback during this window; a CDN rejection does not disable the API.
 
