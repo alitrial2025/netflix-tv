@@ -18,4 +18,4 @@ Three new regressions failed against the earlier resolver: cold movie with unava
 
 Live requests to the guide's NewTV player and catalog endpoints returned HTTP 403 `Page Not Found` with no Retry-After on 16 October. The native integration cases therefore use deterministic responses to verify fallback behavior; they do not establish that the external NewTV service is currently healthy. Separate live issued-route checks in `docs/catalog-availability-20261016.md` delivered MPEG-TS samples for Red Notice, Smallville S1E1 and House of the Dragon S1E1. Those samples are not Android first-frame evidence.
 
-Detailed logs and receipts are outside the repositories at `/workspace/.netflix-tv-tools/review/fallback-independence`. This source repair does not publish replacement release APKs.
+Detailed logs and receipts are outside the repositories at `/workspace/.netflix-tv-tools/review/fallback-independence`. Release publication is tracked separately in the website update manifests; a source commit alone is not evidence of publication.
