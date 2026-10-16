@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092042,
-  "versionName": "15.10.2026.3",
+  "versionCode": 29092043,
+  "versionName": "16.10.2026.1",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7628970,
-  "sha256": "073cf7899d76ffb26431555a1a6a4cca8082f1e5262a9d2ba1ff57d20838059f",
+  "sizeBytes": 7628967,
+  "sha256": "1b7c205115014e0237f6278b9fa54ab5c80018f1b5a493b8a2c2833e573ba911",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092042-073cf7899d76ffb2.apk",
-  "releaseNotes": "Skip a rejected optional playback service for 60 seconds while retaining the working playback fallback and independent provider rate-limit handling.",
+  "apkUrl": "/downloads/tv/29092043-1b7c205115014e02.apk",
+  "releaseNotes": "Fix title and episode lookup for Netflix titles and House of the Dragon. Try independent NewTV playback and episode metadata before public website lookups, then direct HLS and the existing playback fallback. Preserve verified episode caching and separate provider rate limits.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-15T17:43:01.191Z"
+  "publishedAt": "2026-10-16T18:56:03.803Z"
 }
