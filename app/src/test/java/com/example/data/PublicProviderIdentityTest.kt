@@ -10,6 +10,20 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicProviderIdentityTest {
+    @Test fun hotstarShortWatchLinksRetainNativeIdsAndRejectUnrelatedUrls() {
+        val page = """<a href="https://hotstar.com/1260057812/watch">Watch</a>
+            <a href="https://www.hotstar.com/in/movies/the-new-mutants/1260057812/watch">Watch</a>
+            <a href="https://www.hotstar.com/in/movies/other-film/1260149193">Watch</a>"""
+        assertEquals(listOf("1260057812", "1260149193"), PublicProviderIdentity.linkedHotstarIds(page))
+        assertEquals(listOf("1260057812", "1260149193"), PublicProviderIdentity.linkedHotstarIds(page.replace("/", "\\/")))
+        for (invalid in listOf(
+            "http://hotstar.com/1260057812/watch", "https://hotstar.com.evil.test/1260057812/watch",
+            "https://user@hotstar.com/1260057812/watch", "https://hotstar.com:444/1260057812/watch",
+            "https://evil.test/?next=https://hotstar.com/1260057812/watch",
+            "https://hotstar.com/1260057812/other", "https://hotstar.com/help/1260057812/watch"
+        )) assertTrue(invalid, PublicProviderIdentity.linkedHotstarIds("""<a href="$invalid">Watch</a>""").isEmpty())
+    }
+
     @Test fun netflixMoviesCanPublishDateCreatedInsteadOfDatePublished() {
         val html = """<script type="application/ld+json">{"@type":"Movie","name":"Grand Theft Auto VI: An Extended Look","dateCreated":"2026-8-27","trailer":{"@type":"VideoObject","uploadDate":"2025-01-01"}}</script>"""
         assertTrue(PublicProviderIdentity.matchesNetflix(html, "Grand Theft Auto VI: An Extended Look", "2026", "movie"))

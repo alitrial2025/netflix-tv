@@ -4,7 +4,7 @@ import {NoWarmFlow, TARGETS, FlowError} from './no-warm-flow.mjs';
 import {readFile, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {matchesPartnerPage,partnerRow,publishedLinks} from './partner-catalog.mjs';
+import {matchesPartnerPage,partnerRow,publishedLinks,linkedHotstarIds} from './partner-catalog.mjs';
 const norm = s => String(s ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const fail = (code, stage) => {throw new FlowError(code, stage)};
 export function hotstarIds(entity, entityId) {
@@ -89,8 +89,7 @@ export class PublicCatalogFlow extends NoWarmFlow {
           try {const j = JSON.parse(m[1]); if (j['@type'] === 'VideoObject' && norm(j.name) === norm(t.title)) matched = true} catch {}
         }
         if (!matched) continue;
-        const unescaped = page.body.replace(/\\\//g,'/');
-        const linked = [...unescaped.matchAll(/https:\/\/(?:www\.)?hotstar\.com\/[^"\s\\<>]*?\/(\d{5,20})(?=[/?"\s\\<>]|$)/g)].map(m => m[1]);
+        const linked = linkedHotstarIds(page.body);
         const candidates = [...new Set([...(partnerId.length >= 10 ? [partnerId] : []),...linked])];
         for (const id of candidates.slice(0,3)) {
           if(this.rejected.has(id)) continue;

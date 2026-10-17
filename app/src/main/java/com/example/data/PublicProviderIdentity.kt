@@ -75,8 +75,15 @@ internal object PublicProviderIdentity {
     }
     fun linkedHotstarIds(html: String): List<String> {
         val unescaped = html.replace("\\/","/")
-        return Regex("""https://(?:www\.)?hotstar\.com/[^"\s\\<>]*?/([0-9]{5,20})(?=[/?"\s\\<>]|$)""")
-            .findAll(unescaped).map { it.groupValues[1] }.distinct().toList()
+        return Regex("""https://[^\s"'\\<>]+""").findAll(unescaped).mapNotNull { match ->
+            val url = match.value.toHttpUrlOrNull() ?: return@mapNotNull null
+            if (url.host !in listOf("hotstar.com", "www.hotstar.com") || url.port != 443 ||
+                url.username.isNotEmpty() || url.password.isNotEmpty()) return@mapNotNull null
+            // Partner pages also publish /<native ID>/watch, without a locale/title path.
+            Regex("""^/([0-9]{5,20})/watch/?$""").matchEntire(url.encodedPath)?.groupValues?.get(1)
+                ?: Regex("""^/(?:[A-Za-z]{2}/)?(?:movies|shows|tv)/[^/]+/([0-9]{5,20})(?:/watch)?/?$""")
+                    .matchEntire(url.encodedPath)?.groupValues?.get(1)
+        }.distinct().toList()
     }
     fun matchesNetflix(html: String, title: String, year: String, type: String, typedMapping: Boolean = false): Boolean {
         val scripts = Regex("""<script[^>]*type=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)

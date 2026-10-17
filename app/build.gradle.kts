@@ -36,8 +36,8 @@ android {
         applicationId = "com.netflixprotv.apk"
         minSdk = 24
         targetSdk = 35
-        versionCode = 29092043
-        versionName = "16.10.2026.1"
+        versionCode = 29092044
+        versionName = "17.10.2026.1"
         buildConfigField("String", "TMDB_API_KEY", "\"8baba8ab6b8bbe247645bcae7df63d0d\"")
     }
 

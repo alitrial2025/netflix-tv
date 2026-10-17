@@ -1,4 +1,16 @@
 const ORIGIN = 'https://www.airtelxstream.in';
+export function linkedHotstarIds(html) {
+  const ids = [];
+  for (const match of html.replaceAll('\\/', '/').matchAll(/https:\/\/[^\s"'\\<>]+/g)) {
+    let url; try { url = new URL(match[0]); } catch { continue; }
+    if (!['hotstar.com', 'www.hotstar.com'].includes(url.hostname) || url.username || url.password || url.port) continue;
+    const path = url.pathname;
+    const id = path.match(/^\/([0-9]{5,20})\/watch\/?$/)?.[1] ??
+      path.match(/^\/(?:[A-Za-z]{2}\/)?(?:movies|shows|tv)\/[^/]+\/([0-9]{5,20})(?:\/watch)?\/?$/)?.[1];
+    if (id) ids.push(id);
+  }
+  return [...new Set(ids)];
+}
 export const normalizeTitle = s => String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 export function partnerRow(value) {
   let u; try { u = new URL(value, ORIGIN); } catch { return null; }

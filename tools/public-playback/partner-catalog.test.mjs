@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {partnerRow,publishedLinks,browsePath,matchesPartnerPage} from './partner-catalog.mjs';
+import {partnerRow,publishedLinks,browsePath,matchesPartnerPage,linkedHotstarIds} from './partner-catalog.mjs';
+test('native Hotstar IDs are extracted from short watch links and canonical title links',()=>{
+ const page='<a href="https://hotstar.com/1260057812/watch">Watch</a><a href="https://www.hotstar.com/in/movies/the-new-mutants/1260057812/watch">Watch</a><a href="https://www.hotstar.com/in/movies/other-film/1260149193">Watch</a>';
+ assert.deepEqual(linkedHotstarIds(page),['1260057812','1260149193']);
+ assert.deepEqual(linkedHotstarIds(page.replaceAll('/','\\/')),['1260057812','1260149193']);
+ for(const invalid of ['http://hotstar.com/1260057812/watch','https://hotstar.com.evil.test/1260057812/watch','https://user@hotstar.com/1260057812/watch','https://hotstar.com:444/1260057812/watch','https://evil.test/?next=https://hotstar.com/1260057812/watch','https://hotstar.com/1260057812/other','https://hotstar.com/help/1260057812/watch']) assert.deepEqual(linkedHotstarIds(`<a href="${invalid}">Watch</a>`),[],invalid);
+});
 test('published browse pages supply migrated identities missing from sitemaps',()=>{
  const path='/tv-shows/house-of-the-dragon/HOTSTAR_DTH_TVSHOW_1971002877';
  const html=`<a href="${path}">House of the Dragon</a><script>{"link":"https:\\/\\/www.airtelxstream.in${path.replaceAll('/','\\/')}"}</script>`;

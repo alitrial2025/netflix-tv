@@ -16,6 +16,36 @@ import java.io.IOException
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicPlaybackResolverTest {
+    @Test fun shortPartnerWatchLinkResolvesNewMutantsThroughVerifiedHotstarIdentity() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val app = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.app.Application>()
+        val path = "/movies/the-new-mutants/HOTSTAR_DTH_MOVIE_889028"
+        val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, catalog = PublicProviderCatalog(app),
+            backgroundCatalogRefresh = false, client = client(seen) { request ->
+                when (request.url.encodedPath) {
+                    "/search.php", "/mobile/pv/search.php" -> """{"searchResult":[]}""" to 200
+                    path -> """<p id="banner-content-release-year">2020</p><script>{"@type":"VideoObject","name":"The New Mutants"}</script><a href="https://hotstar.com/1260057812/watch">Watch</a>""" to 200
+                    "/mobile/hs/post.php" -> {
+                        assertEquals("1260057812", request.url.queryParameter("id"))
+                        """{"status":"y","title":"The New Mutants","year":"2020","type":"m"}""" to 200
+                    }
+                    "/mobile/hs/playlist.php" -> {
+                        assertEquals("1260057812", request.url.queryParameter("id"))
+                        """{"sources":[{"file":"https://cdn.example/new-mutants.m3u8?in=issued"}]}""" to 200
+                    }
+                    "/new-mutants.m3u8" -> "#EXTM3U\n#EXTINF:10,\nsegment.ts" to 200
+                    "/3/movie/340102", "/sparql" -> "{}" to 200
+                    "/movies", "/movies/english-movies" -> "" to 200
+                    else -> throw AssertionError("Unexpected endpoint ${request.url.encodedPath}")
+                }
+            })
+        val result = resolver.resolve("The New Mutants", "2020", "movie", 0, 0, "340102")
+        assertEquals("hs", result.ott)
+        assertEquals("1260057812", result.contentId)
+        assertEquals(1, seen.count { it.url.encodedPath == path })
+        assertFalse(seen.any { it.url.queryParameter("id") == "889028" })
+    }
+
     private val lionessPrime = """<script>{"init":{"preparations":{"body":{"atf":{"state":{"detail":{"headerDetail":{"show":{"title":"Lioness - Season 1","titleType":"season","releaseYear":2023,"seasonNumber":1}}},"seasons":{"show":[{"sequenceNumber":1,"seasonLink":"/detail/0SVGUHKPBBP0BH7FC5VO19ALDR?ref_=s1","isSelected":true},{"sequenceNumber":2,"seasonLink":"/detail/0SPN6KOKA7I2O7Z73U3E12U19A"}]}}}}}}}</script>"""
 
     @Test fun lionessAliasDiscoveryRetainsProviderEditionAndReachesExactEpisode() = runBlocking {

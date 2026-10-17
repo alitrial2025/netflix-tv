@@ -1,0 +1,7 @@
+# Hotstar short watch-link lookup repair — 17 October 2026
+
+The New Mutants (2020), TMDB movie 340102, is listed in the public partner catalog with partner ID 889028. Its matching 2020 title page links to `https://hotstar.com/1260057812/watch`. The previous parser required a path component before the native ID and therefore missed this short watch link. Public Netflix and Prime searches currently return no match, so the app failed before requesting the available Hotstar stream.
+
+Parse the published HTTPS URL and accept both short watch links and canonical Hotstar title links. Require the exact official host, standard HTTPS port and no user information. Keep partner title/year and live provider title/type/year validation. Short partner IDs remain distinct from native playback IDs. Apply the same parser behavior to the Node audit.
+
+The old production resolver failed the new regression with “No verified public provider identity is available for this title.” Both fixed apps passed 47 targeted resolver, identity, independent fallback and catalog tests each; 15 Node tests passed. A separate live lookup through the actual partner page and provider metadata reached the normal issued HLS route and returned 65,536-byte MPEG-TS video and audio samples for native ID 1260057812. This HTTP evidence does not establish decoded playback on Android hardware. Exact release builds run full CI separately.
