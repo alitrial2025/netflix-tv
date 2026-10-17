@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '22'
       - name: Validate catalog parsing
-        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs tools/public-playback/netflix-catalog.test.mjs
+        run: node --test tools/public-playback/partner-catalog.test.mjs tools/public-playback/provider-feed.test.mjs tools/public-playback/netflix-catalog.test.mjs tools/public-playback/netflix-public-metadata.test.mjs
       - name: Export current public metadata
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}

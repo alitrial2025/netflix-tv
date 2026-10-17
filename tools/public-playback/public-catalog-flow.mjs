@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {netflixPublicMetadata} from './netflix-public-metadata.mjs';
 // Node 22+. Mirrors the Kotlin public identity and season discovery flow; no cookie jar.
 import {NoWarmFlow, TARGETS, FlowError} from './no-warm-flow.mjs';
 import {readFile, writeFile} from 'node:fs/promises';
@@ -39,6 +40,12 @@ export function primeSeasons(html, title) {
   fail('public_prime_seasons_unavailable', 'public_seasons');
 }
 export function netflixSeasons(html, title) {
+  const modern=netflixPublicMetadata(html);
+  if(modern) {
+    if(modern.type!=='tv' || norm(modern.title)!==norm(title)) fail('netflix_series_identity_mismatch','public_seasons');
+    if(!Object.keys(modern.seasons).length) fail('invalid_netflix_season_metadata','public_seasons');
+    return new Map(Object.entries(modern.seasons).map(([number,id])=>[Number(number),id]));
+  }
   const identities = [];
   for (const m of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
     try {const d = JSON.parse(m[1]); identities.push(...(Array.isArray(d) ? d : [d]))} catch {}

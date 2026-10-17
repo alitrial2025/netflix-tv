@@ -56,6 +56,7 @@ class EpisodeRequestVolumeTest {
         val request = chain.request(); seen += request
         assertNull(request.header("Cookie"))
         val body = when(request.url.encodedPath) {
+            "/search.php", "/mobile/pv/search.php" -> """{"searchResult":[]}"""
             "/mobile/hs/post.php" -> """{"status":"y","title":"Lanterns","year":"2026","type":"t","episodes":[{"id":"1271684191","s":"S1","ep":"E1"},{"id":"1271684192","s":"S1","ep":"E2"},{"id":"1271684193","s":"S1","ep":"E3"}]}"""
             "/mobile/hs/playlist.php" -> """{"sources":[{"file":"https://net52.cc/mobile/hs/hls/${request.url.queryParameter("id")}.m3u8?in=issued"}]}"""
             else -> if (request.url.encodedPath.contains("/hls/"))
@@ -96,13 +97,15 @@ class EpisodeRequestVolumeTest {
         assertEquals("Explicit Retry repeats media, not show discovery", 7, seen.size)
     }
 
-    @Test fun transientServerFailureStopsAtTheSelectedIdentity() = runBlocking {
+    @Test fun transientServerFailureChecksOtherCatalogsWithoutRepeatingTheSelectedIdentity() = runBlocking {
         val seen = Collections.synchronizedList(mutableListOf<Request>())
         val resolver = PublicPlaybackResolver(cookieFreeRoutes = false, client = client(seen, failure = true), catalog = PublicProviderCatalog(context()), backgroundCatalogRefresh = false)
         try { resolver.resolve("Lanterns", "2026", "tv", 1, 1, "95350"); fail("503 accepted") }
         catch (error: IOException) { assertEquals("Playback endpoint unavailable (HTTP 503)", error.message) }
-        assertEquals(3, seen.size)
-        assertFalse(seen.any { it.url.encodedPath.contains("search") })
+        assertEquals("Only two bounded alternate-catalog searches after the source failure", 5, seen.size)
+        assertEquals(listOf("/search.php", "/mobile/pv/search.php"), seen.filter { it.url.encodedPath.contains("search") }.map { it.url.encodedPath })
+        assertEquals(1, seen.count { it.url.encodedPath.endsWith("post.php") })
+        assertEquals(1, seen.count { it.url.encodedPath.endsWith("playlist.php") })
     }
 
     @Test fun nextEpisode503KeepsVerifiedEpisodeIdAndDoesNotRefetchShowOrEpisodeCatalog() = runBlocking {
@@ -112,10 +115,11 @@ class EpisodeRequestVolumeTest {
         resolver.resolve("Lanterns", "2026", "tv", 1, 1, "95350")
         try { resolver.resolve("Lanterns", "2026", "tv", 1, 2, "95350"); fail("503 accepted") }
         catch (error: IOException) { assertEquals("Playback endpoint unavailable (HTTP 503)", error.message) }
-        assertEquals("Next sends only its playlist and master; no stale-ID repair for 503", 6, seen.size)
+        assertEquals("Next sends its playlist/master and at most two alternate-catalog searches; no stale-ID repair for 503", 8, seen.size)
         assertEquals("1271684192", catalog.episodeCatalog.episode("https://net52.cc/", "hs", "1271680756", 1, 2, System.currentTimeMillis()))
         assertEquals(1, seen.count { it.url.encodedPath.endsWith("post.php") })
-        assertFalse(seen.any { it.url.encodedPath.contains("episodes.php") || it.url.encodedPath.contains("search") })
+        assertFalse(seen.any { it.url.encodedPath.contains("episodes.php") })
+        assertEquals(2, seen.count { it.url.encodedPath.contains("search") })
     }
 
     @Test fun handoffIsSingleUseExactUrlHeaderScopedAndExpiresBeforeRefresh() {

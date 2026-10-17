@@ -24,9 +24,7 @@ internal object PublicProviderIdentity {
                 val claim = sites.optJSONObject(i) ?: return@mapNotNull null
                 if (claim.optString("rank") == "deprecated") return@mapNotNull null
                 val value = claim.optJSONObject("mainsnak")?.optJSONObject("datavalue")?.optString("value").orEmpty()
-                val uri = try { java.net.URI(value) } catch (_: Exception) { return@mapNotNull null }
-                if (uri.scheme != "https" || uri.host !in listOf("www.hotstar.com", "hotstar.com")) return@mapNotNull null
-                uri.path.trimEnd('/').substringAfterLast('/').takeIf { it.matches(Regex("\\d{5,20}")) }
+                PublicIdentityDiscovery.homepageIds(value).singleOrNull { it.second == "hs" }?.first
             }
         }
         return (0 until rows.length()).mapNotNull { i ->
@@ -85,7 +83,16 @@ internal object PublicProviderIdentity {
                     .matchEntire(url.encodedPath)?.groupValues?.get(1)
         }.distinct().toList()
     }
-    fun matchesNetflix(html: String, title: String, year: String, type: String, typedMapping: Boolean = false): Boolean {
+    fun matchesNetflixAny(html: String, aliases: Collection<String>, year: String, type: String, typedMapping: Boolean, expectedId: String): Boolean {
+        val modern = NetflixPublicMetadata.parse(html, expectedId)
+        if (modern != null) return modern.type == type && aliases.any { PublicIdentityDiscovery.sameTitle(modern.title, it) } &&
+            (if (type == "tv") typedMapping else modern.year == year)
+        return aliases.any { matchesNetflix(html, it, year, type, typedMapping, expectedId, modern) }
+    }
+    fun matchesNetflix(html: String, title: String, year: String, type: String, typedMapping: Boolean = false, expectedId: String? = null,
+        modern: NetflixPublicMetadata.Title? = NetflixPublicMetadata.parse(html, expectedId)): Boolean {
+        if (modern != null) return PublicIdentityDiscovery.sameTitle(modern.title, title) && modern.type == type &&
+            (if (type == "tv") typedMapping else modern.year == year)
         val scripts = Regex("""<script[^>]*type=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
         return scripts.findAll(html).any { match ->
             val data = try { org.json.JSONTokener(match.groupValues[1]).nextValue() } catch (_: org.json.JSONException) { null }

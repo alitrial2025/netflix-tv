@@ -9,6 +9,7 @@ import java.util.Locale
 
 /** Public metadata candidates only; a title page and requested episode still need verification. */
 internal object PublicIdentityDiscovery {
+    const val MAX_ALIASES = 128
     data class Metadata(val aliases: List<String>, val wikidataId: String, val homepageIds: List<Pair<String, String>>)
 
     fun metadata(root: JSONObject, tmdbId: String, type: String, year: String): Metadata? {
@@ -19,8 +20,10 @@ internal object PublicIdentityDiscovery {
         val aliases = mutableListOf(root.optString(field), root.optString("original_$field"))
         val alternatives = root.optJSONObject("alternative_titles")
         val rows = alternatives?.optJSONArray(if (type == "tv") "results" else "titles") ?: JSONArray()
-        for (i in 0 until rows.length()) aliases += rows.optJSONObject(i)?.optString("title").orEmpty()
-        return Metadata(aliases.filter { normalize(it).isNotEmpty() && it.length <= 256 }.distinct().take(24),
+        val alternativesByLocale = (0 until minOf(rows.length(), 1000)).mapNotNull(rows::optJSONObject)
+            .sortedBy { if (it.optString("iso_3166_1") in listOf("US", "GB")) 0 else 1 }
+        aliases += alternativesByLocale.map { it.optString("title") }
+        return Metadata(aliases.filter { normalize(it).isNotEmpty() && it.length <= 256 }.distinct().take(MAX_ALIASES),
             root.optJSONObject("external_ids")?.optString("wikidata_id").orEmpty().takeIf { it.matches(Regex("Q[1-9][0-9]*")) }.orEmpty(),
             homepageIds(root.optString("homepage")))
     }
@@ -28,14 +31,13 @@ internal object PublicIdentityDiscovery {
     /** A direct official OTT homepage can publish a new identity before any bulk index does. */
     fun homepageIds(homepage: String): List<Pair<String, String>> {
         val url = homepage.toHttpUrlOrNull() ?: return emptyList()
-        if (!url.isHttps || url.username.isNotEmpty() || url.password.isNotEmpty()) return emptyList()
+        if (!url.isHttps || url.port != 443 || url.username.isNotEmpty() || url.password.isNotEmpty()) return emptyList()
         val candidate = when (url.host) {
             "netflix.com", "www.netflix.com" -> Regex("^/(?:[A-Za-z]{2}(?:-[A-Za-z]{2})?/)?title/([0-9]{5,20})/?$")
                 .find(url.encodedPath)?.groupValues?.get(1)?.let { it to "nf" }
             "primevideo.com", "www.primevideo.com" -> Regex("^/(?:-/[A-Za-z_-]+/)?detail/([A-Z0-9]{10,30})/?$")
                 .find(url.encodedPath)?.groupValues?.get(1)?.let { it to "pv" }
-            "hotstar.com", "www.hotstar.com" -> Regex("^/(?:[A-Za-z]{2}/)?(?:movies|shows|tv)/[^?#]*/([0-9]{5,20})/?$")
-                .find(url.encodedPath)?.groupValues?.get(1)?.let { it to "hs" }
+            "hotstar.com", "www.hotstar.com" -> PublicProviderIdentity.linkedHotstarIds(homepage).singleOrNull()?.let { it to "hs" }
             else -> null
         }
         return listOfNotNull(candidate)

@@ -1,3 +1,4 @@
+import {netflixPublicMetadata} from './netflix-public-metadata.mjs';
 // Incremental joins of published Netflix Movie metadata, never playback availability.
 export const NETFLIX_SITEMAP = 'https://www.netflix.com/sitemap/index';
 const DAY = 86_400_000;
@@ -49,6 +50,8 @@ function dateYear(value) {
 /** Only the exact page's top-level Movie identity; trailer/recommendation dates are never used. */
 export function netflixMovieMetadata(html, netflixId) {
   if (!ID.test(netflixId)) return null;
+  const modern=netflixPublicMetadata(html,netflixId);
+  if(modern) return modern.type==='movie' && modern.year ? {title:modern.title,year:modern.year,netflixId} : null;
   const objects = [];
   const add = value => {
     if (Array.isArray(value)) value.forEach(add);

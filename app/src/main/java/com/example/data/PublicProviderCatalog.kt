@@ -148,7 +148,7 @@ internal class PublicProviderCatalog(context: Context) {
             expired.forEach(verified::remove)
             if (verified.length() >= 20000) verified.keys().asSequence().firstOrNull()?.let(verified::remove)
         }
-        verified.put(key, JSONObject().put("id",id).put("ott",ott).put("expiresAt",now + 7 * 86_400_000L).put("aliases", JSONArray(aliases.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(24))))
+        verified.put(key, JSONObject().put("id",id).put("ott",ott).put("expiresAt",now + 7 * 86_400_000L).put("aliases", JSONArray(aliases.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(PublicIdentityDiscovery.MAX_ALIASES))))
         persist()
     }
     @Synchronized fun verifiedAliases(key: String): List<String> = strings(verified.optJSONObject(key)?.optJSONArray("aliases"))
@@ -185,13 +185,13 @@ internal class PublicProviderCatalog(context: Context) {
         discovered.put(key, JSONObject().put("expiresAt", now + 86_400_000L)
             .put("ids", JSONArray(validIds.map { JSONArray(listOf(it.first, it.second)) }))
             .put("typedIds", JSONArray(typedIds.filter { it in validIds }.distinct().map { JSONArray(listOf(it.first, it.second)) }))
-            .put("aliases", JSONArray(aliases.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(24))))
+            .put("aliases", JSONArray(aliases.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(PublicIdentityDiscovery.MAX_ALIASES))))
         var output: java.io.FileOutputStream? = null
         try { output = discoveryFile.startWrite(); output.write(discovered.toString().toByteArray(Charsets.UTF_8)); discoveryFile.finishWrite(output) }
         catch (_: Exception) { output?.let(discoveryFile::failWrite) }
     }
     private fun strings(rows: JSONArray?): List<String> = if (rows == null) emptyList() else
-        (0 until rows.length()).map { rows.optString(it) }.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(24)
+        (0 until minOf(rows.length(), PublicIdentityDiscovery.MAX_ALIASES)).map { rows.optString(it) }.filter { it.isNotBlank() && it.length <= 256 }.distinct().take(PublicIdentityDiscovery.MAX_ALIASES)
     @Synchronized fun evict(key: String) { if (verified.remove(key) != null) persist() }
     private fun persist() {
         var output: java.io.FileOutputStream? = null

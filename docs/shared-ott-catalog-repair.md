@@ -1,0 +1,23 @@
+# Shared OTT catalog and failover repair — 17 October 2026
+
+Reported on Netflix: Demon Slayer: Kimetsu no Yaiba Infinity Castle (TMDB movie 1311031) and every episode of Demon Slayer: Kimetsu no Yaiba (TMDB TV 85937).
+
+## Confirmed defects
+
+Seven pre-fix regression cases failed. Netflix's current public pages publish `netflix.reactContext` title models instead of the JSON-LD-only contract the resolver expected. Demon Slayer's selector uses arc names, while the structured model supplies explicit numbered seasons and native IDs. Infinity Castle's exact provider edition name, ending in “I”, arrived beyond the first 24 TMDB aliases and was discarded. Catalog search failures, later Netflix season-metadata failures, and issued-source availability failures could each stop another verified catalog from being tried. Hotstar short watch links were supported on partner pages after the previous repair but remained unsupported in TMDB homepage and Wikidata website discovery.
+
+## Resulting behavior
+
+Read the published Netflix JSON data without evaluating JavaScript. Bind the selected title to the exact native ID, official metadata URL, query's title selection, top-level video object and explicit movie/show type; ignore recommendations. Movie years remain exact. A show's latest available season year cannot establish its premiere year. Named arcs use the model's explicit season numbers and opaque IDs, with duplicate, conflicting and unlabelled seasons rejected. Array/selector order and ID arithmetic are never used as numbering.
+
+Retain up to 128 validated aliases, prioritizing English publication aliases, and preserve them across metadata-cache restarts. Do not strip edition or sequel labels to force a match. Search each catalog once per resolution; ordinary unavailable/malformed searches do not suppress another catalog, and failed searches are remembered only for that resolution. A failed season metadata source or issued source can try another independently verified catalog within the existing 28-second/32-request limits. Existing identity metadata is retained; the failed candidate is skipped only within the current resolution. Recovery checks other indexed identities and at most one search per Netflix/Prime catalog, without another unbounded public-site discovery pass. A rejected CDN media URL may use another verified catalog; a metadata authorization failure still stops same-service requests. Runtime display labels are not mistaken for explicit media types. Real rate limits, authorization errors and cancellation still stop their applicable requests. NewTV/direct/issued route order, subscriptions, payments and offline admission remain unchanged.
+
+Use the same validated Hotstar URL contract for partner pages, TMDB homepage metadata and Wikidata website links. The scheduled Netflix catalog importer and Node season audit also read the current Netflix model, so source discovery will not remain dependent on retired JSON-LD output.
+
+## Validation scope
+
+Regressions cover Infinity Castle's precise edition and release year, all five Demon Slayer seasons, wrong IDs/types/years, mismatched query scope, foreign metadata links, conflicting named seasons, safe hex-escaped JSON text, cached aliases, catalog search availability, cross-catalog episode/source failures, true 401/403/429 rejection, and real coroutine cancellation. Existing Netflix/Prime/Hotstar, independent NewTV/direct/issued fallback and episode-volume suites are run separately. Current receipts and exact counts are under `/workspace/.netflix-tv-tools/review/ott-20261017`.
+
+Live public metadata confirms Netflix movie 82723106 and show 81091393, with season IDs 81091394, 81513781, 81513768, 81685138 and 81743731. Provider episode metadata and issued HLS masters responded for the selected show episodes. Live media-segment verification depends on the returned CDN hosts being reachable from the test environment and is recorded separately; metadata or fixture tests alone are not Android decoded-playback evidence. These repairs address shared application defects and do not guarantee availability of every external title, edition or provider.
+
+Final live checks reached actual 65,536-byte MPEG-TS samples for Demon Slayer S1E1 (video and audio) and S5E1 (video). Infinity Castle Netflix movie 82723106 returned HTTP403 from s22.freecdn41.top after the environment could reach that host. This is a current external source rejection, not a successful movie playback result. Prime search publishes a matching 2025 candidate, but it still requires live title/type/year verification and an available media route. Do not claim that fixing lookup guarantees this external Netflix source will serve the movie.
