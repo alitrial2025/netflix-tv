@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092043,
-  "versionName": "16.10.2026.1",
+  "versionCode": 29092044,
+  "versionName": "17.10.2026.1",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7628967,
-  "sha256": "1b7c205115014e0237f6278b9fa54ab5c80018f1b5a493b8a2c2833e573ba911",
+  "sizeBytes": 7628972,
+  "sha256": "16fd405483c47078d7e624a864423d3e873abb4837d6e28382c1b54b502feaad",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092043-1b7c205115014e02.apk",
-  "releaseNotes": "Fix title and episode lookup for Netflix titles and House of the Dragon. Try independent NewTV playback and episode metadata before public website lookups, then direct HLS and the existing playback fallback. Preserve verified episode caching and separate provider rate limits.",
+  "apkUrl": "/downloads/tv/29092044-16fd405483c47078.apk",
+  "releaseNotes": "Fix playback lookup for The New Mutants (2020) and other Hotstar titles using short watch links. Preserve verified title, type and release-year checks and the existing independent playback fallbacks.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-16T18:56:03.803Z"
+  "publishedAt": "2026-10-17T14:57:05.767Z"
 }
