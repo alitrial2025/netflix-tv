@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092044,
-  "versionName": "17.10.2026.1",
+  "versionCode": 29092045,
+  "versionName": "17.10.2026.2",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7628972,
-  "sha256": "16fd405483c47078d7e624a864423d3e873abb4837d6e28382c1b54b502feaad",
+  "sizeBytes": 7628981,
+  "sha256": "06709228408b9a4dd68f14105678a8004c69b93190ac10a04936aab8144130c2",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092044-16fd405483c47078.apk",
-  "releaseNotes": "Fix playback lookup for The New Mutants (2020) and other Hotstar titles using short watch links. Preserve verified title, type and release-year checks and the existing independent playback fallbacks.",
+  "apkUrl": "/downloads/tv/29092045-06709228408b9a4d.apk",
+  "releaseNotes": "Fix Netflix movie and named-season discovery, including Demon Slayer. Preserve exact edition aliases, share Hotstar link parsing, and recover through bounded verified Netflix, Prime and Hotstar catalog fallbacks when a source is unavailable.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-17T14:57:05.767Z"
+  "publishedAt": "2026-10-17T17:32:00.646Z"
 }
