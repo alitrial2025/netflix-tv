@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 25,
-  "versionName": "1.24",
+  "versionCode": 26,
+  "versionName": "1.25",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14209696,
-  "sha256": "96b7f1ced704d6378c10c4c29b609bc3585b2a51e47ae8e366065720a5ea94e5",
+  "sizeBytes": 14226083,
+  "sha256": "c9d748d2c25501cfa5f83278ebe18d95e391ed5ff189a91fbb60e4f64e4467e1",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/25-96b7f1ced704d637.apk",
-  "releaseNotes": "Fix trusted subscription time and restart handling, enforce cloud profile limits, and show accurate membership status. Retain payment retry details until access is confirmed, recover valid receipts after reinstall, and block payment on suspended memberships.",
+  "apkUrl": "/downloads/mobile/26-c9d748d2c25501cf.apk",
+  "releaseNotes": "Allow Wi-Fi hotspot downloads, recover previously queued downloads without losing progress, prioritize manual downloads, and retry source timeouts with accurate status messages.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-18T13:43:50.082Z"
+  "publishedAt": "2026-10-18T18:48:06.792Z"
 }
