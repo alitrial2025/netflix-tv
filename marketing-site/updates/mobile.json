@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 23,
-  "versionName": "1.22",
+  "versionCode": 24,
+  "versionName": "1.23",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14209689,
-  "sha256": "1b5c94b5c16ba9bfed8e0844e3e2b590d24db6ce180b470441f432b49535e24f",
+  "sizeBytes": 14209696,
+  "sha256": "f96c7d6354716bfaecd8795223cbe1fdabedb5e843d447ea7502af246cce577c",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/23-1b5c94b5c16ba9bf.apk",
-  "releaseNotes": "Fix Black Clover’s four-season, 170-episode layout and playback beyond episode 50. Match verified episode identities despite provider label drift, preserve progress and download IDs, and correct Next Episode transitions.",
+  "apkUrl": "/downloads/mobile/24-f96c7d6354716bfa.apk",
+  "releaseNotes": "Correct subtitle language metadata and prevent selecting unrelated default or forced subtitles. Preserve the exact subtitle choice and keep selection current when advancing episodes.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-18T07:11:21.929Z"
+  "publishedAt": "2026-10-18T07:59:04.089Z"
 }
