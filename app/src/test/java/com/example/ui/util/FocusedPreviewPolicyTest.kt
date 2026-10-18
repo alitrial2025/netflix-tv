@@ -73,4 +73,16 @@ class FocusedPreviewPolicyTest {
         assertEquals(15_000L, testScheduler.currentTime)
         assertEquals(0L, FocusedPreviewPolicy.remainingStartupMs(focusedAt, testScheduler.currentTime))
     }
+    @Test fun billboardAllowsOneColdResolutionAfterTheSharedRequestGapWithoutExtendingCardDeadlines() = runTest {
+        val focusedAt = testScheduler.currentTime
+        val result = FocusedPreviewPolicy.resolve(45_000L) {
+            delay(10_000L) // shared provider request spacing
+            delay(28_000L) // one bounded cold identity/stream resolution
+            "visible"
+        }
+        assertEquals("visible", result)
+        assertEquals(0L, FocusedPreviewPolicy.remainingStartupMs(focusedAt, testScheduler.currentTime))
+        assertTrue(FocusedPreviewPolicy.remainingStartupMs(focusedAt, testScheduler.currentTime, 45_000L) > 0)
+    }
+
 }

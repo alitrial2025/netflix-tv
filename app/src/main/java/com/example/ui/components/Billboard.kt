@@ -219,8 +219,8 @@ fun BillboardSection(
     val previewOwner = remember { "billboard:" + java.util.UUID.randomUUID().toString() }
     val preview by rememberHomePreview(
         owner = previewOwner, movie = currentMovie,
-        focused = (isPlayButtonFocused || isInfoButtonFocused) && isBillboardFocused,
-        viewModel = viewModel, audible = true
+        focused = isBillboardFocused && isResumed,
+        viewModel = viewModel, audible = true, startupTimeoutMs = 45_000L
     )
     val isPreviewPlaying by rememberUpdatedState(preview.player != null)
     val isDpadOnBillboard = isBillboardFocused && (isPlayButtonFocused || isInfoButtonFocused)

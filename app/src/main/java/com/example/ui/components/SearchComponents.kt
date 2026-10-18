@@ -115,8 +115,6 @@ fun SearchSection(
         // begin decoding. The sidebar stays interactive throughout the reveal.
         withFrameNanos { }
         withFrameNanos { }
-        kotlinx.coroutines.delay(TvMotion.duration(200).toLong())
-        com.example.ui.util.HomeStartupGate.awaitBrowsingIdle()
         artworkAllowed = true
     }
 

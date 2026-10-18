@@ -93,7 +93,7 @@ fun getLanguageDisplayName(code: String): String {
 
 /** Keep the quick row and modal in sync, including streams with no caption tracks. */
 fun availableSubtitleOptions(captions: List<Caption>?): List<String> =
-    listOf("Off") + captions.orEmpty().asSequence()
+    listOf("Off") + captions.orEmpty().asSequence().map(com.example.data.SubtitleLanguage::normalize)
         .filter { it.type !in setOf("thumbnails", "chapters") && it.url.isNotBlank() && it.isVerified }
         .map { it.language.trim() }
         .filter { it.isNotEmpty() && !it.equals("Off", ignoreCase = true) }
@@ -139,69 +139,14 @@ fun resolveSelectedSubtitleOption(options: List<String>, selectedLanguage: Strin
     }
 }
 
-fun trackMatchesLanguage(format: Format, selectedSubLang: String): Boolean {
-    if (selectedSubLang.isBlank() || selectedSubLang.equals("Off", ignoreCase = true)) return false
-    val label = format.label.orEmpty().trim()
-    if (label.equals(selectedSubLang.trim(), ignoreCase = true)) return true
-    val target = captionLanguageIso2(selectedSubLang) ?: return false
-    val labelled = captionLanguageIso2(label)
-    if (labelled != null) return labelled == target
-    return captionLanguageIso2(format.language.orEmpty()) == target
-}
+fun trackMatchesLanguage(format: Format, selectedSubLang: String): Boolean =
+    com.example.data.SubtitleLanguage.matches(format.label.orEmpty(), format.language.orEmpty(), selectedSubLang)
 
-fun captionMatchesLanguage(caption: Caption, selectedSubLang: String): Boolean {
-    if (selectedSubLang.isBlank() || selectedSubLang.equals("Off", ignoreCase = true)) return false
-    if (caption.language.trim().equals(selectedSubLang.trim(), ignoreCase = true)) return true
-    val target = captionLanguageIso2(selectedSubLang) ?: return false
-    val labelled = captionLanguageIso2(caption.language)
-    if (labelled != null) return labelled == target
-    return captionLanguageIso2(caption.languageCode) == target
-}
+fun captionMatchesLanguage(caption: Caption, selectedSubLang: String): Boolean =
+    com.example.data.SubtitleLanguage.matches(caption.language, caption.languageCode, selectedSubLang, caption.url)
 
-fun updateExoPlayerTrackSelection(exoPlayer: ExoPlayer, selectedSubLang: String) {
-    if (selectedSubLang.equals("Off", ignoreCase = true) || selectedSubLang.isBlank()) {
-        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-            .buildUpon()
-            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-            .build()
-        return
-    }
-
-    val iso2 = captionLanguageIso2(selectedSubLang)
-    val preferredLanguages = if (iso2 != null) {
-        listOf(iso2, getIso3LanguageCode(iso2), selectedSubLang.lowercase(Locale.ROOT))
-            .filter { it != "und" }.distinct()
-    } else {
-        listOf(selectedSubLang.lowercase(Locale.ROOT))
-    }
-    val builder = exoPlayer.trackSelectionParameters
-        .buildUpon()
-        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-        .setPreferredTextLanguages(*preferredLanguages.toTypedArray())
-        .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-
-    val currentTracks = try { exoPlayer.currentTracks } catch (_: Exception) { null }
-    if (currentTracks != null) {
-        var overrideAdded = false
-        for (group in currentTracks.groups) {
-            if (group.type == C.TRACK_TYPE_TEXT && group.isSupported) {
-                for (i in 0 until group.length) {
-                    if (group.isTrackSupported(i)) {
-                        val format = group.getTrackFormat(i)
-                        if (trackMatchesLanguage(format, selectedSubLang)) {
-                            builder.addOverride(TrackSelectionOverride(group.mediaTrackGroup, i))
-                            overrideAdded = true
-                            break
-                        }
-                    }
-                }
-            }
-            if (overrideAdded) break
-        }
-    }
-    exoPlayer.trackSelectionParameters = builder.build()
-}
+fun updateExoPlayerTrackSelection(exoPlayer: ExoPlayer, selectedSubLang: String) =
+    com.example.data.SubtitleTrackSelection.apply(exoPlayer, selectedSubLang)
 
 data class SubtitleCue(
     val startMs: Long,

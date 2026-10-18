@@ -63,7 +63,8 @@ internal fun rememberHomePreview(
     movie: Movie,
     focused: Boolean,
     viewModel: NetflixViewModel?,
-    audible: Boolean = true
+    audible: Boolean = true,
+    startupTimeoutMs: Long = com.example.ui.util.FocusedPreviewPolicy.STARTUP_TIMEOUT_MS
 ): State<HomePreviewState> {
     val controller = viewModel?.homePreviewController
     val subscription = viewModel?.userSubscription?.collectAsStateWithLifecycle()?.value
@@ -79,8 +80,8 @@ internal fun rememberHomePreview(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    DisposableEffect(controller, owner, movie.id, movie.title, movie.catalogMediaKind(), focused, resumed, audible, subscription) {
-        if (focused && resumed) controller?.request(owner, movie, audible)
+    DisposableEffect(controller, owner, movie.id, movie.title, movie.catalogMediaKind(), focused, resumed, audible, subscription, startupTimeoutMs) {
+        if (focused && resumed) controller?.request(owner, movie, audible, startupTimeoutMs)
         onDispose { controller?.stop(owner) }
     }
     val ownerState = remember(controller, owner) {

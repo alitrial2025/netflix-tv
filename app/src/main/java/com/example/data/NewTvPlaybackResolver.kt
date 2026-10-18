@@ -78,9 +78,9 @@ internal object PlaybackMetadataTracks {
             // A poster or sprite URL without a timed VTT is not a thumbnail track.
             if (thumbnail && (requireVttExtension && extension != "vtt" || extension in setOf("jpg", "jpeg", "png", "webp", "gif"))) return
             if (!thumbnail && kind.isNotBlank() && kind !in setOf("subtitles", "captions", "vtt", "srt", "chapters")) return
-            result += Caption(url.toString(), label.ifBlank { if (thumbnail) "Thumbnails" else "English" },
+            result += Caption(url.toString(), label.ifBlank { if (thumbnail) "Thumbnails" else "Unknown language" },
                 if (thumbnail) "thumbnails" else if (kind == "chapters") "chapters" else if (extension == "srt" || kind == "srt") "srt" else "vtt",
-                if (thumbnail) "" else languageCode.ifBlank { "en" })
+                if (thumbnail) "" else languageCode.ifBlank { "und" })
         }
         for (name in listOf("tracks", "captions", "subtitles")) {
             val rows = data.optJSONArray(name) ?: continue
@@ -98,7 +98,7 @@ internal object PlaybackMetadataTracks {
                 is JSONObject -> append(firstString(value, "file", "src", "url"), "thumbnails", requireVttExtension = true)
             }
         }
-        return result.distinctBy { it.url to it.type }
+        return result.map(SubtitleLanguage::normalize).distinctBy { it.url to it.type }
     }
 }
 

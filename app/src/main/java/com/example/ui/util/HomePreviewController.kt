@@ -76,7 +76,7 @@ class HomePreviewController(
     private val _caption = MutableStateFlow("")
     val caption: StateFlow<String> = _caption.asStateFlow()
 
-    private data class Request(val owner: String, val movie: Movie, val audible: Boolean, val trailerOnly: Boolean)
+    private data class Request(val owner: String, val movie: Movie, val audible: Boolean, val trailerOnly: Boolean, val startupTimeoutMs: Long)
     private data class Choice(val season: Int, val episode: Int, var startMs: Long? = null)
     private val choices = object : LinkedHashMap<String, Choice>(24, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Choice>?): Boolean = size > 24
@@ -97,16 +97,16 @@ class HomePreviewController(
 
     init { this.context.registerComponentCallbacks(memoryCallbacks) }
 
-    fun request(owner: String, movie: Movie, audible: Boolean) = onMain {
-        requestOnMain(owner, movie, audible)
+    fun request(owner: String, movie: Movie, audible: Boolean, startupTimeoutMs: Long = FocusedPreviewPolicy.STARTUP_TIMEOUT_MS) = onMain {
+        requestOnMain(owner, movie, audible, startupTimeoutMs)
     }
 
-    private fun requestOnMain(owner: String, movie: Movie, audible: Boolean) {
+    private fun requestOnMain(owner: String, movie: Movie, audible: Boolean, startupTimeoutMs: Long) {
         val trailerOnly = !viewModel.isUserLoggedIn() || viewModel.isMovieLocked(movie) || movie.isComingSoon
         val previousRequest = desired
         if (previousRequest?.owner == owner && key(previousRequest.movie) == key(movie) &&
-            previousRequest.audible == audible && previousRequest.trailerOnly == trailerOnly) return
-        val request = Request(owner, movie, audible, trailerOnly)
+            previousRequest.audible == audible && previousRequest.trailerOnly == trailerOnly && previousRequest.startupTimeoutMs == startupTimeoutMs) return
+        val request = Request(owner, movie, audible, trailerOnly, startupTimeoutMs.coerceIn(15_000L, 45_000L))
         val requestedAt = RuntimeTiming.start()
         val focusedAt = SystemClock.uptimeMillis()
         desired = request
@@ -120,7 +120,7 @@ class HomePreviewController(
             // their cleanup with a new resolution or keep a queue of old cards.
             previousWork?.join()
             try {
-                val resolved = FocusedPreviewPolicy.resolve(FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis())) {
+                val resolved = FocusedPreviewPolicy.resolve(FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis(), request.startupTimeoutMs)) {
                     HomeStartupGate.awaitBrowsingIdle()
                     // Optional surfaces never queue a restart after a provider cooldown.
                     if (budget.cooldownMillis() > 0L) return@resolve null
@@ -129,7 +129,7 @@ class HomePreviewController(
                     var stream = if (trailerOnly) null else viewModel.getCachedStream(movie, choice.season, choice.episode, purpose)
                     if (stream == null) {
                         val wait = budget.waitMillis()
-                        if (wait >= FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis())) return@resolve null
+                        if (wait >= FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis(), request.startupTimeoutMs)) return@resolve null
                         if (wait > 0L) delay(wait)
                         HomeStartupGate.awaitBrowsingIdle()
                         currentCoroutineContext().ensureActive()
@@ -323,7 +323,8 @@ class HomePreviewController(
                 .setPreferredVideoMimeType(MimeTypes.VIDEO_H264)
                 .setPreferredAudioLanguages("en", "eng")
                 .setPreferredTextLanguages("en", "eng")
-                .setSelectUndeterminedTextLanguage(true)
+                .setSelectUndeterminedTextLanguage(false)
+                .setIgnoredTextSelectionFlags(C.SELECTION_FLAG_DEFAULT or C.SELECTION_FLAG_FORCED)
                 .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !request.audible)
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
                 .build()
@@ -343,7 +344,7 @@ class HomePreviewController(
                 stream.url.contains(".m3u8", true) -> item.setMimeType(MimeTypes.APPLICATION_M3U8)
                 stream.url.contains(".mp4", true) -> item.setMimeType(MimeTypes.VIDEO_MP4)
             }
-            val englishCaption = stream.captions.firstOrNull {
+            val englishCaption = stream.captions.map(com.example.data.SubtitleLanguage::normalize).firstOrNull {
                 it.isVerified && it.type !in setOf("thumbnails", "chapters") && it.url.isNotBlank() &&
                     !it.url.substringBefore('?').endsWith(".m3u8", true) &&
                     (it.languageCode.equals("en", true) || it.languageCode.equals("eng", true) ||
@@ -365,7 +366,7 @@ class HomePreviewController(
                 while (!finished.isCompleted) {
                     if (!viewModel.ownsSharedPlayback(playbackOwner)) break
                     if (seekChosen && activePlayer.currentPosition >= previewEndMs) break
-                    if (!revealed && FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis()) == 0L) break
+                    if (!revealed && FocusedPreviewPolicy.remainingStartupMs(focusedAt, SystemClock.uptimeMillis(), request.startupTimeoutMs) == 0L) break
                     delay(100L)
                 }
             }

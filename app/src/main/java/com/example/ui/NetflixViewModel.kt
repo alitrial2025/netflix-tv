@@ -249,12 +249,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     private var activePlayer: androidx.media3.exoplayer.ExoPlayer? = null
     fun registerActivePlayer(player: androidx.media3.exoplayer.ExoPlayer?) {
         if (player != null) stopHomePreviews()
-        // perf: release the previous player before swapping so a replaced Billboard
-        // (e.g. tab switch) doesn't leak its ExoPlayer instance.
-        val previous = activePlayer
-        if (previous != null && previous !== player) {
-            try { previous.release() } catch (_: Exception) {}
-        }
+        require(player == null || sharedExoPlayerDelegate.isInitialized() && player === sharedExoPlayerDelegate.value) { "TV playback must use the shared player" }
         activePlayer = player
     }
 

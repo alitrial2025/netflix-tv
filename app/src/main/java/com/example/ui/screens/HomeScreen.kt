@@ -249,7 +249,7 @@ fun HomeScreen(
         // do not recompose the catalogue or restart artwork layout on each key.
         snapshotFlow { navBarTabState.value }.collectLatest { requestedTab ->
             if (requestedTab != contentTabState.value) {
-                kotlinx.coroutines.delay(220)
+                if (requestedTab != "Search") kotlinx.coroutines.delay(220)
                 if (navBarTabState.value == requestedTab) contentTabState.value = requestedTab
             }
         }
@@ -1262,7 +1262,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
                     ambientColorProvider = ambientColorProvider,
                     playFocusRequester = billboardFocusRequester,
                     moreInfoFocusRequester = moreInfoFocusRequester,
-                    isBillboardFocused = isBillboardFocused && activeTab == contentTab,
+                    isBillboardFocused = isBillboardFocused && activeTab == contentTab && navBarTab == contentTab,
                     onArtworkReady = {
                         if (activeTab == contentTab && activeTabMovie.id != "0") homeArtworkReady = true
                     },

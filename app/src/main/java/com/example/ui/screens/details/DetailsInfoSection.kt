@@ -198,107 +198,26 @@ fun DetailsLeftInfoColumn(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.graphicsLayer {
-                val reveal = ((entranceProgressProvider() - 0.21f) / 0.36f).coerceIn(0f, 1f)
-                alpha = reveal
-                translationY = (1f - reveal) * 24f
-            }
-        ) {
-            val typeBadgeText = when {
+        DetailsMetadataLine(
+            type = when {
                 isKidContent && isTvSeries -> "Kids Series"
                 isKidContent && movie.type.equals("Animation", ignoreCase = true) -> "Animated Film"
                 isKidContent -> "Kids Film"
                 isTvSeries -> "Series"
                 movie.type.equals("Animation", ignoreCase = true) -> "Animated Film"
                 else -> "Film"
+            },
+            genre = extraInfo.genre,
+            year = movie.year.ifBlank { "2025" },
+            duration = movie.duration.ifBlank { if (isTvSeries) "1 Season" else "1h 42m" },
+            rating = extraInfo.ratingBadge,
+            isKidContent = isKidContent,
+            modifier = Modifier.graphicsLayer {
+                val reveal = ((entranceProgressProvider() - 0.21f) / 0.36f).coerceIn(0f, 1f)
+                alpha = reveal
+                translationY = (1f - reveal) * 24f
             }
-            Text(
-                text = typeBadgeText,
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(text = "•", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
-
-            Text(
-                text = extraInfo.genre,
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Text(text = "•", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
-
-            Text(
-                text = movie.year.ifBlank { "2025" },
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Text(text = "•", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
-
-            val durationBadgeText = when {
-                isTvSeries -> movie.duration.ifBlank { "1 Season" }
-                else -> movie.duration.ifBlank { "1h 42m" }
-            }
-            Text(
-                text = durationBadgeText,
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Text(text = "•", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
-
-            val ratingBgColor = if (isKidContent) Color(0xFF22C55E) else Color(0xFFEAB308)
-            Box(
-                modifier = Modifier
-                    .background(ratingBgColor, RoundedCornerShape(3.dp))
-                    .padding(horizontal = 5.dp, vertical = 1.5.dp)
-            ) {
-                Text(
-                    text = extraInfo.ratingBadge,
-                    color = if (isKidContent) Color.White else Color.Black,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Text(text = "•", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
-
-            Box(
-                modifier = Modifier
-                    .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp)
-            ) {
-                Text(
-                    text = "AD)))",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Text(text = "•", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
-
-            Box(
-                modifier = Modifier
-                    .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp)
-            ) {
-                Text(
-                    text = "CC",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+        )
 
         Spacer(modifier = Modifier.height(10.dp))
 

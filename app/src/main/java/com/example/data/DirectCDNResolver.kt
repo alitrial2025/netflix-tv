@@ -1567,7 +1567,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                                 var fullUrl = rawFile
                                 if (fullUrl.startsWith("//")) fullUrl = "https:$fullUrl"
                                 else if (fullUrl.startsWith("/")) fullUrl = "https://$domain$fullUrl"
-                                val label = tObj.optString("label").ifBlank { tObj.optString("language") }.ifBlank { tObj.optString("name") }.ifBlank { "English" }
+                                val label = tObj.optString("label").ifBlank { tObj.optString("language") }.ifBlank { tObj.optString("name") }.ifBlank { "Unknown language" }
                                 val langCode = tObj.optString("language").ifBlank { tObj.optString("srclang") }.ifBlank { tObj.optString("lang") }
                                     .ifBlank { extractLanguageCode(label, rawFile) }
                                 parsedTracks.add(Caption(fullUrl, label, if (fullUrl.contains(".srt", ignoreCase = true)) "srt" else "vtt", langCode))
@@ -1814,7 +1814,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
                             var fileUrl = rawFile
                             if (fileUrl.startsWith("//")) fileUrl = "https:$fileUrl"
                             else if (fileUrl.startsWith("/")) fileUrl = "https://$domain$fileUrl"
-                            val label = t.optString("label").ifBlank { t.optString("language") }.ifBlank { t.optString("name") }.ifBlank { "English" }
+                            val label = t.optString("label").ifBlank { t.optString("language") }.ifBlank { t.optString("name") }.ifBlank { "Unknown language" }
                             val langCode = t.optString("language").ifBlank { t.optString("srclang") }.ifBlank { t.optString("lang") }
                                 .ifBlank { extractLanguageCode(label, fileUrl) }
                             captions.add(
