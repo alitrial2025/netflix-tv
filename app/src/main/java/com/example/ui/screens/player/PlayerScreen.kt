@@ -112,6 +112,7 @@ fun PlayerScreen(
     if (playbackAccessLocked) {
         com.example.ui.screens.details.UpgradePlanModal(
             currentPlanName = userSubscription.planName,
+            currentPlanStatus = userSubscription.statusLabel,
             lockReason = viewModel.getLockReason(movie),
             onDismiss = onBack,
             onUpgradeConfirm = { planId, planName -> viewModel.upgradePlan(planId, planName) },

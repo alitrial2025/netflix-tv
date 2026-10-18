@@ -89,6 +89,9 @@
     }
   ],
   "functions": {
+    "api/profiles/sync.js": {
+      "maxDuration": 30
+    },
     "api/payments/verify.js": {
       "maxDuration": 60
     }

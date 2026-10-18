@@ -18,7 +18,9 @@ service cloud.firestore {
         !(collection in ['profiles', 'discovery_votes', 'discovery_days', 'device_binding', 'stream_slots', 'subscription']);
     }
     match /users/{uid}/profiles/{profile} {
-      allow read, write: if accountOwner(uid);
+      allow read, update, delete: if accountOwner(uid);
+      // A trusted transaction counts profiles and serializes concurrent creates.
+      allow create: if false;
     }
     // Reminder tombstones are governed only by the validated reminder match below.
     match /users/{uid}/profiles/{profile}/{collection}/{document=**} {
@@ -49,7 +51,8 @@ service cloud.firestore {
     function paid(uid) {
       let sub = currentPlan(uid);
       return sub.planId in ['plan_mobile','plan_basic','plan_standard','plan_premium'] &&
-        sub.status in ['ACTIVE','GRACE_PERIOD'] && sub.expiresAt is int && sub.expiresAt > 0 &&
+        sub.status is string && sub.status.upper() in ['ACTIVE','GRACE_PERIOD'] &&
+        sub.expiresAt is int && sub.expiresAt > 0 && sub.expiresAt <= 8640000000000000 &&
         request.time.toMillis() < sub.expiresAt + 172800000;
     }
     function binding(uid) {

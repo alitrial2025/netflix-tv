@@ -1431,7 +1431,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                         payload = SyncScheduler.encodePayload(outboxPayload)
                     )
                     try {
-                        docRef.set(filtered, SetOptions.merge()).await()
+                        com.example.data.TrustedProfileSync.save(targetUid, listOf(filtered + ("id" to profile.id)))
                         pendingWriteDao.markDone(rowId, System.currentTimeMillis())
                     } catch (directErr: Exception) {
                         android.util.Log.w(
@@ -3037,6 +3037,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                                     subscriptionListenerRevision.get() != listenerRevision ||
                                     snapshotSequence.get() != sequence) return@withLock
                                 if (authoritative != null && authoritative.exists()) {
+                                    com.example.data.SubscriptionTime.refreshFromServer(getApplication())
+                                    if (authenticatedUid() != targetUid || subscriptionListenerRevision.get() != listenerRevision ||
+                                        snapshotSequence.get() != sequence) return@withLock
                                     runCatching { authoritative.getTimestamp("updatedAt")?.toDate()?.time }.getOrNull()?.let {
                                         com.example.data.SubscriptionTime.observeServerTimestamp(it)
                                     }

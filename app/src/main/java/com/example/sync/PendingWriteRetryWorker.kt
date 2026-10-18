@@ -153,7 +153,9 @@ class PendingWriteRetryWorker(
                 val docId = row.documentId
                     ?: throw IllegalStateException("update/create row missing documentId")
                 val docRef = resolveDocRef(db, row.collection, docId)
-                docRef.set(data, SetOptions.merge()).await()
+                if (row.collection == "users/${user.uid}/profiles") {
+                    com.example.data.TrustedProfileSync.save(user.uid, listOf(data + ("id" to docId)))
+                } else docRef.set(data, SetOptions.merge()).await()
             }
             PendingWrite.OP_DELETE -> {
                 val docId = row.documentId
@@ -223,7 +225,8 @@ class PendingWriteRetryWorker(
     private suspend fun handleFailure(row: PendingWrite, error: Throwable, now: Long): Boolean {
         val newRetryCount = row.retryCount + 1
         val errorMsg = (error.message ?: error.javaClass.simpleName).take(500)
-        val isTerminal = newRetryCount >= PendingWrite.MAX_RETRIES
+        val isTerminal = newRetryCount >= PendingWrite.MAX_RETRIES ||
+            error is com.example.data.ProfileSyncException && error.statusCode in setOf(400, 409)
         if (isTerminal) {
             dao.markRetry(
                 id = row.id,

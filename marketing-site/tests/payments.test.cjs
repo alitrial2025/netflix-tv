@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
-const { paymentInput, lookupPayment, activate, createHandler, existingPayment } = require('../server/payment-service.cjs');
+const { paymentInput, lookupPayment, activate, createHandler, existingPayment, claimVerificationAttempt } = require('../server/payment-service.cjs');
 const reference = (uid='alice',plan='plan_premium') => `NF_${createHash('sha256').update(uid).digest('hex').slice(0,16)}_${plan.replace('plan_','')}_${'b'.repeat(32)}`;
 const input = (uid='alice',plan='plan_premium') => paymentInput(uid,{planId:plan,receiptCode:'TEST123456',paymentReference:reference(uid,plan)});
 const payment = () => ({provider_reference:'TEST123456',status:'SUCCESS',provider:'M-PESA',currency:'KES',external_reference:reference(),transaction_type:'PAYMENT',amount:1350,reference:'merchant-transaction'});
@@ -47,7 +47,7 @@ test('a status without amount must match the same incoming receipt in the authen
 test('membership writes occur together only after gateway evidence passes; client-provided prices are ignored',async()=>{
  const db=mockDb();const handler=createHandler({...deps(db),verifyIdToken:async()=>({uid:'alice',firebase:{sign_in_provider:'password'}}),gatewayGet:merchantGateway()});
  const result=await invoke(handler,{planId:'plan_premium',receiptCode:'TEST123456',paymentReference:reference(),planPrice:1});
- assert.equal(result.status,200);assert.equal(result.result.subscription.amount,1350);assert.equal(db.data.size,4);
+ assert.equal(result.status,200);assert.equal(result.result.subscription.amount,1350);assert.equal(db.data.size,5);
  assert.equal(db.data.get('users/alice').subscriptionPlanId,'plan_premium');
  assert.equal(db.data.get('used_receipts/TEST123456').usedByUserId,'alice');
  assert.equal(db.data.get('subscriptions/alice').expiresAt,result.result.subscription.expiresAt);
@@ -55,7 +55,7 @@ test('membership writes occur together only after gateway evidence passes; clien
 test('failed or fake gateway verification leaves receipt and membership entirely untouched',async()=>{
  const db=mockDb();const handler=createHandler({...deps(db),verifyIdToken:async()=>({uid:'alice'}),gatewayGet:async()=>({...payment(),provider_reference:'FAKE123456'})});
  const response=await invoke(handler,{planId:'plan_premium',receiptCode:'TEST123456',paymentReference:reference()});
- assert.equal(response.status,422);assert.equal(db.data.size,0);
+ assert.equal(response.status,422);assert.equal(db.data.size,1);assert.ok(db.data.has('payment_verification_limits/alice'));
 });
 test('concurrent retries create one receipt and add exactly one membership period',async()=>{
  const db=mockDb();const [first,second]=await Promise.all([activate(input(),{amountPaid:1350,gatewayReference:'merchant'},deps(db)),activate(input(),{amountPaid:1350,gatewayReference:'merchant'},deps(db))]);
@@ -94,7 +94,7 @@ test('another merchant receipt cannot grant membership even when status has exac
  const handler=createHandler({...deps(db),verifyIdToken:async()=>({uid:'alice'}),gatewayGet});
  const response=await invoke(handler,{planId:'plan_premium',receiptCode:'TEST123456',paymentReference:reference()});
  assert.equal(response.status,503);assert.equal(response.result.code,'MERCHANT_RECEIPT_UNCONFIRMED');
- assert.deepEqual(calls,['transaction-status','transactions']);assert.equal(db.data.size,0);
+ assert.deepEqual(calls,['transaction-status','transactions']);assert.equal(db.data.size,1);assert.ok(db.data.has('payment_verification_limits/alice'));
 });
 test('merchant ledger amount is mandatory and conflicts or mismatched checkout cannot approve a receipt',async()=>{
  await assert.rejects(lookupPayment(input(),merchantGateway(payment(),{...payment(),amount:150})),{code:'INSUFFICIENT_AMOUNT'});
@@ -121,4 +121,88 @@ test('merchant ledger search is paginated and strictly bounded when an exact rec
   if(path==='transaction-status') return payment();requests++;return {data:[],pagination:{next_page:Number(params.page)+1}};
  }),{code:'MERCHANT_RECEIPT_UNCONFIRMED'});
  assert.equal(requests,10);
+});
+
+test('renewal retains unexpired paid time for a grace-labelled record but never adds unused grace',async()=>{
+ for (const status of ['ACTIVE','GRACE_PERIOD','active']) {
+  const db=mockDb();db.data.set('users/alice/subscription/current',{planId:'plan_premium',status,expiresAt:1700001000000});
+  const result=await activate(input(),{amountPaid:1350,gatewayReference:'merchant'},deps(db));
+  assert.equal(result.subscription.expiresAt,1700001000000+2592000000);
+ }
+ for (const previous of [
+  {planId:'plan_premium',status:'GRACE_PERIOD',expiresAt:1699999999999},
+  {planId:'plan_basic',status:'ACTIVE',expiresAt:1700001000000},
+  {planId:'plan_premium',status:'EXPIRED',expiresAt:1700001000000}]) {
+  const db=mockDb();db.data.set('users/alice/subscription/current',previous);
+  const result=await activate(input(),{amountPaid:1350,gatewayReference:'merchant'},deps(db));
+  assert.equal(result.subscription.expiresAt,1700000000000+2592000000);
+ }
+});
+
+test('invalid server time cannot consume a receipt or partially activate membership',async()=>{
+ for(const now of [0,-1,NaN,Infinity,'1700000000000',Number.MAX_SAFE_INTEGER]) {
+  const db=mockDb();
+  await assert.rejects(activate(input(),{amountPaid:1350,gatewayReference:'merchant'},{...deps(db),now:()=>now}),{code:'INVALID_SERVER_TIME'});
+  assert.equal(db.data.size,0);
+ }
+});
+
+test('conflicting status checkout aliases and outbound direction cannot approve membership',async()=>{
+ await assert.rejects(lookupPayment(input(),merchantGateway({...payment(),payment_reference:reference(),external_reference:reference('bob')})),{code:'CHECKOUT_MISMATCH'});
+ for(const direction of ['DEBIT','OUTGOING','OUTBOUND','B2C','B2B']) {
+  await assert.rejects(lookupPayment(input(),merchantGateway({...payment(),direction})),{code:'INVALID_PAYMENT'});
+  await assert.rejects(lookupPayment(input(),merchantGateway(payment(),{...payment(),direction})),{code:'INVALID_PAYMENT'});
+ }
+});
+
+
+test('a new payment cannot bypass a suspension or consume its receipt',async()=>{
+ const db=mockDb();db.data.set('users/alice/subscription/current',{planId:'plan_premium',status:'SUSPENDED',expiresAt:1700001000000});
+ await assert.rejects(activate(input(),{amountPaid:1350,gatewayReference:'merchant'},deps(db)),{code:'ACCOUNT_SUSPENDED'});
+ assert.equal(db.data.size,1);assert.equal(db.data.get('users/alice/subscription/current').status,'SUSPENDED');
+});
+
+test('conflicting status fields and malformed amount cannot masquerade as completed money',async()=>{
+ await assert.rejects(lookupPayment(input(),merchantGateway({...payment(),Status:'FAILED'})),{code:'PAYMENT_PENDING'});
+ await assert.rejects(lookupPayment(input(),merchantGateway(payment(),{...payment(),Status:'REVERSED'})),{code:'PAYMENT_PENDING'});
+ await assert.rejects(lookupPayment(input(),merchantGateway({...payment(),amount:[1350]},payment())),{code:'PAYMENT_EVIDENCE_MISMATCH'});
+ await assert.rejects(lookupPayment(input(),merchantGateway(payment(),{...payment(),amount:[1350]})),{code:'AMOUNT_UNCONFIRMED'});
+});
+
+
+test('a lost checkout nonce is recoverable only from merchant evidence bound to the same account and plan',async()=>{
+ const original=reference().slice(0,-32)+'c'.repeat(32);
+ const gateway=merchantGateway({...payment(),external_reference:original});
+ const confirmed=await lookupPayment(input(),gateway);
+ assert.equal(confirmed.paymentReference,original);
+ const db=mockDb();const result=await activate(input(),confirmed,deps(db));
+ assert.equal(result.subscription.paymentReference,original);
+ assert.equal(db.data.get('used_receipts/TEST123456').paymentReference,original);
+ await assert.rejects(lookupPayment(input('bob'),gateway),{code:'CHECKOUT_MISMATCH'});
+ await assert.rejects(lookupPayment(input('alice','plan_basic'),gateway),{code:'CHECKOUT_MISMATCH'});
+});
+
+
+test('every plan is priced on the server and cannot be activated by an underpayment',async()=>{
+ for(const [plan,price] of [['plan_mobile',150],['plan_basic',550],['plan_standard',950],['plan_premium',1350]]) {
+  const record={...payment(),external_reference:reference('alice',plan),amount:price};
+  assert.equal((await lookupPayment(input('alice',plan),merchantGateway(record))).amountPaid,price);
+  await assert.rejects(lookupPayment(input('alice',plan),merchantGateway({...record,amount:price-1})),{code:'INSUFFICIENT_AMOUNT'});
+ }
+});
+
+test('verification throttling is atomic bounded and does not block already applied receipt recovery',async()=>{
+ const db=mockDb();let time=1700000000000;
+ const d={db,now:()=>time};
+ const attempts=await Promise.allSettled([claimVerificationAttempt('alice',d),claimVerificationAttempt('alice',d)]);
+ assert.equal(attempts.filter(r=>r.status==='fulfilled').length,1);
+ assert.equal(attempts.find(r=>r.status==='rejected').reason.retryAfterMs,5000);
+ for(let i=0;i<4;i++){time+=5000;await claimVerificationAttempt('alice',d);}
+ time+=5000;await assert.rejects(claimVerificationAttempt('alice',d),{code:'VERIFICATION_BUSY'});
+ time=1700000060000;await claimVerificationAttempt('alice',d);
+ assert.equal(db.data.get('payment_verification_limits/alice').count,1);
+ await activate(input(),{amountPaid:1350,gatewayReference:'merchant'},deps(db));
+ const handler=createHandler({...deps(db),verifyIdToken:async()=>({uid:'alice'}),gatewayGet:async()=>{throw Error('must not look up an already applied receipt');}});
+ const response=await invoke(handler,{planId:'plan_premium',receiptCode:'TEST123456',paymentReference:reference()});
+ assert.equal(response.status,200);
 });

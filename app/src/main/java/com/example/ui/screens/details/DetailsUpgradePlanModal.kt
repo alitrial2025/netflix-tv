@@ -37,7 +37,8 @@ fun UpgradePlanModal(
     lockReason: String,
     onDismiss: () -> Unit,
     onUpgradeConfirm: (planId: String, planName: String) -> Unit,
-    onWatchTrailer: () -> Unit
+    onWatchTrailer: () -> Unit,
+    currentPlanStatus: String = ""
 ) {
     val plans = remember {
         SubscriptionPlans.PLANS.filter { it.id != "plan_mobile" }
@@ -98,6 +99,9 @@ fun UpgradePlanModal(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
+                if (currentPlanStatus.isNotBlank()) Text(
+                    text = "$currentPlanName • $currentPlanStatus", color = Color.White, fontSize = 14.sp
+                )
 
                 Text(
                     text = "$lockReason\nChoose or renew a plan on your phone using the same account. You can watch the official trailer while you decide.",

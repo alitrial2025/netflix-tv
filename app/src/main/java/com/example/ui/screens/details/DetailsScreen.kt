@@ -811,6 +811,7 @@ fun DetailsScreen(
         ) {
             UpgradePlanModal(
                 currentPlanName = userSubscription.planName,
+            currentPlanStatus = userSubscription.statusLabel,
                 lockReason = viewModel.getLockReason(movie),
                 onDismiss = { showUpgradeModal = false },
                 onUpgradeConfirm = { planId, planName ->

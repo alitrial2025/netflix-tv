@@ -82,6 +82,7 @@ object DeviceAccessGuard {
     suspend fun confirm(context: Context, tv: Boolean): com.google.firebase.firestore.DocumentSnapshot {
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser?.takeUnless { it.isAnonymous } ?: throw MembershipCheckException()
+        SubscriptionTime.refreshFromServer(context)
         val requestGeneration = generation.get()
         val db = FirebaseFirestore.getInstance()
         val subRef = db.collection("users").document(user.uid).collection("subscription").document("current")
@@ -140,6 +141,7 @@ object ScreenLease {
     suspend fun acquire(context: Context, tv: Boolean): VerifiedMembership = acquireMutex.withLock {
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser?.takeUnless { it.isAnonymous } ?: throw MembershipCheckException()
+        SubscriptionTime.refreshFromServer(context)
         val requestGeneration = generation.get()
         val device = DeviceAccessGuard.deviceId(context)
         val db = FirebaseFirestore.getInstance()

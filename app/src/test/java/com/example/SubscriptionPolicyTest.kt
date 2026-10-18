@@ -79,4 +79,47 @@ class SubscriptionPolicyTest {
         clock.observeServerTimestamp(1_100_000L) // an older cloud record cannot rewind time
         assertEquals(1_121_000L, clock.now())
     }
+
+    @Test fun trustedTimeIgnoresFutureWallClockAndCorrectsAnAlreadyPoisonedCheckpoint() {
+        var wall = 2_000_000L
+        var elapsed = 5_000L
+        val clock = MonotonicSubscriptionClock(wallTime = { wall }, elapsedTime = { elapsed })
+        wall += 365L * 86_400_000L
+        assertEquals(wall, clock.now())
+        clock.synchronize(2_000_000L)
+        assertEquals(2_000_000L, clock.now())
+        elapsed += 1_000L
+        assertEquals(2_001_000L, clock.now())
+    }
+
+    @Test fun rapidRestartsCannotFreezeTimeInsideThePersistenceInterval() {
+        var wall = 2_000_000L
+        var elapsed = 5_000L
+        var saved = 0L
+        var savedElapsed = 0L
+        val clock = MonotonicSubscriptionClock(wallTime = { wall }, elapsedTime = { elapsed },
+            persistState = { time, tick, _ -> saved = time; savedElapsed = tick })
+        clock.synchronize(wall)
+        wall = 1L
+        repeat(5) {
+            elapsed += 10_000L
+            val restarted = MonotonicSubscriptionClock(saved, { wall }, { elapsed },
+                restoredElapsed = savedElapsed, initiallyTrusted = true)
+            assertEquals(2_000_000L + (it + 1) * 10_000L, restarted.now())
+        }
+    }
+
+    @Test fun planPresentationDistinguishesGraceSuspensionAndExpiredMembership() {
+        val previous = UserSubscription.clock
+        val expiry = 1_800_000_000_000L
+        UserSubscription.clock = { expiry }
+        try {
+            val sub = UserSubscription(status = "ACTIVE", planId = "plan_premium", expiresAt = expiry)
+            assertEquals("RENEWAL DUE", sub.statusLabel)
+            assertEquals("SUSPENDED", sub.copy(status = "SUSPENDED").statusLabel)
+            assertEquals("EXPIRED", sub.copy(expiresAt = expiry - com.example.data.RenewalPolicy.GRACE_MS).statusLabel)
+            assertFalse(sub.copy(expiresAt = Long.MAX_VALUE).isActive)
+            assertThrows(IllegalArgumentException::class.java) { SubscriptionPlans.getById("not_a_plan") }
+        } finally { UserSubscription.clock = previous }
+    }
 }

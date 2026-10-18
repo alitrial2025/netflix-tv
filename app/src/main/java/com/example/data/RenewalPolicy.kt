@@ -8,7 +8,7 @@ object RenewalPolicy {
         if (expiresAt > Long.MAX_VALUE - GRACE_MS) Long.MAX_VALUE else expiresAt + GRACE_MS
     fun grantsAccess(status: String, expiresAt: Long, now: Long): Boolean =
         (status.equals("ACTIVE", true) || status.equals("GRACE_PERIOD", true)) &&
-            expiresAt > 0L && now < accessEndsAt(expiresAt)
+            expiresAt in 1L..8_640_000_000_000_000L && now < accessEndsAt(expiresAt)
     fun reminderDue(expiresAt: Long, now: Long): Boolean = expiresAt > 0L &&
         now >= expiresAt && now - expiresAt >= DAY_MS && now < accessEndsAt(expiresAt)
 }

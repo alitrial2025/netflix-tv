@@ -35,19 +35,35 @@ function validateTransaction(payment, input) {
   if (!hasReceipt(payment, input.receiptCode)) fail(422, 'RECEIPT_MISMATCH', 'No exact payment found for this code. Check your confirmation SMS.');
   if (text(payment, 'status', 'Status').toUpperCase() !== 'SUCCESS' || (Object.hasOwn(payment, 'success') && payment.success !== true))
     fail(422, 'PAYMENT_PENDING', 'This payment is not completed. Wait for confirmation and retry the same code; do not pay again.');
-  if (text(payment, 'payment_reference', 'external_reference', 'user_reference') !== input.paymentReference)
+  const checkout = text(payment, 'payment_reference', 'external_reference', 'user_reference');
+  const prefix = input.paymentReference.slice(0, -32);
+  // A reinstall can lose the local nonce. Merchant evidence must still prove
+  // the same authenticated account and plan, with a valid original checkout.
+  if (!checkout.startsWith(prefix) || !/^[a-f0-9]{32}$/.test(checkout.slice(prefix.length)))
     fail(422, 'CHECKOUT_MISMATCH', 'This payment does not match checkout for this account and plan. Use its confirmation code; do not pay again.');
+  if (['payment_reference', 'external_reference', 'user_reference'].some(field =>
+    text(payment, field) && text(payment, field) !== checkout))
+    fail(422, 'CHECKOUT_MISMATCH', 'The payment contains conflicting checkout references. Contact support; do not pay again.');
   const provider = text(payment, 'provider', 'gateway').toLowerCase();
   if (provider && !['mpesa', 'm-pesa'].includes(provider)) fail(422, 'INVALID_PAYMENT', 'Only incoming M-Pesa membership payments are accepted.');
   validateIncoming(payment);
+  return checkout;
 }
 function validateIncoming(payment) {
   const currency = text(payment, 'currency');
-  const direction = text(payment, 'transaction_type', 'type').toLowerCase();
-  if ((currency && currency.toUpperCase() !== 'KES') || ['withdraw', 'charge', 'payout', 'refund', 'revers'].some(x => direction.includes(x)))
+  const directions = ['transaction_type', 'type', 'direction'].map(field => text(payment, field).toLowerCase());
+  if (['status', 'Status'].some(field => text(payment, field) && text(payment, field).toUpperCase() !== 'SUCCESS') ||
+      Object.hasOwn(payment, 'success') && payment.success !== true)
+    fail(422, 'PAYMENT_PENDING', 'The merchant returned incomplete or conflicting payment status. Retry the same code; do not pay again.');
+  const direction = text(payment, 'direction').toLowerCase().replace(/[ -]/g, '_');
+  if (direction && !['in','incoming','inbound','credit','received','collection','deposit','c2b','stk_push'].includes(direction))
+    fail(422, 'INVALID_PAYMENT', 'This receipt is not an incoming membership payment.');
+  if ((currency && currency.toUpperCase() !== 'KES') || directions.some(direction =>
+    ['withdraw', 'charge', 'payout', 'refund', 'revers', 'debit', 'outgoing', 'outbound', 'b2c', 'b2b'].some(x => direction.includes(x))))
     fail(422, 'INVALID_PAYMENT', 'This receipt is not an incoming KES membership payment.');
 }
 function amount(payment) {
+  if (typeof payment.amount !== 'number' && (typeof payment.amount !== 'string' || !/^\d+(?:\.\d+)?$/.test(payment.amount.trim()))) return null;
   const value = Number(payment.amount);
   return Number.isFinite(value) && value > 0 ? value : null;
 }
@@ -56,7 +72,7 @@ async function lookupPayment(input, gatewayGet) {
   const matches = records(response).filter(row => hasReceipt(row, input.receiptCode));
   if (matches.length !== 1) fail(422, 'RECEIPT_NOT_FOUND', 'No exact payment found for this code. Check your confirmation SMS and retry; do not pay again.');
   const payment = matches[0];
-  validateTransaction(payment, input);
+  const checkout = validateTransaction(payment, input);
   // Receipt-status lookup alone may not prove that the payment reached this
   // merchant. Always confirm the exact receipt in this authenticated merchant's ledger.
   let merchantPayment = null;
@@ -83,16 +99,16 @@ async function lookupPayment(input, gatewayGet) {
     fail(422, 'INVALID_PAYMENT', 'Only incoming M-Pesa membership payments are accepted.');
   const ledgerReferences = ['payment_reference', 'external_reference', 'user_reference']
     .map(field => text(merchantPayment, field)).filter(Boolean);
-  if (ledgerReferences.some(reference => reference !== input.paymentReference))
+  if (ledgerReferences.some(reference => reference !== checkout))
     fail(422, 'CHECKOUT_MISMATCH', 'This merchant receipt does not match checkout for this account and plan. Contact support; do not pay again.');
   const paid = amount(merchantPayment);
   if (paid == null)
     fail(503, 'AMOUNT_UNCONFIRMED', 'The merchant has not confirmed this receipt amount. Retry shortly or contact support; do not pay again.');
   if (!Number.isSafeInteger(paid) || paid < input.plan.price || paid > 2147483647)
     fail(422, 'INSUFFICIENT_AMOUNT', `The confirmed payment does not cover this plan (KES ${input.plan.price}).`);
-  if (payment.amount != null && String(payment.amount).trim() !== '' && Number(payment.amount) !== paid)
+  if (payment.amount != null && String(payment.amount).trim() !== '' && amount(payment) !== paid)
     fail(503, 'PAYMENT_EVIDENCE_MISMATCH', 'The merchant receipt amount conflicts with its payment status. Contact support; do not pay again.');
-  return { amountPaid: paid, gatewayReference: text(payment, 'reference') };
+  return { amountPaid: paid, gatewayReference: text(payment, 'reference'), paymentReference: checkout };
 }
 function existingPayment(receipt, subscription, input) {
   if (receipt.usedByUserId !== input.uid || receipt.planId !== input.planId)
@@ -100,6 +116,26 @@ function existingPayment(receipt, subscription, input) {
   if (!subscription || subscription.mpesaReceipt !== input.receiptCode || subscription.planId !== input.planId)
     fail(409, 'RECEIPT_USED', 'This payment has already been redeemed. It cannot add another membership period.');
   return { subscription, amountPaid: Number(receipt.amount) || subscription.amount, message: 'This payment is already applied to your account.' };
+}
+async function claimVerificationAttempt(uid, { db, now = Date.now }) {
+  const ref = db.collection('payment_verification_limits').doc(uid);
+  await db.runTransaction(async tx => {
+    const snapshot = await tx.get(ref);
+    const previous = snapshot.exists ? snapshot.data() : {};
+    const time = now();
+    if (!Number.isSafeInteger(time) || time <= 0 || time > 8640000000000000)
+      fail(503, 'INVALID_SERVER_TIME', 'Verification time could not be confirmed. Retry the same code; do not pay again.');
+    const inWindow = Number.isSafeInteger(previous.windowStart) && time >= previous.windowStart && time - previous.windowStart < 60000;
+    const count = inWindow && Number.isSafeInteger(previous.count) ? previous.count : 0;
+    const retry = count >= 5 ? previous.windowStart + 60000 - time :
+      inWindow && Number.isSafeInteger(previous.lastAttemptAt) ? previous.lastAttemptAt + 5000 - time : 0;
+    if (retry > 0) {
+      const error = new PaymentError(429, 'VERIFICATION_BUSY', `Please wait ${Math.ceil(retry / 1000)} seconds, then retry this same code; do not pay again.`);
+      error.retryAfterMs = retry;
+      throw error;
+    }
+    tx.set(ref, { windowStart: inWindow ? previous.windowStart : time, count: count + 1, lastAttemptAt: time });
+  });
 }
 async function activate(input, payment, { db, serverTimestamp, now = Date.now }) {
   const receiptRef = db.collection('used_receipts').doc(input.receiptCode);
@@ -110,19 +146,27 @@ async function activate(input, payment, { db, serverTimestamp, now = Date.now })
     const current = await tx.get(currentRef);
     if (redeemed.exists) return existingPayment(redeemed.data(), current.exists ? current.data() : null, input);
     const previous = current.exists ? current.data() : {};
+    if (String(previous.status).toUpperCase() === 'SUSPENDED')
+      fail(409, 'ACCOUNT_SUSPENDED', 'Your membership is suspended. Contact support with your receipt before paying again.');
     const activatedAt = now();
-    const previousExpiry = previous.planId === input.planId && previous.status === 'ACTIVE' && Number.isSafeInteger(previous.expiresAt) && previous.expiresAt > activatedAt ? previous.expiresAt : activatedAt;
+    const period = 30 * 86400000;
+    const maxTime = 8640000000000000 - period;
+    if (!Number.isSafeInteger(activatedAt) || activatedAt <= 0 || activatedAt > maxTime)
+      fail(503, 'INVALID_SERVER_TIME', 'Membership time could not be confirmed. Retry the same code; do not pay again.');
+    const renewable = ['ACTIVE', 'GRACE_PERIOD'].includes(String(previous.status).toUpperCase());
+    const previousExpiry = previous.planId === input.planId && renewable && Number.isSafeInteger(previous.expiresAt) &&
+      previous.expiresAt > activatedAt && previous.expiresAt <= maxTime ? previous.expiresAt : activatedAt;
     const subscription = { status: 'ACTIVE', planId: input.planId, planName: input.plan.name,
-      amount: input.plan.price, currency: 'KES', paymentReference: input.paymentReference,
-      mpesaReceipt: input.receiptCode, subscribedAt: activatedAt, expiresAt: previousExpiry + 30 * 86400000 };
+      amount: input.plan.price, currency: 'KES', paymentReference: payment.paymentReference || input.paymentReference,
+      mpesaReceipt: input.receiptCode, subscribedAt: activatedAt, expiresAt: previousExpiry + period };
     const data = { ...subscription, updatedAt: serverTimestamp() };
     tx.create(receiptRef, { receipt: input.receiptCode, usedByUserId: input.uid, planId: input.planId,
-      amount: payment.amountPaid, currency: 'KES', paymentReference: input.paymentReference,
+      amount: payment.amountPaid, currency: 'KES', paymentReference: subscription.paymentReference,
       gatewayReference: payment.gatewayReference, expiresAt: subscription.expiresAt, verifiedAt: serverTimestamp() });
     tx.set(currentRef, data, { merge: true });
     tx.set(db.collection('subscriptions').doc(input.uid), { ...data, userId: input.uid }, { merge: true });
     tx.set(userRef, { subscriptionPlanId: input.planId, subscriptionStatus: 'ACTIVE', updatedAt: serverTimestamp() }, { merge: true });
-    return { subscription, amountPaid: payment.amountPaid, message: `Payment verified. Your ${input.plan.name} membership is active for 30 days.` };
+    return { subscription, amountPaid: payment.amountPaid, message: `Payment verified. 30 days added to your ${input.plan.name} membership.` };
   });
 }
 function createGatewayGet(authorization, fetchImpl = fetch, deadline = Date.now() + 45000) {
@@ -162,16 +206,20 @@ function createHandler({ verifyIdToken, db, serverTimestamp, gatewayGet, now }) 
       const existing = await receiptRef.get();
       if (existing.exists) {
         const current = await db.collection('users').doc(input.uid).collection('subscription').doc('current').get();
-        return send(200, existingPayment(existing.data(), current.exists ? current.data() : null, input));
+        return send(200, { ...existingPayment(existing.data(), current.exists ? current.data() : null, input), serverNow: (now || Date.now)() });
       }
+      await claimVerificationAttempt(input.uid, { db, now });
       const payment = await lookupPayment(input, gatewayGet);
-      return send(200, await activate(input, payment, { db, serverTimestamp, now }));
+      return send(200, { ...await activate(input, payment, { db, serverTimestamp, now }), serverNow: (now || Date.now)() });
     } catch (error) {
-      if (error instanceof PaymentError) return send(error.status, { code: error.code, message: error.message });
+      if (error instanceof PaymentError) {
+        if (error.retryAfterMs) res.setHeader('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)));
+        return send(error.status, { code: error.code, message: error.message, ...(error.retryAfterMs ? { retryAfterMs: error.retryAfterMs } : {}) });
+      }
       // Never log bearer tokens, merchant credentials, customer receipts or personal data.
       console.warn('Payment activation failed', { category: 'MEMBERSHIP_UNAVAILABLE' });
       return send(503, { code: 'MEMBERSHIP_UNAVAILABLE', message: 'Payment could not be saved. Retry this same code after reconnecting or contact support; do not pay again.' });
     }
   };
 }
-module.exports = { PLANS, PaymentError, paymentInput, validateTransaction, lookupPayment, existingPayment, activate, createHandler, createGatewayGet };
+module.exports = { PLANS, PaymentError, paymentInput, validateTransaction, lookupPayment, existingPayment, activate, createHandler, createGatewayGet, claimVerificationAttempt };

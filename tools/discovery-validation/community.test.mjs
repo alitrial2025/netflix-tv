@@ -88,6 +88,7 @@ test('legacy reminder migration cannot overwrite a concurrent disable', {timeout
 
 test('owned app data remains private and removed anonymous TV pairing is denied', async()=> {
  const alice=db('alice');const bob=db('bob');
+ await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/profiles/home'),{fixture:true}));
  for(const path of ['users/alice','users/alice/profiles/home','users/alice/profiles/home/watch_history/tv_1',
   'users/alice/history/movie_1','users/alice/profiles/home/preferences/player']) {
   await assertSucceeds(setDoc(doc(alice,path),{fixture:true}));
@@ -181,4 +182,30 @@ test('server-applied membership and immutable receipt are visible only to their 
   await assertFails(setDoc(doc(db('alice'),path),{planId:'plan_mobile'}));
   await assertFails(deleteDoc(doc(db('alice'),path)));
  }
+});
+
+
+test('cloud profile creation is server-only while existing profiles remain editable after downgrade',async()=>{
+ const store=db('alice');
+ await assertFails(setDoc(doc(store,'users/alice/profiles/new_profile'),{id:'new_profile',name:'Forged'}));
+ await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/profiles/existing'),{id:'existing',name:'Original'}));
+ await assertSucceeds(setDoc(doc(store,'users/alice/profiles/existing'),{name:'Renamed'},{merge:true}));
+ await assertFails(setDoc(doc(db('bob'),'users/alice/profiles/existing'),{name:'Other account'},{merge:true}));
+ await assertSucceeds(deleteDoc(doc(store,'users/alice/profiles/existing')));
+});
+
+test('legacy status casing remains consistent with app renewal policy and invalid expiry never grants a slot',async()=>{
+ const store=db('alice');
+ await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),{planId:'plan_standard',status:'active',expiresAt:Date.now()+86400000}));
+ await assertSucceeds(setDoc(doc(store,'users/alice/stream_slots/0'),slotData(deviceA)));
+ await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice/subscription/current'),{planId:'plan_standard',status:'ACTIVE',expiresAt:Number.MAX_SAFE_INTEGER}));
+ await assertFails(setDoc(doc(store,'users/alice/stream_slots/1'),slotData(deviceB)));
+});
+
+
+test('clients cannot edit or enumerate the payment verification budget',async()=>{
+ const store=db('alice');
+ await assertFails(setDoc(doc(store,'payment_verification_limits/alice'),{count:0,windowStart:0,lastAttemptAt:0}));
+ await assertFails(getDoc(doc(store,'payment_verification_limits/alice')));
+ await assertFails(getDocs(collection(store,'payment_verification_limits')));
 });

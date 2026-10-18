@@ -225,7 +225,7 @@ object SubscriptionPlans {
     )
 
     fun getById(id: String): SubscriptionPlan {
-        return PLANS.find { it.id == id } ?: PLANS[2]
+        return requireNotNull(PLANS.find { it.id == id }) { "Unknown membership plan" }
     }
 }
 
@@ -295,6 +295,18 @@ data class UserSubscription(
         get() = isInRenewalGrace
 
     val accessEndsAt: Long get() = com.example.data.RenewalPolicy.accessEndsAt(expiresAt)
+    val statusLabel: String get() = when {
+        isGuest -> "GUEST"
+        SubscriptionPlans.PLANS.none { it.id == planId } -> "UNAVAILABLE"
+        isInRenewalGrace -> "RENEWAL DUE"
+        isActive -> "ACTIVE"
+        status.equals("SUSPENDED", true) -> "SUSPENDED"
+        status.equals("CANCELLED", true) -> "CANCELLED"
+        status.equals("PAST_DUE", true) -> "PAYMENT DUE"
+        status.equals("PENDING", true) || status.equals("PENDING_ACTIVATION", true) -> "PAYMENT PENDING"
+        expiresAt > 0L -> "EXPIRED"
+        else -> "INACTIVE"
+    }
     val isInRenewalGrace: Boolean get() = isActive && expiresAt <= nowMillis()
     val renewalReminderDue: Boolean get() = isActive && com.example.data.RenewalPolicy.reminderDue(expiresAt, nowMillis())
 
@@ -408,6 +420,7 @@ data class UserSubscription(
             val days = daysRemaining
             return "Your subscription ends in $days day(s). Renew to keep streaming."
         }
+        if (status.equals("SUSPENDED", true)) return "Your membership is suspended. Contact support before making another payment."
         if (!isActive) return "An active plan is needed to watch the full movie or show. Subscribe or renew on your phone."
         val normalizedPlan = planId.lowercase()
         val normalizedName = planName.lowercase()
