@@ -1,0 +1,2389 @@
+{
+  "tmdb": {
+    "id": 91272,
+    "episodes": [
+      {
+        "id": 1347640,
+        "name": "Asta and Yuno",
+        "season_number": 1,
+        "episode_number": 1
+      },
+      {
+        "id": 1378799,
+        "name": "A Young Man's Vow",
+        "season_number": 1,
+        "episode_number": 2
+      },
+      {
+        "id": 1378975,
+        "name": "To the Royal Capital!",
+        "season_number": 1,
+        "episode_number": 3
+      },
+      {
+        "id": 1384162,
+        "name": "The Magic Knights Entrance Exam",
+        "season_number": 1,
+        "episode_number": 4
+      },
+      {
+        "id": 1387474,
+        "name": "The Road to the Wizard King",
+        "season_number": 1,
+        "episode_number": 5
+      },
+      {
+        "id": 1390856,
+        "name": "The Black Bulls",
+        "season_number": 1,
+        "episode_number": 6
+      },
+      {
+        "id": 1390857,
+        "name": "Another New Member",
+        "season_number": 1,
+        "episode_number": 7
+      },
+      {
+        "id": 1392855,
+        "name": "Go! Go! My First Mission",
+        "season_number": 1,
+        "episode_number": 8
+      },
+      {
+        "id": 1395541,
+        "name": "Beasts",
+        "season_number": 1,
+        "episode_number": 9
+      },
+      {
+        "id": 1401846,
+        "name": "Guardians",
+        "season_number": 1,
+        "episode_number": 10
+      },
+      {
+        "id": 1404851,
+        "name": "What Happened One Day in the Castle Town",
+        "season_number": 1,
+        "episode_number": 11
+      },
+      {
+        "id": 1405411,
+        "name": "The Wizard King Saw",
+        "season_number": 1,
+        "episode_number": 12
+      },
+      {
+        "id": 1410602,
+        "name": "The Wizard King Saw, Continued",
+        "season_number": 1,
+        "episode_number": 13
+      },
+      {
+        "id": 1417303,
+        "name": "Dungeon",
+        "season_number": 1,
+        "episode_number": 14
+      },
+      {
+        "id": 1417304,
+        "name": "The Diamond Mage",
+        "season_number": 1,
+        "episode_number": 15
+      },
+      {
+        "id": 1422908,
+        "name": "Friends",
+        "season_number": 1,
+        "episode_number": 16
+      },
+      {
+        "id": 1425948,
+        "name": "Destroyer",
+        "season_number": 1,
+        "episode_number": 17
+      },
+      {
+        "id": 1426194,
+        "name": "Memories of You",
+        "season_number": 1,
+        "episode_number": 18
+      },
+      {
+        "id": 1432216,
+        "name": "Destruction and Salvation",
+        "season_number": 1,
+        "episode_number": 19
+      },
+      {
+        "id": 1432217,
+        "name": "Assembly at the Royal Capital",
+        "season_number": 1,
+        "episode_number": 20
+      },
+      {
+        "id": 1432218,
+        "name": "Capital Riot",
+        "season_number": 1,
+        "episode_number": 21
+      },
+      {
+        "id": 1444656,
+        "name": "Wild Magic Dance",
+        "season_number": 1,
+        "episode_number": 22
+      },
+      {
+        "id": 1444716,
+        "name": "The King of the Crimson Lions",
+        "season_number": 1,
+        "episode_number": 23
+      },
+      {
+        "id": 1444717,
+        "name": "Blackout",
+        "season_number": 1,
+        "episode_number": 24
+      },
+      {
+        "id": 1461005,
+        "name": "Adversity",
+        "season_number": 1,
+        "episode_number": 25
+      },
+      {
+        "id": 1464429,
+        "name": "Wounded Beasts",
+        "season_number": 1,
+        "episode_number": 26
+      },
+      {
+        "id": 1468454,
+        "name": "Light",
+        "season_number": 1,
+        "episode_number": 27
+      },
+      {
+        "id": 1472332,
+        "name": "The One I've Set My Heart On",
+        "season_number": 1,
+        "episode_number": 28
+      },
+      {
+        "id": 1477390,
+        "name": "Path",
+        "season_number": 1,
+        "episode_number": 29
+      },
+      {
+        "id": 1481023,
+        "name": "The Mirror Mage",
+        "season_number": 1,
+        "episode_number": 30
+      },
+      {
+        "id": 1484640,
+        "name": "Pursuit Over the Snow",
+        "season_number": 1,
+        "episode_number": 31
+      },
+      {
+        "id": 1489947,
+        "name": "Three-Leaf Sprouts",
+        "season_number": 1,
+        "episode_number": 32
+      },
+      {
+        "id": 1494327,
+        "name": "To Help Somebody, Someday",
+        "season_number": 1,
+        "episode_number": 33
+      },
+      {
+        "id": 1497936,
+        "name": "Light Magic vs. Dark Magic",
+        "season_number": 1,
+        "episode_number": 34
+      },
+      {
+        "id": 1501126,
+        "name": "The Light of Judgment",
+        "season_number": 1,
+        "episode_number": 35
+      },
+      {
+        "id": 1504876,
+        "name": "Three Eyes",
+        "season_number": 1,
+        "episode_number": 36
+      },
+      {
+        "id": 1509054,
+        "name": "The One with No Magic",
+        "season_number": 1,
+        "episode_number": 37
+      },
+      {
+        "id": 1511583,
+        "name": "The Magic Knight Captains Conference",
+        "season_number": 1,
+        "episode_number": 38
+      },
+      {
+        "id": 1514966,
+        "name": "Three-Leaf Salute",
+        "season_number": 1,
+        "episode_number": 39
+      },
+      {
+        "id": 1517794,
+        "name": "A Black Beach Story",
+        "season_number": 1,
+        "episode_number": 40
+      },
+      {
+        "id": 1524130,
+        "name": "The Water Girl Grows Up",
+        "season_number": 1,
+        "episode_number": 41
+      },
+      {
+        "id": 1529283,
+        "name": "The Underwater Temple",
+        "season_number": 1,
+        "episode_number": 42
+      },
+      {
+        "id": 1534524,
+        "name": "Temple Battle Royale",
+        "season_number": 1,
+        "episode_number": 43
+      },
+      {
+        "id": 1541853,
+        "name": "The Pointlessly Direct Fireball and the Wild Lightning",
+        "season_number": 1,
+        "episode_number": 44
+      },
+      {
+        "id": 1548002,
+        "name": "The Guy Who Doesn’t Know When to Quit",
+        "season_number": 1,
+        "episode_number": 45
+      },
+      {
+        "id": 1553830,
+        "name": "Awakening",
+        "season_number": 1,
+        "episode_number": 46
+      },
+      {
+        "id": 1553831,
+        "name": "The Only Weapon",
+        "season_number": 1,
+        "episode_number": 47
+      },
+      {
+        "id": 1553833,
+        "name": "Despair vs. Hope",
+        "season_number": 1,
+        "episode_number": 48
+      },
+      {
+        "id": 1553834,
+        "name": "Beyond Limits",
+        "season_number": 1,
+        "episode_number": 49
+      },
+      {
+        "id": 1553835,
+        "name": "End of the Battle, End of Despair",
+        "season_number": 1,
+        "episode_number": 50
+      },
+      {
+        "id": 1553836,
+        "name": "Proof of Rightness",
+        "season_number": 1,
+        "episode_number": 51
+      },
+      {
+        "id": 1583951,
+        "name": "Whoever’s Strongest Wins",
+        "season_number": 1,
+        "episode_number": 52
+      },
+      {
+        "id": 1591329,
+        "name": "Behind the Mask",
+        "season_number": 1,
+        "episode_number": 53
+      },
+      {
+        "id": 1595747,
+        "name": "Never Again",
+        "season_number": 1,
+        "episode_number": 54
+      },
+      {
+        "id": 1601736,
+        "name": "The Man Named Fanzell",
+        "season_number": 1,
+        "episode_number": 55
+      },
+      {
+        "id": 1607959,
+        "name": "The Man Named Fanzell, Continued",
+        "season_number": 1,
+        "episode_number": 56
+      },
+      {
+        "id": 1607998,
+        "name": "Infiltration",
+        "season_number": 1,
+        "episode_number": 57
+      },
+      {
+        "id": 1607999,
+        "name": "The Battlefield Decision",
+        "season_number": 1,
+        "episode_number": 58
+      },
+      {
+        "id": 1613346,
+        "name": "Flames of Hatred",
+        "season_number": 1,
+        "episode_number": 59
+      },
+      {
+        "id": 1628989,
+        "name": "Defectors’ Atonement",
+        "season_number": 1,
+        "episode_number": 60
+      },
+      {
+        "id": 1634806,
+        "name": "The Promised World",
+        "season_number": 1,
+        "episode_number": 61
+      },
+      {
+        "id": 1639300,
+        "name": "Bettering One Another",
+        "season_number": 1,
+        "episode_number": 62
+      },
+      {
+        "id": 1639301,
+        "name": "Not in the Slightest",
+        "season_number": 1,
+        "episode_number": 63
+      },
+      {
+        "id": 1639302,
+        "name": "The Red Thread of Fate",
+        "season_number": 1,
+        "episode_number": 64
+      },
+      {
+        "id": 1639303,
+        "name": "I’m Home",
+        "season_number": 1,
+        "episode_number": 65
+      },
+      {
+        "id": 1673387,
+        "name": "The Eye of the Midnight Sun’s Secret",
+        "season_number": 1,
+        "episode_number": 66
+      },
+      {
+        "id": 1673388,
+        "name": "A Fun Festival Double Date",
+        "season_number": 1,
+        "episode_number": 67
+      },
+      {
+        "id": 1673389,
+        "name": "Battle to the Death?! Yami vs. Jack",
+        "season_number": 1,
+        "episode_number": 68
+      },
+      {
+        "id": 1673390,
+        "name": "The Briar Maiden’s Melancholy",
+        "season_number": 1,
+        "episode_number": 69
+      },
+      {
+        "id": 1673391,
+        "name": "Two New Stars",
+        "season_number": 1,
+        "episode_number": 70
+      },
+      {
+        "id": 1710689,
+        "name": "The Uncrowned, Undefeated Lioness",
+        "season_number": 1,
+        "episode_number": 71
+      },
+      {
+        "id": 1710690,
+        "name": "Saint Elmo’s Fire",
+        "season_number": 1,
+        "episode_number": 72
+      },
+      {
+        "id": 1710691,
+        "name": "The Royal Knights Selection Test",
+        "season_number": 1,
+        "episode_number": 73
+      },
+      {
+        "id": 1725834,
+        "name": "Flower of Resolution",
+        "season_number": 1,
+        "episode_number": 74
+      },
+      {
+        "id": 1725835,
+        "name": "Fierce Battle",
+        "season_number": 1,
+        "episode_number": 75
+      },
+      {
+        "id": 1725836,
+        "name": "Mage X",
+        "season_number": 1,
+        "episode_number": 76
+      },
+      {
+        "id": 1744670,
+        "name": "Bad Blood",
+        "season_number": 1,
+        "episode_number": 77
+      },
+      {
+        "id": 1750237,
+        "name": "Peasant Trap",
+        "season_number": 1,
+        "episode_number": 78
+      },
+      {
+        "id": 1755075,
+        "name": "Mister Delinquent vs. Muscle Brains",
+        "season_number": 1,
+        "episode_number": 79
+      },
+      {
+        "id": 1767655,
+        "name": "Special Little Brother vs. Failed Big Brother",
+        "season_number": 1,
+        "episode_number": 80
+      },
+      {
+        "id": 1767657,
+        "name": "The Life of a Certain Man",
+        "season_number": 1,
+        "episode_number": 81
+      },
+      {
+        "id": 1784521,
+        "name": "Petit Clover! The Nightmarish Charmy SP!",
+        "season_number": 1,
+        "episode_number": 82
+      },
+      {
+        "id": 1784522,
+        "name": "Burn It Into You",
+        "season_number": 1,
+        "episode_number": 83
+      },
+      {
+        "id": 1784523,
+        "name": "The Victors",
+        "season_number": 1,
+        "episode_number": 84
+      },
+      {
+        "id": 1799948,
+        "name": "Together in the Bath",
+        "season_number": 1,
+        "episode_number": 85
+      },
+      {
+        "id": 1807850,
+        "name": "Yami and Vangeance",
+        "season_number": 1,
+        "episode_number": 86
+      },
+      {
+        "id": 1811175,
+        "name": "Formation of the Royal Knights",
+        "season_number": 1,
+        "episode_number": 87
+      },
+      {
+        "id": 1823554,
+        "name": "Storming the Eye of the Midnight Sun’s Hideout!!!",
+        "season_number": 1,
+        "episode_number": 88
+      },
+      {
+        "id": 1823555,
+        "name": "The Black Bulls’ Hideout",
+        "season_number": 1,
+        "episode_number": 89
+      },
+      {
+        "id": 1823556,
+        "name": "Crazy Magic Battle",
+        "season_number": 1,
+        "episode_number": 90
+      },
+      {
+        "id": 1842612,
+        "name": "Mereoleona vs. Raia the Disloyal",
+        "season_number": 1,
+        "episode_number": 91
+      },
+      {
+        "id": 1847224,
+        "name": "The Wizard King vs. The Leader of the Eye of the Midnight Sun",
+        "season_number": 1,
+        "episode_number": 92
+      },
+      {
+        "id": 1853536,
+        "name": "Julius Novachrono",
+        "season_number": 1,
+        "episode_number": 93
+      },
+      {
+        "id": 1853537,
+        "name": "New Future",
+        "season_number": 1,
+        "episode_number": 94
+      },
+      {
+        "id": 1853538,
+        "name": "Reincarnation",
+        "season_number": 1,
+        "episode_number": 95
+      },
+      {
+        "id": 1879028,
+        "name": "The Black Bulls Captain vs. the Crimson Wild Rose",
+        "season_number": 1,
+        "episode_number": 96
+      },
+      {
+        "id": 1879029,
+        "name": "Overwhelming Disadvantage",
+        "season_number": 1,
+        "episode_number": 97
+      },
+      {
+        "id": 1895650,
+        "name": "The Sleeping Lion",
+        "season_number": 1,
+        "episode_number": 98
+      },
+      {
+        "id": 1916857,
+        "name": "The Desperate Path Toward Survival",
+        "season_number": 1,
+        "episode_number": 99
+      },
+      {
+        "id": 1918124,
+        "name": "We Won’t Lose to You",
+        "season_number": 1,
+        "episode_number": 100
+      },
+      {
+        "id": 1918125,
+        "name": "The Lives of the Village in the Sticks",
+        "season_number": 1,
+        "episode_number": 101
+      },
+      {
+        "id": 1918126,
+        "name": "Two Miracles",
+        "season_number": 1,
+        "episode_number": 102
+      },
+      {
+        "id": 1918127,
+        "name": "Release from Misfortune",
+        "season_number": 1,
+        "episode_number": 103
+      },
+      {
+        "id": 1943230,
+        "name": "Lightning of Rage vs. Friends",
+        "season_number": 1,
+        "episode_number": 104
+      },
+      {
+        "id": 1952843,
+        "name": "Smiles, Tears",
+        "season_number": 1,
+        "episode_number": 105
+      },
+      {
+        "id": 1952844,
+        "name": "Path of Revenge, Path of Atonement",
+        "season_number": 1,
+        "episode_number": 106
+      },
+      {
+        "id": 1952845,
+        "name": "The Battle for Clover Castle",
+        "season_number": 1,
+        "episode_number": 107
+      },
+      {
+        "id": 1952846,
+        "name": "Battlefield Dancer",
+        "season_number": 1,
+        "episode_number": 108
+      },
+      {
+        "id": 1979402,
+        "name": "Spatial Mage Brothers",
+        "season_number": 1,
+        "episode_number": 109
+      },
+      {
+        "id": 1987662,
+        "name": "The Raging Bull Joins the Showdown!!",
+        "season_number": 1,
+        "episode_number": 110
+      },
+      {
+        "id": 1994365,
+        "name": "The Eyes in the Mirror",
+        "season_number": 1,
+        "episode_number": 111
+      },
+      {
+        "id": 2002447,
+        "name": "Humans Who Can Be Trusted",
+        "season_number": 1,
+        "episode_number": 112
+      },
+      {
+        "id": 2004000,
+        "name": "Storming the Shadow Palace",
+        "season_number": 1,
+        "episode_number": 113
+      },
+      {
+        "id": 2004001,
+        "name": "The Final Invaders",
+        "season_number": 1,
+        "episode_number": 114
+      },
+      {
+        "id": 2004002,
+        "name": "Mastermind",
+        "season_number": 1,
+        "episode_number": 115
+      },
+      {
+        "id": 2004003,
+        "name": "The Ultimate Natural Enemy",
+        "season_number": 1,
+        "episode_number": 116
+      },
+      {
+        "id": 2047005,
+        "name": "Breaking the Seal",
+        "season_number": 1,
+        "episode_number": 117
+      },
+      {
+        "id": 2048821,
+        "name": "A Reunion Across Time and Space",
+        "season_number": 1,
+        "episode_number": 118
+      },
+      {
+        "id": 2058051,
+        "name": "The Final Attack",
+        "season_number": 1,
+        "episode_number": 119
+      },
+      {
+        "id": 2058052,
+        "name": "Dawn",
+        "season_number": 1,
+        "episode_number": 120
+      },
+      {
+        "id": 2070839,
+        "name": "Three Problems",
+        "season_number": 1,
+        "episode_number": 121
+      },
+      {
+        "id": 2165233,
+        "name": "As Pitch Black as It Gets",
+        "season_number": 1,
+        "episode_number": 122
+      },
+      {
+        "id": 2173598,
+        "name": "Nero Reminiscences… (1)",
+        "season_number": 1,
+        "episode_number": 123
+      },
+      {
+        "id": 2179680,
+        "name": "Nero Reminiscences… (2)",
+        "season_number": 1,
+        "episode_number": 124
+      },
+      {
+        "id": 2179681,
+        "name": "Return",
+        "season_number": 1,
+        "episode_number": 125
+      },
+      {
+        "id": 2191621,
+        "name": "The Blue Rose’s Confession",
+        "season_number": 1,
+        "episode_number": 126
+      },
+      {
+        "id": 2194967,
+        "name": "Clues",
+        "season_number": 1,
+        "episode_number": 127
+      },
+      {
+        "id": 2203432,
+        "name": "To the Heart Kingdom!",
+        "season_number": 1,
+        "episode_number": 128
+      },
+      {
+        "id": 2206961,
+        "name": "The Devil Megicula",
+        "season_number": 1,
+        "episode_number": 129
+      },
+      {
+        "id": 2223054,
+        "name": "The New Magic Knights Captain Conference",
+        "season_number": 1,
+        "episode_number": 130
+      },
+      {
+        "id": 2235240,
+        "name": "A New Resolve",
+        "season_number": 1,
+        "episode_number": 131
+      },
+      {
+        "id": 2243834,
+        "name": "The Lion Awakens",
+        "season_number": 1,
+        "episode_number": 132
+      },
+      {
+        "id": 2251966,
+        "name": "The Lion Awakens, Continued",
+        "season_number": 1,
+        "episode_number": 133
+      },
+      {
+        "id": 2341247,
+        "name": "Those Who Have Been Gathered",
+        "season_number": 1,
+        "episode_number": 134
+      },
+      {
+        "id": 2351254,
+        "name": "The One Who Has My Heart, My Mind, and Soul",
+        "season_number": 1,
+        "episode_number": 135
+      },
+      {
+        "id": 2360167,
+        "name": "A Black Deep Sea Story",
+        "season_number": 1,
+        "episode_number": 136
+      },
+      {
+        "id": 2369665,
+        "name": "Charmy’s Century of Hunger, Gordon’s Millennium of Loneliness",
+        "season_number": 1,
+        "episode_number": 137
+      },
+      {
+        "id": 2377168,
+        "name": "In Zara’s Footsteps",
+        "season_number": 1,
+        "episode_number": 138
+      },
+      {
+        "id": 2385984,
+        "name": "A Witch’s Homecoming",
+        "season_number": 1,
+        "episode_number": 139
+      },
+      {
+        "id": 2399045,
+        "name": "A Favor for Julius",
+        "season_number": 1,
+        "episode_number": 140
+      },
+      {
+        "id": 2403789,
+        "name": "The Golden Family",
+        "season_number": 1,
+        "episode_number": 141
+      },
+      {
+        "id": 2410692,
+        "name": "Those Remaining",
+        "season_number": 1,
+        "episode_number": 142
+      },
+      {
+        "id": 2419493,
+        "name": "The Tilted Scale",
+        "season_number": 1,
+        "episode_number": 143
+      },
+      {
+        "id": 2428887,
+        "name": "Those Who Wish for the Devil’s Demise",
+        "season_number": 1,
+        "episode_number": 144
+      },
+      {
+        "id": 2435957,
+        "name": "Rescue",
+        "season_number": 1,
+        "episode_number": 145
+      },
+      {
+        "id": 2448652,
+        "name": "Those Who Worship the Devil",
+        "season_number": 1,
+        "episode_number": 146
+      },
+      {
+        "id": 2448653,
+        "name": "Prepared to Die",
+        "season_number": 1,
+        "episode_number": 147
+      },
+      {
+        "id": 2448654,
+        "name": "Becoming the Light That Shines Through the Darkness",
+        "season_number": 1,
+        "episode_number": 148
+      },
+      {
+        "id": 2448655,
+        "name": "Two Things to Look for",
+        "season_number": 1,
+        "episode_number": 149
+      },
+      {
+        "id": 2489775,
+        "name": "The Maidens’ Challenge",
+        "season_number": 1,
+        "episode_number": 150
+      },
+      {
+        "id": 2489776,
+        "name": "Clash! The Battle of the Magic Knights Squad Captains",
+        "season_number": 1,
+        "episode_number": 151
+      },
+      {
+        "id": 2489777,
+        "name": "To Tomorrow!",
+        "season_number": 1,
+        "episode_number": 152
+      },
+      {
+        "id": 2489778,
+        "name": "The Chosen Ones",
+        "season_number": 1,
+        "episode_number": 153
+      },
+      {
+        "id": 2538179,
+        "name": "Vice Captain Langris Vaude",
+        "season_number": 1,
+        "episode_number": 154
+      },
+      {
+        "id": 2548976,
+        "name": "The 5 Spirit Guardians",
+        "season_number": 1,
+        "episode_number": 155
+      },
+      {
+        "id": 2550301,
+        "name": "Awakening Powers",
+        "season_number": 1,
+        "episode_number": 156
+      },
+      {
+        "id": 2550302,
+        "name": "Five-Leaf Clover",
+        "season_number": 1,
+        "episode_number": 157
+      },
+      {
+        "id": 2590571,
+        "name": "The Beginning of Hope and Despair",
+        "season_number": 1,
+        "episode_number": 158
+      },
+      {
+        "id": 2618204,
+        "name": "Quiet Lakes and Forest Shadows",
+        "season_number": 1,
+        "episode_number": 159
+      },
+      {
+        "id": 2618250,
+        "name": "The Messenger from the Spade Kingdom",
+        "season_number": 1,
+        "episode_number": 160
+      },
+      {
+        "id": 2634982,
+        "name": "Zenon’s Power",
+        "season_number": 1,
+        "episode_number": 161
+      },
+      {
+        "id": 2639536,
+        "name": "The Great War Breaks Out",
+        "season_number": 1,
+        "episode_number": 162
+      },
+      {
+        "id": 2639537,
+        "name": "Dante vs. the Captain of the Black Bulls",
+        "season_number": 1,
+        "episode_number": 163
+      },
+      {
+        "id": 2696187,
+        "name": "Battlefield: Heart Kingdom",
+        "season_number": 1,
+        "episode_number": 164
+      },
+      {
+        "id": 2696188,
+        "name": "Water Crusade",
+        "season_number": 1,
+        "episode_number": 165
+      },
+      {
+        "id": 2701436,
+        "name": "Captain: Yami Sukehiro",
+        "season_number": 1,
+        "episode_number": 166
+      },
+      {
+        "id": 2701437,
+        "name": "Black Oath",
+        "season_number": 1,
+        "episode_number": 167
+      },
+      {
+        "id": 2701438,
+        "name": "Stirrings of the Strongest",
+        "season_number": 1,
+        "episode_number": 168
+      },
+      {
+        "id": 2701439,
+        "name": "The Devil-Binding Ritual",
+        "season_number": 1,
+        "episode_number": 169
+      },
+      {
+        "id": 2701440,
+        "name": "The Faraway Future",
+        "season_number": 1,
+        "episode_number": 170
+      }
+    ]
+  },
+  "provider": [
+    {
+      "id": "80238226",
+      "t": "Asta and Yuno",
+      "s": "S1",
+      "ep": "E1",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238227",
+      "t": "The Boys' Promise",
+      "s": "S1",
+      "ep": "E2",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238228",
+      "t": "To the Royal Capital of the Clover Kingdom!",
+      "s": "S1",
+      "ep": "E3",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238229",
+      "t": "The Magic Knights Entrance Exam",
+      "s": "S1",
+      "ep": "E4",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238230",
+      "t": "The Path to the Wizard King",
+      "s": "S1",
+      "ep": "E5",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238231",
+      "t": "The Black Bulls",
+      "s": "S1",
+      "ep": "E6",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238232",
+      "t": "The Other New Recruit",
+      "s": "S1",
+      "ep": "E7",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238233",
+      "t": "Go! Go! First Mission",
+      "s": "S1",
+      "ep": "E8",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238234",
+      "t": "Beasts",
+      "s": "S1",
+      "ep": "E9",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238235",
+      "t": "Those Who Protect",
+      "s": "S1",
+      "ep": "E10",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238236",
+      "t": "What Happened on a Certain Day in the Castle Town",
+      "s": "S1",
+      "ep": "E11",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238237",
+      "t": "The Wizard King Saw",
+      "s": "S1",
+      "ep": "E12",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238238",
+      "t": "The Wizard King Saw, Continued",
+      "s": "S1",
+      "ep": "E13",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238239",
+      "t": "Dungeon",
+      "s": "S1",
+      "ep": "E14",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238240",
+      "t": "The Diamond Mage",
+      "s": "S1",
+      "ep": "E15",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238241",
+      "t": "Friends",
+      "s": "S1",
+      "ep": "E16",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238242",
+      "t": "Destroyer",
+      "s": "S1",
+      "ep": "E17",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238243",
+      "t": "Memories of You",
+      "s": "S1",
+      "ep": "E18",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238244",
+      "t": "Destruction and Salvation",
+      "s": "S1",
+      "ep": "E19",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238245",
+      "t": "Assembly at the Royal Capital",
+      "s": "S1",
+      "ep": "E20",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238246",
+      "t": "Capital Riot",
+      "s": "S1",
+      "ep": "E21",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238247",
+      "t": "Wild Magic Danc",
+      "s": "S1",
+      "ep": "E22",
+      "complate": "0",
+      "time": "22m"
+    },
+    {
+      "id": "80238248",
+      "t": "The Crimson Lion King",
+      "s": "S1",
+      "ep": "E23",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238249",
+      "t": "Blackout",
+      "s": "S1",
+      "ep": "E24",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238250",
+      "t": "Adversity",
+      "s": "S1",
+      "ep": "E25",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238251",
+      "t": "Wounded Beasts",
+      "s": "S1",
+      "ep": "E26",
+      "complate": "0",
+      "time": "22m"
+    },
+    {
+      "id": "80238252",
+      "t": "Light",
+      "s": "S1",
+      "ep": "E27",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238253",
+      "t": "The One I've Set My Heart On",
+      "s": "S1",
+      "ep": "E28",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238254",
+      "t": "Path",
+      "s": "S1",
+      "ep": "E29",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238255",
+      "t": "The Mirror Mage",
+      "s": "S1",
+      "ep": "E30",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238256",
+      "t": "Pursuit Over the Snow",
+      "s": "S1",
+      "ep": "E31",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238257",
+      "t": "Three-Leaf Sprouts",
+      "s": "S1",
+      "ep": "E32",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238258",
+      "t": "To Help Somebody Someday",
+      "s": "S1",
+      "ep": "E33",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238259",
+      "t": "Light Magic vs. Dark Magic",
+      "s": "S1",
+      "ep": "E34",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238260",
+      "t": "The Light of Judgment",
+      "s": "S1",
+      "ep": "E35",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238261",
+      "t": "Three Eyes",
+      "s": "S1",
+      "ep": "E36",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238262",
+      "t": "The One with No Magic",
+      "s": "S1",
+      "ep": "E37",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238263",
+      "t": "The Magic Knight Captains Conference",
+      "s": "S1",
+      "ep": "E38",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238264",
+      "t": "Three-Leaf Salute",
+      "s": "S1",
+      "ep": "E39",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238265",
+      "t": "A Black Beach Story",
+      "s": "S1",
+      "ep": "E40",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238266",
+      "t": "The Water Girl Grows Up",
+      "s": "S1",
+      "ep": "E41",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238267",
+      "t": "The Underwater Temple",
+      "s": "S1",
+      "ep": "E42",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238268",
+      "t": "Temple Battle Royale",
+      "s": "S1",
+      "ep": "E43",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238269",
+      "t": "The Pointlessly Direct Fireball and the Wild Lightning",
+      "s": "S1",
+      "ep": "E44",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238270",
+      "t": "The Guy Who Doesn't Know When to Quit",
+      "s": "S1",
+      "ep": "E45",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238271",
+      "t": "Awakening",
+      "s": "S1",
+      "ep": "E46",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238272",
+      "t": "The Only Weapon",
+      "s": "S1",
+      "ep": "E47",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238273",
+      "t": "Despair vs. Hope",
+      "s": "S1",
+      "ep": "E48",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238274",
+      "t": "Beyond Limits",
+      "s": "S1",
+      "ep": "E49",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238275",
+      "t": "End of the Battle, End of Despair",
+      "s": "S1",
+      "ep": "E50",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "80238276",
+      "t": "Proof of Rightness",
+      "s": "S1",
+      "ep": "E51",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313232",
+      "t": "Whoever's Strongest Wins",
+      "s": "S2",
+      "ep": "E52",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313233",
+      "t": "Behind the Mask",
+      "s": "S2",
+      "ep": "E53",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313234",
+      "t": "Never Again",
+      "s": "S2",
+      "ep": "E54",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313235",
+      "t": "The Man Named Fanzell",
+      "s": "S2",
+      "ep": "E55",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313236",
+      "t": "The Man Named Fanzell Continued",
+      "s": "S2",
+      "ep": "E56",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313237",
+      "t": "Infiltration",
+      "s": "S2",
+      "ep": "E57",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313238",
+      "t": "Battlefield Decision",
+      "s": "S2",
+      "ep": "E58",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313239",
+      "t": "Flames of Hatred",
+      "s": "S2",
+      "ep": "E59",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313240",
+      "t": "Defectors' Atonement",
+      "s": "S2",
+      "ep": "E60",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313241",
+      "t": "The Promised World",
+      "s": "S2",
+      "ep": "E61",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313242",
+      "t": "Those Who Boost Each Other Up",
+      "s": "S2",
+      "ep": "E62",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313243",
+      "t": "Not in the Slightest",
+      "s": "S2",
+      "ep": "E63",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313244",
+      "t": "The Red Thread of Fate",
+      "s": "S2",
+      "ep": "E64",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313245",
+      "t": "I'm Home",
+      "s": "S2",
+      "ep": "E65",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313246",
+      "t": "The Eye of the Midnight Sun's Secret",
+      "s": "S2",
+      "ep": "E66",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313247",
+      "t": "A Fun Festival Double Date",
+      "s": "S2",
+      "ep": "E67",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313248",
+      "t": "Battle to the Death?! Yami vs. Jack",
+      "s": "S2",
+      "ep": "E68",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313249",
+      "t": "The Briar Maiden's Melancholy",
+      "s": "S2",
+      "ep": "E69",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313250",
+      "t": "Two New Stars",
+      "s": "S2",
+      "ep": "E70",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313251",
+      "t": "The Uncrowned, Undefeated Lioness",
+      "s": "S2",
+      "ep": "E71",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313252",
+      "t": "Saint Elmo's Fire",
+      "s": "S2",
+      "ep": "E72",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313253",
+      "t": "The Royal Knights Selection Test",
+      "s": "S2",
+      "ep": "E73",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313254",
+      "t": "Flower of Resolution",
+      "s": "S2",
+      "ep": "E74",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313255",
+      "t": "Fierce Battle",
+      "s": "S2",
+      "ep": "E75",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313256",
+      "t": "Mage X",
+      "s": "S2",
+      "ep": "E76",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313257",
+      "t": "Bad Blood",
+      "s": "S2",
+      "ep": "E77",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313258",
+      "t": "Peasant Trap",
+      "s": "S2",
+      "ep": "E78",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313259",
+      "t": "Mister Delinquent vs. Muscle Brains",
+      "s": "S2",
+      "ep": "E79",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313260",
+      "t": "Special Little Brother vs. Failed Big Brother",
+      "s": "S2",
+      "ep": "E80",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313261",
+      "t": "The Life of a Certain Man",
+      "s": "S2",
+      "ep": "E81",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313262",
+      "t": "Petit Clover! The Nightmarish Charmy SP!",
+      "s": "S2",
+      "ep": "E82",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313263",
+      "t": "Burn It Into You",
+      "s": "S2",
+      "ep": "E83",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313264",
+      "t": "The Victors",
+      "s": "S2",
+      "ep": "E84",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313265",
+      "t": "Together in the Bath",
+      "s": "S2",
+      "ep": "E85",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313266",
+      "t": "Yami and Vangeance",
+      "s": "S2",
+      "ep": "E86",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313267",
+      "t": "Formation of the Royal Knights",
+      "s": "S2",
+      "ep": "E87",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313268",
+      "t": "Storming the Eye of the Midnight Sun's Hideout!!!",
+      "s": "S2",
+      "ep": "E88",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313269",
+      "t": "The Black Bulls' Hideout",
+      "s": "S2",
+      "ep": "E89",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313270",
+      "t": "Crazy Magic Battle",
+      "s": "S2",
+      "ep": "E90",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313271",
+      "t": "Mereoleona vs. Raia the Disloyal",
+      "s": "S2",
+      "ep": "E91",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313272",
+      "t": "The Wizard King vs. the Leader of the Eye of the Midnight Sun",
+      "s": "S2",
+      "ep": "E92",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313273",
+      "t": "Julius Novachrono",
+      "s": "S2",
+      "ep": "E93",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313274",
+      "t": "New Future",
+      "s": "S2",
+      "ep": "E94",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313275",
+      "t": "Reincarnation",
+      "s": "S2",
+      "ep": "E95",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313276",
+      "t": "The Black Bulls Captain vs. the Crimson Wild Rose",
+      "s": "S2",
+      "ep": "E96",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313277",
+      "t": "Overwhelming Disadvantage",
+      "s": "S2",
+      "ep": "E97",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313278",
+      "t": "The Sleeping Lion",
+      "s": "S2",
+      "ep": "E98",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313279",
+      "t": "The Desperate Path Toward Survival",
+      "s": "S2",
+      "ep": "E99",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313280",
+      "t": "We Won't Lose to You",
+      "s": "S2",
+      "ep": "E100",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313281",
+      "t": "The Lives of the Village in the Sticks",
+      "s": "S2",
+      "ep": "E101",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81313282",
+      "t": "Two Miracles",
+      "s": "S2",
+      "ep": "E102",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399562",
+      "t": "Release from Misfortune",
+      "s": "S3",
+      "ep": "E104",
+      "complate": "0",
+      "time": "22m"
+    },
+    {
+      "id": "81399563",
+      "t": "Lightning of Rage vs. Friends",
+      "s": "S3",
+      "ep": "E105",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399564",
+      "t": "Smiles, Tears",
+      "s": "S3",
+      "ep": "E106",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399565",
+      "t": "Path of Revenge, Path of Atonement",
+      "s": "S3",
+      "ep": "E107",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399566",
+      "t": "The Battle for Clover Castle",
+      "s": "S3",
+      "ep": "E108",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399567",
+      "t": "Battlefield Dancer",
+      "s": "S3",
+      "ep": "E109",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399568",
+      "t": "Spatial Mage Brothers",
+      "s": "S3",
+      "ep": "E110",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399569",
+      "t": "The Raging Bull Joins the Showdown!!",
+      "s": "S3",
+      "ep": "E111",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399570",
+      "t": "The Eyes in the Mirror",
+      "s": "S3",
+      "ep": "E112",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399571",
+      "t": "Humans Who Can Be Trusted",
+      "s": "S3",
+      "ep": "E113",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399572",
+      "t": "Storming the Shadow Palace",
+      "s": "S3",
+      "ep": "E114",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399573",
+      "t": "The Final Invaders",
+      "s": "S3",
+      "ep": "E115",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399574",
+      "t": "Mastermind",
+      "s": "S3",
+      "ep": "E116",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399575",
+      "t": "The Ultimate Natural Enemy",
+      "s": "S3",
+      "ep": "E117",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399576",
+      "t": "Breaking the Seal",
+      "s": "S3",
+      "ep": "E118",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399577",
+      "t": "A Reunion Across Time and Space",
+      "s": "S3",
+      "ep": "E119",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399578",
+      "t": "The Final Attack",
+      "s": "S3",
+      "ep": "E120",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399579",
+      "t": "Dawn",
+      "s": "S3",
+      "ep": "E121",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399580",
+      "t": "Three Problems",
+      "s": "S3",
+      "ep": "E122",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399581",
+      "t": "As Pitch Black as It Gets",
+      "s": "S3",
+      "ep": "E123",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399582",
+      "t": "Nero Reminisces... Part One",
+      "s": "S3",
+      "ep": "E124",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399583",
+      "t": "Nero Reminisces... Part Two",
+      "s": "S3",
+      "ep": "E125",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399584",
+      "t": "Return",
+      "s": "S3",
+      "ep": "E126",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399585",
+      "t": "The Blue Rose's Confession",
+      "s": "S3",
+      "ep": "E127",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399586",
+      "t": "Clues",
+      "s": "S3",
+      "ep": "E128",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399587",
+      "t": "To the Heart Kingdom!",
+      "s": "S3",
+      "ep": "E129",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399588",
+      "t": "Devil Megicula",
+      "s": "S3",
+      "ep": "E130",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399589",
+      "t": "The New Magic Knight Captain Conference",
+      "s": "S3",
+      "ep": "E131",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399590",
+      "t": "A New Resolve",
+      "s": "S3",
+      "ep": "E132",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399591",
+      "t": "The Lion Awakens",
+      "s": "S3",
+      "ep": "E133",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399592",
+      "t": "The Lion Awakens, Continued",
+      "s": "S3",
+      "ep": "E134",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399593",
+      "t": "Those Who Have Been Gathered",
+      "s": "S3",
+      "ep": "E135",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399594",
+      "t": "The One Who Has My Heart, My Mind, and Soul",
+      "s": "S3",
+      "ep": "E136",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399595",
+      "t": "A Black Deep-Sea Story",
+      "s": "S3",
+      "ep": "E137",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399596",
+      "t": "Charmy's Century of Hunger, Gordon's Millennium of Loneliness",
+      "s": "S3",
+      "ep": "E138",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399597",
+      "t": "In Zara's Footsteps",
+      "s": "S3",
+      "ep": "E139",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399598",
+      "t": "A Witch's Homecoming",
+      "s": "S3",
+      "ep": "E140",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399599",
+      "t": "A Favor for Julius",
+      "s": "S3",
+      "ep": "E141",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399600",
+      "t": "The Golden Family",
+      "s": "S3",
+      "ep": "E142",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399601",
+      "t": "Those Remaining",
+      "s": "S3",
+      "ep": "E143",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399602",
+      "t": "The Tilted Scale",
+      "s": "S3",
+      "ep": "E144",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399603",
+      "t": "Those Who Wish for the Devil's Demise",
+      "s": "S3",
+      "ep": "E145",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399604",
+      "t": "Rescue",
+      "s": "S3",
+      "ep": "E146",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399605",
+      "t": "Those Who Worship the Devil",
+      "s": "S3",
+      "ep": "E147",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399606",
+      "t": "Prepared to Die",
+      "s": "S3",
+      "ep": "E148",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399607",
+      "t": "Becoming the Light That Shines Through the Darkness",
+      "s": "S3",
+      "ep": "E149",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399608",
+      "t": "Two Things We Need to Find",
+      "s": "S3",
+      "ep": "E150",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399609",
+      "t": "The Maidens' Challenge",
+      "s": "S3",
+      "ep": "E151",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399610",
+      "t": "Clash! The Battle of the Magic Knights Squad Captains",
+      "s": "S3",
+      "ep": "E152",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399611",
+      "t": "To Tomorrow!",
+      "s": "S3",
+      "ep": "E153",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81399612",
+      "t": "The Chosen Ones",
+      "s": "S3",
+      "ep": "E154",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81408243",
+      "t": "Vice Captain Langris Vaude",
+      "s": "S3",
+      "ep": "E155",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582092",
+      "t": "The 5 Spirit Guardians",
+      "s": "S4",
+      "ep": "E156",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582093",
+      "t": "Awakening Powers",
+      "s": "S4",
+      "ep": "E157",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582094",
+      "t": "Five-Leaf Clover",
+      "s": "S4",
+      "ep": "E158",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582095",
+      "t": "The Beginning of Hope and Despair",
+      "s": "S4",
+      "ep": "E159",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582096",
+      "t": "Quiet Lakes and Forest Shadows",
+      "s": "S4",
+      "ep": "E160",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582097",
+      "t": "The Messenger from the Spade Kingdom",
+      "s": "S4",
+      "ep": "E161",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582098",
+      "t": "Zenon's Power",
+      "s": "S4",
+      "ep": "E162",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582099",
+      "t": "The Great War Breaks Out",
+      "s": "S4",
+      "ep": "E163",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582100",
+      "t": "Dante vs. the Captain of the Black Bulls",
+      "s": "S4",
+      "ep": "E164",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582101",
+      "t": "Battlefield: Heart Kingdom",
+      "s": "S4",
+      "ep": "E165",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582102",
+      "t": "Water Crusade",
+      "s": "S4",
+      "ep": "E166",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582103",
+      "t": "Captain: Yami Sukehiro",
+      "s": "S4",
+      "ep": "E167",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582104",
+      "t": "Black Oath",
+      "s": "S4",
+      "ep": "E168",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582105",
+      "t": "Stirrings of the Strongest",
+      "s": "S4",
+      "ep": "E169",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582106",
+      "t": "The Devil-Binding Ritual",
+      "s": "S4",
+      "ep": "E170",
+      "complate": "0",
+      "time": "23m"
+    },
+    {
+      "id": "81582107",
+      "t": "The Faraway Future",
+      "s": "S4",
+      "ep": "E171",
+      "complate": "0",
+      "time": "23m"
+    }
+  ]
+}

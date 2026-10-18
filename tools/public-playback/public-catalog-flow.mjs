@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {netflixPublicMetadata} from './netflix-public-metadata.mjs';
+import {orderedProviderSeason,orderedEpisodeMetadata,joinOrderedEpisodes} from './series-episode-order.mjs';
 // Node 22+. Mirrors the Kotlin public identity and season discovery flow; no cookie jar.
 import {NoWarmFlow, TARGETS, FlowError} from './no-warm-flow.mjs';
 import {readFile, writeFile} from 'node:fs/promises';
@@ -141,10 +142,25 @@ export class PublicCatalogFlow extends NoWarmFlow {
   async episode(t, show, run) {
     if (t.ott === 'nf') {
       const page = await this.request('public_seasons', `https://www.netflix.com/title/${show.id}`);
-      const id = netflixSeasons(page.body,t.title).get(t.season);
+      const orderedSeason=orderedProviderSeason(t,show.id);
+      const id = netflixSeasons(page.body,t.title).get(orderedSeason??t.season);
       if (!id) fail('requested_netflix_season_unavailable','public_seasons');
       this.seasonMappings = [...this.seasonMappings, {ott:'nf',showId:show.id,season:t.season,seasonId:id,
         source:`https://www.netflix.com/title/${show.id}`}];
+      if(orderedSeason!==null) {
+        const metadataUrl=new URL('https://api.themoviedb.org/3/tv/73223/season/1');metadataUrl.searchParams.set('api_key',this.tmdbKey);
+        const metadata=orderedEpisodeMetadata((await this.request('tmdb_episode_order',metadataUrl.href)).data);
+        const seen=new Set();
+        for(let pageNumber=1;pageNumber<=30;pageNumber++) {
+          const data=await this.json('episodes','/mobile/episodes.php',{s:id,series:show.id,...(pageNumber>1?{page:String(pageNumber)}:{})});
+          const rows=data.episodes??[],mappings=joinOrderedEpisodes(rows,metadata,orderedSeason);
+          for(const mapping of mappings) {if(seen.has(mapping.id)) fail('repeated_episode_page','episodes');seen.add(mapping.id);}
+          const selected=mappings.find(e=>e.number===t.episode);
+          if(selected) {run.providerSeason=selected.providerSeason;run.providerEpisode=selected.providerEpisode;return selected.id;}
+          if(String(data.nextPageShow)!=='1'||rows.length===0) break;
+        }
+        fail('requested_episode_missing','episodes');
+      }
     }
     if (t.ott === 'pv' && !this.seasonMappings.some(m => m.showId === show.id && m.season === t.season)) {
       const page = await this.request('public_seasons', `https://www.primevideo.com/detail/${show.id}`);

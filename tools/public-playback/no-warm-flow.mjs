@@ -79,6 +79,10 @@ export class NoWarmFlow {
       'Accept': '*/*', 'X-Requested-With': binary || url.origin !== this.base ||
         this.appClientMode && !url.pathname.endsWith('.php') ? 'app.netmirror.netmirrornew' : 'XMLHttpRequest',
       'Referer': this.base + '/', 'Origin': this.base };
+    // Match Android's public metadata client; a mobile WebView UA redirects to the Netflix app intent.
+    if (!binary && url.hostname === 'www.netflix.com') {
+      headers['User-Agent'] = 'Mozilla/5.0'; headers.Accept = 'text/html'; headers['Accept-Language'] = 'en-US,en;q=0.9';
+    }
     if (binary) headers.Range = 'bytes=0-65535';
     // Node fetch has no browser cookie jar. Never add Cookie, Authorization or client certificates.
     const event = { stage, host: url.host, path: url.pathname, queryKeys: [...new Set(url.searchParams.keys())] };
@@ -170,7 +174,7 @@ export class NoWarmFlow {
       if (!seasonId) fail('season_id_unavailable', 'season_catalog');
     }
     run.seasonId = seasonId;
-    for (let page = 1; page <= 5; page++) {
+    for (let page = 1; page <= 30; page++) {
       const data = await this.json('episodes', prefix(target.ott) + '/episodes.php',
         { s: seasonId, series: show.id, ...(page > 1 ? { page: String(page) } : {}) });
       for (const ep of data.episodes || []) {

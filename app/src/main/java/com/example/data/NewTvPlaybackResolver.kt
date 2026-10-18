@@ -296,7 +296,7 @@ internal class NewTvPlaybackResolver(
                     seasons[number] = id
                 }
                 val seasonId = seasons[season] ?: throw IOException("Requested NewTV season is unavailable")
-                for (page in 1..5) {
+                for (page in 1..30) {
                     val data = metadata("/newtv/episodes.php", "id" to seasonId, "page" to page.toString())
                     contentId = seriesEpisode(data.optJSONArray("episodes"), ott, season, episode, verifiedSeason = true, onVerifiedEpisodes)
                     if (contentId != null || data.optString("nextPageShow") != "1") break

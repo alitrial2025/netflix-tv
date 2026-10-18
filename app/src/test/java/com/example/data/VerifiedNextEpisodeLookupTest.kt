@@ -91,4 +91,16 @@ class VerifiedNextEpisodeLookupTest {
         assertEquals(1 to 2, progress.await())
         assertEquals(1, calls)
     }
+    @Test fun splitSeasonTransitionsRetainCanonicalProgressCoordinates() = runBlocking {
+        val ranges = mapOf(1 to (1..51), 2 to (52..102), 3 to (103..154), 4 to (155..170))
+        val requested = mutableListOf<Int>()
+        val lookup = VerifiedNextEpisodeLookup(
+            episodes = { _, season -> requested += season; ranges.getValue(season).map { episode(1, it) } },
+            seasons = { listOf(1, 2, 3, 4) }
+        )
+        for (number in listOf(50, 51, 52, 102, 103, 154, 155, 169)) assertEquals(1 to number + 1, lookup.find("73223", 1, number))
+        assertNull(lookup.find("73223", 1, 170))
+        assertTrue(requested.containsAll(listOf(1, 2, 3, 4)))
+    }
+
 }

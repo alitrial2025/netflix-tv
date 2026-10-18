@@ -2,6 +2,7 @@
 
 package com.example.ui.screens.details
 
+import com.example.data.SeriesEpisodeOrder
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -143,9 +144,12 @@ fun DetailsScreen(
         }
     }
     var continueWatchingData by remember(movie.id) { mutableStateOf(initialCw) }
+    val displayContinueWatchingData = continueWatchingData?.let { saved ->
+        if (isTvSeries) saved.copy(season = SeriesEpisodeOrder.displaySeason(movie.id, saved.season, saved.episode)) else saved
+    }
     var episodesList by remember(movie.id) { mutableStateOf<List<Episode>>(emptyList()) }
     var currentSeason by remember(movie.id) {
-        mutableIntStateOf(if (isTvSeries && initialCw != null && initialCw.season > 0) initialCw.season else 1)
+        mutableIntStateOf(if (isTvSeries && initialCw != null && initialCw.season > 0) SeriesEpisodeOrder.displaySeason(movie.id, initialCw.season, initialCw.episode) else 1)
     }
     var currentEpisode by remember(movie.id) {
         mutableIntStateOf(if (isTvSeries && initialCw != null && initialCw.episode > 0) initialCw.episode else 1)
@@ -218,7 +222,7 @@ fun DetailsScreen(
             val fetched = if (tvId != null && tvId > 0L)
                 withContext(Dispatchers.IO) { viewModel.getEpisodes(tvId, currentSeason) } else emptyList()
             ensureActive()
-            episodesList = fetched.filter { it.seasonNumber == currentSeason && it.episodeNumber > 0 }
+            episodesList = fetched.filter { SeriesEpisodeOrder.displaySeason(movie.id, it.seasonNumber, it.episodeNumber) == currentSeason && it.episodeNumber > 0 }
         } finally {
             if (isActive) episodesLoading = false
         }
@@ -267,7 +271,7 @@ fun DetailsScreen(
         val resumeEpisode = cw?.let { it.season.coerceAtLeast(1) to it.episode.coerceAtLeast(1) }
         if (isTvSeries && resumeEpisode != null && resumeEpisode != appliedResumeEpisode) {
             appliedResumeEpisode = resumeEpisode
-            currentSeason = resumeEpisode.first
+            currentSeason = SeriesEpisodeOrder.displaySeason(movie.id, resumeEpisode.first, resumeEpisode.second)
             currentEpisode = resumeEpisode.second
         }
     }
@@ -321,7 +325,7 @@ fun DetailsScreen(
                     playbackOwner = playbackOwner,
                     trailerOnly = previewIsTrailer,
                     selectedSubLang = selectedSubLang,
-                    continueWatchingData = continueWatchingData,
+                    continueWatchingData = displayContinueWatchingData,
                     onCaptions = { streamCaptions = it }
                 ) ?: return@resolve null
                 previewCookieHolder.value = resolved.headers["Cookie"]
@@ -479,7 +483,7 @@ fun DetailsScreen(
         if (isNavigatingToPlayer) return
         isNavigatingToPlayer = true
         if (trailer) onPlayTrailer(selectedMovie, selectedSeason, selectedEpisode, name)
-        else onPlayMovie(selectedMovie, selectedSeason, selectedEpisode, name)
+        else onPlayMovie(selectedMovie, if (selectedMovie.isSeriesContent()) SeriesEpisodeOrder.sourceSeason(selectedMovie.id, selectedSeason) else selectedSeason, selectedEpisode, name)
     }
 
     fun handleBack() {
@@ -691,7 +695,7 @@ fun DetailsScreen(
                         currentDetailsLogoUrl = currentDetailsLogoUrl,
                         isKidContent = isKidContent,
                         isTvSeries = isTvSeries,
-                        continueWatchingData = continueWatchingData,
+                        continueWatchingData = displayContinueWatchingData,
                         continueWatchingList = continueWatchingList,
                         currentSeason = currentSeason,
                         currentEpisode = currentEpisode,
@@ -768,11 +772,11 @@ fun DetailsScreen(
                 currentSeason = currentSeason,
                 currentEpisode = currentEpisode,
                 availableSeasons = availableSeasons,
-                continueWatchingData = continueWatchingData,
+                continueWatchingData = displayContinueWatchingData,
                 onSeasonSelected = { newSeason ->
                     if (currentSeason != newSeason) {
                         currentSeason = newSeason
-                        currentEpisode = 1
+                        currentEpisode = SeriesEpisodeOrder.firstEpisode(movie.id, newSeason)
                     }
                 },
                 onEpisodeClick = { ep ->
@@ -817,12 +821,12 @@ fun DetailsScreen(
                     showUpgradeModal = false
                     val playSeason = currentSeason
                     val cw = continueWatchingData
-                    val playEpisode = if (isTvSeries && cw != null && cw.season == currentSeason) {
+                    val playEpisode = if (isTvSeries && cw != null && SeriesEpisodeOrder.displaySeason(movie.id, cw.season, cw.episode) == currentSeason) {
                         cw.episode
                     } else {
                         currentEpisode
                     }
-                    val playEpName = if (cw != null && cw.season == currentSeason) cw.episodeName else ""
+                    val playEpName = if (cw != null && SeriesEpisodeOrder.displaySeason(movie.id, cw.season, cw.episode) == currentSeason) cw.episodeName else ""
                     launchPlayer(movie, playSeason, playEpisode, playEpName, trailer = true)
                 }
             )

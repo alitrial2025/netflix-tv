@@ -264,7 +264,7 @@ class TmdbRepository {
                     originalLanguage = details.originalLanguage ?: existing?.originalLanguage,
                     originCountry = details.originCountry.ifEmpty { existing?.originCountry.orEmpty() },
                     keywords = kw,
-                    numberOfSeasons = details.numberOfSeasons,
+                    numberOfSeasons = SeriesEpisodeOrder.seasons(itemId.toString())?.size ?: details.numberOfSeasons,
                     hasUpcomingEpisode = details.nextEpisodeToAir != null,
                     tvType = details.type,
                     tvStatus = details.status,
@@ -502,8 +502,9 @@ class TmdbRepository {
 
     suspend fun getTvSeasonEpisodes(tvId: Long, seasonNumber: Int = 1): List<com.example.model.Episode> {
         return try {
-            val response = TmdbClient.instance.getTvSeason(tvId, seasonNumber, apiKey)
-            response.episodes.map { ep ->
+            val sourceSeason = SeriesEpisodeOrder.sourceSeason(tvId.toString(), seasonNumber)
+            val response = TmdbClient.instance.getTvSeason(tvId, sourceSeason, apiKey)
+            response.episodes.filter { ep -> SeriesEpisodeOrder.contains(tvId.toString(), seasonNumber, ep.episodeNumber ?: 0) }.map { ep ->
                 val still = ep.stillPath?.let { "https://image.tmdb.org/t/p/w500$it" } ?: ""
                 val runtimeStr = ep.runtime?.let { "${it}m" } ?: "45m"
                 com.example.model.Episode(
@@ -522,6 +523,7 @@ class TmdbRepository {
     }
 
     suspend fun getTvSeasons(tvId: Long): List<Int> {
+        SeriesEpisodeOrder.seasons(tvId.toString())?.let { return it }
         return try {
             val details = TmdbClient.instance.getTvDetails(tvId, apiKey)
             val seasonNumbers = details.seasons

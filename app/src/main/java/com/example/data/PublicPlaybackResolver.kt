@@ -37,6 +37,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         .callTimeout(6, TimeUnit.SECONDS).build()
     private data class SeasonCache(val expiresAt: Long, val seasons: Map<Int, String>)
     private val netflixSeasons = ConcurrentHashMap<String, SeasonCache>()
+    private val orderedEpisodeMetadata = ConcurrentHashMap<String, Pair<Long, List<SeriesEpisodeOrder.EpisodeIdentity>>>()
     private data class VerifiedContent(val contentId: String, val ott: String, val expiresAt: Long)
     private val verifiedContents = ConcurrentHashMap<String, VerifiedContent>()
     private fun contentKey(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String) =
@@ -109,6 +110,8 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         private val titleAliases = linkedSetOf<String>()
         private var forcedRefresh = false
         private var alternateCatalogsOnly = false
+        private var orderedSeries = false
+        private val providerCoordinates = mutableMapOf<Pair<String, String>, Pair<Int, Int>>()
         private var selected: Pair<String, String>? = null
         private var cachedEpisodeUsed = false
         private var cachedEpisodeRefreshed = false
@@ -478,8 +481,49 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             catalog?.episodeCatalog?.saveEpisodes(base.toString(), ott, showId, season, episodes, System.currentTimeMillis())
         }
 
-        private suspend fun episodeId(showId: String, ott: String, title: String, season: Int, episode: Int): String {
+        private suspend fun orderedEpisodeId(showId: String, title: String, season: Int, episode: Int, providerSeason: Int): String {
+            catalog?.episodeCatalog?.mappedEpisode(base.toString(), "nf", showId, episode, System.currentTimeMillis())?.let {
+                if (it.providerSeason != providerSeason) throw IOException("Provider episode order changed")
+                cachedEpisodeUsed = true
+                providerCoordinates[it.id to "nf"] = it.providerSeason to it.providerEpisode
+                return it.id
+            }
+            val seasonId = publicSeasons(showId, title, providerSeason)[providerSeason]
+                ?: throw IOException("Requested season is unavailable")
+            val now = System.currentTimeMillis()
+            val metadata = orderedEpisodeMetadata["73223"]?.takeIf { now - it.first in 0 until 3_600_000L }?.second ?: run {
+                val url = "https://api.themoviedb.org/3/tv/73223/season/1".toHttpUrl().newBuilder()
+                    .addQueryParameter("api_key", com.example.BuildConfig.TMDB_API_KEY).build()
+                val response = text(url, publicNetflix = true); requirePublicSuccess(response)
+                val parsed = try { SeriesEpisodeOrder.metadata(JSONObject(response.body)) }
+                    catch (error: org.json.JSONException) { throw IOException("Invalid episode ordering metadata", error) }
+                orderedEpisodeMetadata["73223"] = now to parsed
+                parsed
+            }
+            val seen = mutableSetOf<String>()
+            for (page in 1..30) {
+                val params = mutableListOf("s" to seasonId, "series" to showId)
+                if (page > 1) params += "page" to page.toString()
+                val data = json("/mobile/episodes.php", *params.toTypedArray()) as? JSONObject
+                    ?: throw IOException("Episode catalog unavailable")
+                val rows = data.optJSONArray("episodes") ?: JSONArray()
+                val mappings = SeriesEpisodeOrder.join(rows, metadata, providerSeason)
+                if (mappings.any { !seen.add(it.id) }) throw IOException("Provider repeated an episode page")
+                catalog?.episodeCatalog?.saveMappedEpisodes(base.toString(), "nf", showId, mappings, System.currentTimeMillis())
+                mappings.singleOrNull { it.number == episode }?.let {
+                    providerCoordinates[it.id to "nf"] = it.providerSeason to it.providerEpisode
+                    return it.id
+                }
+                if (data.optString("nextPageShow") != "1" || rows.length() == 0) break
+            }
+            throw IOException("Requested episode S${season}E${episode} is unavailable")
+        }
+
+        private suspend fun episodeId(showId: String, ott: String, title: String, season: Int, episode: Int, tmdbId: String): String {
             cachedEpisodeUsed = false
+            SeriesEpisodeOrder.providerSeason(tmdbId, ott, showId, season, episode)?.let {
+                return orderedEpisodeId(showId, title, season, episode, it)
+            }
             catalog?.episodeCatalog?.episode(base.toString(), ott, showId, season, episode, System.currentTimeMillis())?.let {
                 cachedEpisodeUsed = true; return it
             }
@@ -508,7 +552,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     } ?: throw IOException("Requested season ID is unavailable")
                 }
             }
-            for (page in 1..5) {
+            for (page in 1..30) {
                 val params = mutableListOf("s" to seasonId, "series" to showId)
                 if (page > 1) params += "page" to page.toString()
                 val data = json("${prefix(ott)}/episodes.php", *params.toTypedArray()) as? JSONObject ?: throw IOException("Episode catalog unavailable")
@@ -534,6 +578,8 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
          * Cold movies use a typed native candidate checked against NewTV's movie metadata.
          * Episodes use exact verified IDs or NewTV's labelled episode catalog, never the series ID. */
         private suspend fun catalogRoutes(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult? {
+            // Split catalogs must verify the episode join before any player route can select content.
+            if (orderedSeries) return null
             if (!tmdbId.matches(Regex("[1-9][0-9]*"))) return null
             val identityKey = key(tmdbId, type, title, year)
             val saved = catalog?.verified(identityKey, System.currentTimeMillis())
@@ -571,9 +617,10 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
         }
 
         suspend fun resolve(title: String, year: String, type: String, season: Int, episode: Int, tmdbId: String): PublicPlaybackResult {
+            orderedSeries = type == "tv" && SeriesEpisodeOrder.applies(tmdbId)
             if (cookieFreeRoutes) catalogRoutes(title, year, type, season, episode, tmdbId)?.let { return it }
             if (backgroundCatalogRefresh && PlaybackServiceGate.remainingMs() == 0L) catalog?.refreshInBackground(http)
-            if (cookieFreeRoutes) verifiedContents["$base:${contentKey(title, year, type, season, episode, tmdbId)}"]
+            if (cookieFreeRoutes && !orderedSeries) verifiedContents["$base:${contentKey(title, year, type, season, episode, tmdbId)}"]
                 ?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let { known ->
                     earlyRoutes(known.contentId, known.ott, season, episode)?.let { return it }
                 }
@@ -594,7 +641,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                         it.startsWith("Issued") || it.startsWith("Playback manifest") || it == "Playback endpoint unavailable (HTTP 404)" }
                     if (type == "tv" && cachedEpisodeUsed && !cachedEpisodeRefreshed && staleEpisodeEvidence && selected != null && requests < 28) {
                         cachedEpisodeRefreshed = true
-                        selected?.let { (id, ott) -> catalog?.episodeCatalog?.evictEpisode(base.toString(), ott, id, season, episode, System.currentTimeMillis()) }
+                        selected?.let { (id, ott) -> catalog?.episodeCatalog?.evictEpisode(base.toString(), ott, id, if (orderedSeries && ott == "nf") 1 else season, episode, System.currentTimeMillis()) }
                         retryIdentity = selected
                         last = error
                         return@repeat
@@ -665,7 +712,9 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
 
         private suspend fun earlyRoutes(contentId: String, ott: String, season: Int, episode: Int): PublicPlaybackResult? {
             if (!PublicIdentityDiscovery.validId(contentId, ott)) return null
-            primaryRoute(contentId, ott, season, episode)?.let { return it }
+            val coordinates = providerCoordinates[contentId to ott]
+                ?: if (orderedSeries && ott == "nf") null else (if (orderedSeries) 1 else season) to episode
+            if (coordinates != null) primaryRoute(contentId, ott, coordinates.first, coordinates.second)?.let { return it }
             val directBudget = probeBudget.directMs()
             if (directBudget <= 0L || !directAttempted.add(contentId to ott)) return null
             PlaybackServiceGate.check()
@@ -686,7 +735,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             selected = showId to ott
             attempted.add(showId to ott)
             unavailable.add(showId to ott)
-            val contentId = if (type == "tv") episodeId(showId, ott, title, season, episode) else showId
+            val contentId = if (type == "tv") episodeId(showId, ott, title, if (orderedSeries && ott != "nf") 1 else season, episode, tmdbId) else showId
             if (cookieFreeRoutes) {
                 val key = "$base:${contentKey(title, year, type, season, episode, tmdbId)}"
                 if (verifiedContents.size >= 64) verifiedContents.keys.firstOrNull()?.let(verifiedContents::remove)

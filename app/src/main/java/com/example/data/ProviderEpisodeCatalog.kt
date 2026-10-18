@@ -96,6 +96,29 @@ internal class ProviderEpisodeCatalog(context: Context) {
         rows().put(key, row); persist(now)
     }
 
+    /** Canonical TMDB coordinates and provider labels are separate, never reused interchangeably. */
+    @Synchronized fun mappedEpisode(origin: String, ott: String, showId: String, episode: Int, now: Long): SeriesEpisodeOrder.Mapping? {
+        val entry = row(origin, ott, showId, 1)?.optJSONObject("episodes")?.optJSONObject(episode.toString()) ?: return null
+        val id = entry.optString("id")
+        val season = entry.optInt("providerSeason")
+        val providerEpisode = entry.optInt("providerEpisode")
+        return if (entry.optInt("orderVersion") == 1 && validId(ott, id) && fresh(entry.optLong("verifiedAt"), now) &&
+            season in 1..60 && providerEpisode in 1..500) SeriesEpisodeOrder.Mapping(episode, id, season, providerEpisode) else null
+    }
+
+    @Synchronized fun saveMappedEpisodes(origin: String, ott: String, showId: String, mappings: List<SeriesEpisodeOrder.Mapping>, now: Long) {
+        if (mappings.isEmpty() || mappings.any { it.providerSeason !in 1..60 || it.providerEpisode !in 1..500 } ||
+            mappings.map { it.number }.distinct().size != mappings.size) return
+        saveEpisodes(origin, ott, showId, 1, mappings.associate { it.number to it.id }, now)
+        val saved = row(origin, ott, showId, 1)?.optJSONObject("episodes") ?: return
+        mappings.forEach { mapping ->
+            saved.optJSONObject(mapping.number.toString())?.takeIf { it.optString("id") == mapping.id }?.apply {
+                put("orderVersion", 1); put("providerSeason", mapping.providerSeason); put("providerEpisode", mapping.providerEpisode)
+            }
+        }
+        persist(now)
+    }
+
     @Synchronized fun evictSeason(origin: String, ott: String, showId: String, season: Int, now: Long) {
         scope(origin, ott, showId)?.let { rows().remove("$it:$season"); persist(now) }
     }

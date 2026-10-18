@@ -528,4 +528,21 @@ https://cdn.example/video/720.m3u8?in=provider-issued
         assertEquals(2, seen.count { it.url.encodedPath == "/newtv/player.php" })
     }
 
+    @Test fun labelledEpisodeCatalogCanReachPageSixWithoutAPlayerOrSessionRequest() = runBlocking {
+        val seen = mutableListOf<Request>()
+        val resolver = newTv(client(seen) { request -> when (request.url.encodedPath) {
+            "/checknewtv.php" -> discovery()
+            "/newtv/post.php" -> Fixture("""{"status":"y","title":"Long Season","type":"t","season":[{"s":"S1","id":"80001001"}]}""")
+            "/newtv/episodes.php" -> {
+                assertEquals("80001001", request.url.queryParameter("id"))
+                val page = request.url.queryParameter("page")!!.toInt()
+                Fixture("""{"episodes":[{"id":"${80002000 + page}","s":"S1","ep":"E${(page - 1) * 10 + 1}"}],"nextPageShow":${if (page < 6) 1 else 0}}""")
+            }
+            else -> throw AssertionError("Unexpected path ${request.url.encodedPath}")
+        } })
+        assertEquals("80002006", resolver.resolveSeriesEpisodeId("80001000", "nf", "Long Season", 1, 51))
+        assertEquals(6, seen.count { it.url.encodedPath == "/newtv/episodes.php" })
+        assertFalse(seen.any { it.url.encodedPath.contains("player.php") || it.header("Cookie") != null })
+    }
+
 }

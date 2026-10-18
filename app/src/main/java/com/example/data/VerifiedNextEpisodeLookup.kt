@@ -26,21 +26,22 @@ internal class VerifiedNextEpisodeLookup(
             val now = nowMs()
             misses[key]?.let { if (now >= it && now - it < 60_000L) return@withLock null }
             try {
-                val catalog = episodes(id, season).filter { it.id > 0 && it.seasonNumber == season && it.episodeNumber > 0 }
+                val catalogSeason = SeriesEpisodeOrder.displaySeason(movieId, season, episode)
+                val catalog = episodes(id, catalogSeason).filter { it.id > 0 && SeriesEpisodeOrder.displaySeason(movieId, it.seasonNumber, it.episodeNumber) == catalogSeason && it.episodeNumber > 0 }
                 currentCoroutineContext().ensureActive()
                 // An empty catalog can mean offline. It cannot prove that the
                 // watched episode is the season finale or authorize a jump.
                 if (catalog.none { it.episodeNumber == episode }) return@withLock miss(key, now)
                 val remaining = catalog.filter { it.episodeNumber > episode }.minByOrNull { it.episodeNumber }
-                val result = if (remaining != null) season to remaining.episodeNumber else {
-                    val nextSeason = seasons(id).filter { it > season }.minOrNull()
+                val result = if (remaining != null) remaining.seasonNumber to remaining.episodeNumber else {
+                    val nextSeason = seasons(id).filter { it > catalogSeason }.minOrNull()
                     currentCoroutineContext().ensureActive()
                     val next = nextSeason?.let { number ->
-                        episodes(id, number).filter { it.id > 0 && it.seasonNumber == number && it.episodeNumber > 0 }
+                        episodes(id, number).filter { it.id > 0 && SeriesEpisodeOrder.displaySeason(movieId, it.seasonNumber, it.episodeNumber) == number && it.episodeNumber > 0 }
                             .minByOrNull { it.episodeNumber }
                     }
                     currentCoroutineContext().ensureActive()
-                    if (nextSeason != null && next != null) nextSeason to next.episodeNumber else null
+                    if (nextSeason != null && next != null) next.seasonNumber to next.episodeNumber else null
                 }
                 if (result == null) miss(key, now) else result.also {
                     verified[key] = it
