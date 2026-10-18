@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092046,
-  "versionName": "18.10.2026.1",
+  "versionCode": 29092047,
+  "versionName": "18.10.2026.2",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7628971,
-  "sha256": "75cb91c325c84aad9690dcfefdffe074debdc28829f26a5c04d1528f2eeb3906",
+  "sizeBytes": 7661736,
+  "sha256": "be9930589a8c9a0bfe6dba94d7701f69e5454186b7cd3ea427d6d616d823e548",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092046-75cb91c325c84aad.apk",
-  "releaseNotes": "Fix Black Clover’s four-season, 170-episode layout and playback beyond episode 50. Match verified episode identities despite provider label drift, preserve progress and download IDs, and correct Next Episode transitions.",
+  "apkUrl": "/downloads/tv/29092047-be9930589a8c9a0b.apk",
+  "releaseNotes": "Correct subtitle language metadata and prevent selecting unrelated default or forced subtitles. Open Search without extra delays, restore billboard previews through the shared player, and wrap Details metadata without clipping.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-18T07:10:34.526Z"
+  "publishedAt": "2026-10-18T07:58:17.632Z"
 }
