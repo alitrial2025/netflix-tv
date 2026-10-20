@@ -171,22 +171,32 @@ async function activate(input, payment, { db, serverTimestamp, now = Date.now })
 }
 function createGatewayGet(authorization, fetchImpl = fetch, deadline = Date.now() + 45000) {
   return async (path, parameters) => {
+    const unavailable = (message, phase, httpStatus) => {
+      const error = new PaymentError(503, 'GATEWAY_UNAVAILABLE', message);
+      error.gatewayFailure = {
+        endpoint: ['transaction-status', 'transactions'].includes(path) ? path : 'other',
+        phase,
+        ...(Number.isInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599 ? { httpStatus } : {})
+      };
+      throw error;
+    };
     if (!authorization) fail(503, 'NOT_CONFIGURED', 'Payment verification is temporarily unavailable. Contact support; do not pay again.');
     const remaining = deadline - Date.now();
-    if (remaining <= 0) fail(503, 'GATEWAY_UNAVAILABLE', 'Verification took too long. Retry this same code shortly; do not pay again.');
+    if (remaining <= 0) unavailable('Verification took too long. Retry this same code shortly; do not pay again.', 'DEADLINE');
     const url = new URL(`https://backend.payhero.co.ke/api/v2/${path}`);
     Object.entries(parameters).forEach(([k, v]) => url.searchParams.set(k, v));
     let response;
     try { response = await fetchImpl(url, { headers: { Accept: 'application/json', Authorization: authorization }, redirect: 'error', signal: AbortSignal.timeout(Math.min(20000, remaining)) }); }
-    catch (_) { fail(503, 'GATEWAY_UNAVAILABLE', 'Payment verification is temporarily unavailable. Retry this same code; do not pay again.'); }
-    if (!response.ok) fail(503, 'GATEWAY_UNAVAILABLE', 'The merchant lookup is unavailable. Retry shortly or contact support with your receipt; do not pay again.');
+    catch (_) { unavailable('Payment verification is temporarily unavailable. Retry this same code; do not pay again.', 'TRANSPORT'); }
+    if (!response.ok) unavailable('The merchant lookup is unavailable. Retry shortly or contact support with your receipt; do not pay again.', 'HTTP', response.status);
     let json;
     try { json = await response.json(); }
-    catch (_) { fail(503, 'GATEWAY_UNAVAILABLE', 'The merchant returned an invalid response. Retry the same code shortly; do not pay again.'); }
+    catch (_) { unavailable('The merchant returned an invalid response. Retry the same code shortly; do not pay again.', 'JSON'); }
     return json;
   };
 }
-function createHandler({ verifyIdToken, db, serverTimestamp, gatewayGet, now }) {
+function createHandler({ verifyIdToken, db, serverTimestamp, gatewayGet, now,
+  logFailure = metadata => console.warn('Payment verification unavailable', metadata) }) {
   return async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -213,11 +223,13 @@ function createHandler({ verifyIdToken, db, serverTimestamp, gatewayGet, now }) 
       return send(200, { ...await activate(input, payment, { db, serverTimestamp, now }), serverNow: (now || Date.now)() });
     } catch (error) {
       if (error instanceof PaymentError) {
+        if (error.status >= 500) logFailure({ category: error.code,
+          ...(error.gatewayFailure ? { gateway: error.gatewayFailure } : {}) });
         if (error.retryAfterMs) res.setHeader('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)));
         return send(error.status, { code: error.code, message: error.message, ...(error.retryAfterMs ? { retryAfterMs: error.retryAfterMs } : {}) });
       }
       // Never log bearer tokens, merchant credentials, customer receipts or personal data.
-      console.warn('Payment activation failed', { category: 'MEMBERSHIP_UNAVAILABLE' });
+      logFailure({ category: 'MEMBERSHIP_UNAVAILABLE' });
       return send(503, { code: 'MEMBERSHIP_UNAVAILABLE', message: 'Payment could not be saved. Retry this same code after reconnecting or contact support; do not pay again.' });
     }
   };

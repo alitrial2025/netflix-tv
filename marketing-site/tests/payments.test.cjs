@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
-const { paymentInput, lookupPayment, activate, createHandler, existingPayment, claimVerificationAttempt } = require('../server/payment-service.cjs');
+const { paymentInput, lookupPayment, activate, createHandler, existingPayment, claimVerificationAttempt, createGatewayGet } = require('../server/payment-service.cjs');
 const reference = (uid='alice',plan='plan_premium') => `NF_${createHash('sha256').update(uid).digest('hex').slice(0,16)}_${plan.replace('plan_','')}_${'b'.repeat(32)}`;
 const input = (uid='alice',plan='plan_premium') => paymentInput(uid,{planId:plan,receiptCode:'TEST123456',paymentReference:reference(uid,plan)});
 const payment = () => ({provider_reference:'TEST123456',status:'SUCCESS',provider:'M-PESA',currency:'KES',external_reference:reference(),transaction_type:'PAYMENT',amount:1350,reference:'merchant-transaction'});
@@ -205,4 +205,24 @@ test('verification throttling is atomic bounded and does not block already appli
  const handler=createHandler({...deps(db),verifyIdToken:async()=>({uid:'alice'}),gatewayGet:async()=>{throw Error('must not look up an already applied receipt');}});
  const response=await invoke(handler,{planId:'plan_premium',receiptCode:'TEST123456',paymentReference:reference()});
  assert.equal(response.status,200);
+});
+
+
+test('merchant failures expose only safe operational categories in private diagnostics',async()=>{
+ for(const scenario of [
+  {fetch:async()=>({ok:false,status:401}),expected:{endpoint:'transaction-status',phase:'HTTP',httpStatus:401}},
+  {fetch:async()=>{throw Error('secret credential and customer data');},expected:{endpoint:'transaction-status',phase:'TRANSPORT'}},
+  {fetch:async()=>({ok:true,json:async()=>{throw Error('private merchant response');}}),expected:{endpoint:'transaction-status',phase:'JSON'}}
+ ]) {
+  const db=mockDb();const diagnostics=[];
+  const handler=createHandler({...deps(db),verifyIdToken:async()=>({uid:'alice'}),
+   gatewayGet:createGatewayGet('Basic PRIVATE_CREDENTIAL',scenario.fetch),logFailure:metadata=>diagnostics.push(metadata)});
+  const response=await invoke(handler,{planId:'plan_premium',receiptCode:'TEST123456',paymentReference:reference()});
+  assert.equal(response.status,503);assert.equal(response.result.code,'GATEWAY_UNAVAILABLE');
+  assert.deepEqual(diagnostics,[{category:'GATEWAY_UNAVAILABLE',gateway:scenario.expected}]);
+  const serialized=JSON.stringify({diagnostics,response:response.result});
+  for(const secret of ['PRIVATE_CREDENTIAL','TEST123456',reference(),'Bearer valid','customer data','private merchant response'])
+   assert.equal(serialized.includes(secret),false);
+  assert.equal(db.data.has('used_receipts/TEST123456'),false);
+ }
 });
