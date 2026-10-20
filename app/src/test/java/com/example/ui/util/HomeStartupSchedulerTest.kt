@@ -118,4 +118,54 @@ class HomeStartupSchedulerTest {
         waiting.cancel()
     }
 
+    @Test fun finishingOldRailScrollDoesNotUnblockTheNewTabSlide() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime })
+        gate.markHomeReady()
+        gate.setScrolling(true)
+        gate.setTabTransitioning(true)
+        var started = false
+        launch { gate.awaitIdle(); started = true }
+        gate.setScrolling(false)
+        advanceTimeBy(5_000); runCurrent()
+        assertFalse(started)
+        gate.setTabTransitioning(false)
+        advanceTimeBy(999); runCurrent()
+        assertFalse(started)
+        advanceTimeBy(1); runCurrent()
+        assertTrue(started)
+    }
+
+    @Test fun finishingTabSlideDoesNotUnblockAnOngoingRailScroll() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime })
+        gate.markHomeReady()
+        gate.setTabTransitioning(true)
+        gate.setScrolling(true)
+        var started = false
+        launch { gate.awaitBrowsingIdle(); started = true }
+        gate.setTabTransitioning(false)
+        advanceTimeBy(5_000); runCurrent()
+        assertFalse(started)
+        gate.setScrolling(false)
+        advanceTimeBy(1_000); runCurrent()
+        assertTrue(started)
+    }
+
+    @Test fun leavingDuringTabSlideClearsMotionWithoutOpeningTheHomeGate() = runTest {
+        val gate = HomeStartupScheduler({ testScheduler.currentTime })
+        gate.markHomeReady()
+        gate.setTabTransitioning(true)
+        gate.markHomeHidden()
+        var homeStarted = false
+        val home = launch { gate.awaitIdle(); homeStarted = true }
+        var categoryStarted = false
+        launch { gate.awaitBrowsingIdle(); categoryStarted = true }
+        advanceTimeBy(1_000); runCurrent()
+        assertFalse(homeStarted)
+        assertTrue(categoryStarted)
+        gate.markHomeReady()
+        advanceTimeBy(1_000); runCurrent()
+        assertTrue(homeStarted)
+        home.join()
+    }
+
 }

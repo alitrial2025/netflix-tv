@@ -182,6 +182,13 @@ class HomePreviewController(
     fun stopAll(releaseImmediately: Boolean = true) = onMain { stopAllOnMain(releaseImmediately) }
 
     private fun stopAllOnMain(releaseImmediately: Boolean) {
+        if (desired == null && work?.isActive != true && _state.value.player == null) {
+            if (releaseImmediately) {
+                idleRelease?.cancel()
+                releasePlayer()
+            }
+            return
+        }
         desired = null
         val ticket = ++generation
         work?.cancel()
@@ -382,10 +389,7 @@ class HomePreviewController(
         player?.let {
             // Stop optional segment loading on blur. A screen which already
             // claimed the player keeps its source and decoder.
-            if (viewModel.ownsSharedPlayback(playbackOwner)) {
-                it.stop()
-                it.clearMediaItems()
-            }
+            it.clearHomePreviewIfOwned(viewModel.ownsSharedPlayback(playbackOwner))
         }
     }
 

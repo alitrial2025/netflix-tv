@@ -15,6 +15,7 @@ object HomeStartupGate {
     fun markHomeHidden() = scheduler.markHomeHidden()
     fun onInteraction() = scheduler.onInteraction()
     fun setScrolling(scrolling: Boolean) = scheduler.setScrolling(scrolling)
+    fun setTabTransitioning(transitioning: Boolean) = scheduler.setTabTransitioning(transitioning)
     suspend fun awaitIdle() = scheduler.awaitIdle()
     suspend fun awaitBrowsingIdle() = scheduler.awaitBrowsingIdle()
 }
@@ -28,6 +29,7 @@ internal class HomeStartupScheduler(
         val homeReady: Boolean = false,
         val preparing: Boolean = false,
         val scrolling: Boolean = false,
+        val tabTransitioning: Boolean = false,
         val lastInteractionMs: Long = 0L
     )
 
@@ -45,7 +47,7 @@ internal class HomeStartupScheduler(
     }
 
     fun markHomeHidden() = synchronized(lock) {
-        state.value = state.value.copy(homeReady = false, scrolling = false)
+        state.value = state.value.copy(homeReady = false, scrolling = false, tabTransitioning = false)
     }
 
     fun onInteraction() = synchronized(lock) {
@@ -58,6 +60,14 @@ internal class HomeStartupScheduler(
         }
     }
 
+    // A departing rail can finish its scroll while the new tab is still sliding.
+    // Separate motion sources prevent either one from unblocking optional work.
+    fun setTabTransitioning(transitioning: Boolean) = synchronized(lock) {
+        if (state.value.tabTransitioning != transitioning) {
+            state.value = state.value.copy(tabTransitioning = transitioning, lastInteractionMs = nowMs())
+        }
+    }
+
     /** Suspends while Home is absent, rendering its first frame, or accepting continuous input. */
     suspend fun awaitIdle() = awaitQuiet(requireHome = true)
 
@@ -67,7 +77,7 @@ internal class HomeStartupScheduler(
     private suspend fun awaitQuiet(requireHome: Boolean) {
         while (true) {
             currentCoroutineContext().ensureActive()
-            val candidate = state.first { (!requireHome || it.homeReady || it.preparing) && !it.scrolling }
+            val candidate = state.first { (!requireHome || it.homeReady || it.preparing) && !it.scrolling && !it.tabTransitioning }
             val remaining = if (candidate.preparing) 0L else inputQuietMs - (nowMs() - candidate.lastInteractionMs)
             if (remaining > 0L) {
                 delay(remaining)

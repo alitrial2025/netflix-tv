@@ -154,7 +154,8 @@ fun NetflixMovieRow(
     viewModel: NetflixViewModel? = null,
     verticalRingOffsetProvider: () -> Float = { 0f },
     showSelectionRing: Boolean = true,
-    onSelectionFrameTopMeasured: (Int) -> Unit = {}
+    onSelectionFrameTopMeasured: (Int) -> Unit = {},
+    viewportWidth: Dp? = null
 ) {
     if (movies.isEmpty() || height <= 2.dp) return
 
@@ -357,7 +358,8 @@ fun NetflixMovieRow(
                 fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
 
-        BoxWithConstraints(
+        MovieRowViewport(
+            viewportWidth = viewportWidth,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(cardHeight + 8.dp)
@@ -439,11 +441,11 @@ fun NetflixMovieRow(
                         }
                     )
                 }
-        ) {
+        ) { availableWidth ->
             // Retain what is actually crossing the viewport. Fast taps can put
             // the destination several cards ahead of the spring's current position.
             val posterSlots = kotlin.math.ceil(
-                ((maxWidth - ringEnd).coerceAtLeast(0.dp) / itemSpacing).toDouble()
+                ((availableWidth - ringEnd).coerceAtLeast(0.dp) / itemSpacing).toDouble()
             ).toInt() + if (isActiveRow || !isHeroSettled) 1 else 0
             val posterWindow = movieRowWindow(
                 animatedFloor, posterSlots, movies.size, isInfinite,
@@ -637,6 +639,21 @@ fun NetflixMovieRow(
     }
 }
 
+/** Home already measured its viewport. Reuse it instead of subcomposing every rail. */
+@Composable
+internal fun MovieRowViewport(
+    viewportWidth: Dp?,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.(Dp) -> Unit
+) {
+    if (viewportWidth != null) {
+        Box(modifier) { content(viewportWidth) }
+    } else {
+        // Standalone rails (for example title details) still measure their own bounds.
+        BoxWithConstraints(modifier) { content(maxWidth) }
+    }
+}
+
 @Composable
 private fun MovieMetadataDetails(movie: Movie, isKids: Boolean, width: Dp) {
     val cachedMeta = com.example.data.TmdbRepository.getCachedBillboardMeta(movie.id)
@@ -673,16 +690,16 @@ fun MovieCardItem(
 ) {
     val expandedProgress = if (isExpanded) 1f else 0f
     val isPreviewFirstFrameReady = preview?.firstFrameReady == true
-    val prePreviewOverlayAlpha = animateFloatAsState(
+    val prePreviewOverlayAlpha = if (isExpanded) animateFloatAsState(
         targetValue = if (isPreviewFirstFrameReady) 0f else 1f,
         animationSpec = tween(TvMotion.duration(240), easing = LinearOutSlowInEasing),
         label = "cardPrePreviewOverlayAlpha"
-    )
-    val cardScrimAlpha = animateFloatAsState(
+    ) else remember { mutableFloatStateOf(1f) }
+    val cardScrimAlpha = if (isExpanded) animateFloatAsState(
         targetValue = if (isPreviewFirstFrameReady) 0.35f else 1f,
         animationSpec = tween(TvMotion.duration(320), easing = LinearOutSlowInEasing),
         label = "cardScrimAlpha"
-    )
+    ) else prePreviewOverlayAlpha
 
     val showPrePreviewOverlay by remember(prePreviewOverlayAlpha) {
         derivedStateOf { prePreviewOverlayAlpha.value > 0.01f }

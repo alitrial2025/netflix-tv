@@ -13,6 +13,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +35,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import com.example.ui.util.TvImagePolicy
 import com.example.ui.util.TvArtworkKind
 import com.example.ui.util.TvKeyPacer
+import com.example.ui.util.HomeStartupGate
 import com.example.ui.util.TvMotion
 import com.example.ui.util.rememberTvAmbientColor
 import com.example.ui.util.tvAmbientBackground
@@ -269,13 +271,18 @@ fun HomeScreen(
     }
     LaunchedEffect(contentTab, tabSlide) {
         if (tabSlideTabState.value == contentTab) return@LaunchedEffect
-        val revealStarted = com.example.ui.util.RuntimeTiming.start()
-        tabSlide.snapTo(tabSlideStart)
-        tabSlideTabState.value = contentTab
-        // Layout the new page before its glide; composition and image upload must not consume its first animation frame.
-        withFrameNanos { }
-        com.example.ui.util.RuntimeTiming.elapsed("tab_" + contentTab.lowercase().replace(" ", "_") + "_first_layout", revealStarted)
-        tabSlide.animateTo(0f, tween(TvMotion.duration(200), easing = LinearOutSlowInEasing))
+        HomeStartupGate.setTabTransitioning(true)
+        try {
+            val revealStarted = com.example.ui.util.RuntimeTiming.start()
+            tabSlide.snapTo(tabSlideStart)
+            tabSlideTabState.value = contentTab
+            // Layout the new page before its glide; composition and image upload must not consume its first animation frame.
+            withFrameNanos { }
+            com.example.ui.util.RuntimeTiming.elapsed("tab_" + contentTab.lowercase().replace(" ", "_") + "_first_layout", revealStarted)
+            tabSlide.animateTo(0f, tween(TvMotion.duration(200), easing = LinearOutSlowInEasing))
+        } finally {
+            HomeStartupGate.setTabTransitioning(false)
+        }
     }
 
     // Dynamic focus level state machine:
@@ -405,6 +412,8 @@ fun HomeScreen(
             )
             buckets to candidates
         }
+        // Keep the current catalogue attached while a refresh finishes during motion.
+        if (catalogBuckets.isReady) viewModel.awaitHomeIdle()
         catalogBuckets = buckets
         curatedBillboardCandidates = candidates
     }
@@ -421,6 +430,8 @@ fun HomeScreen(
         val candidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             BillboardAlgorithm.rankBillboardMovies(source, tab, isKidProfile, 8)
         }
+        // Cold-tab ranking must not replace the hero in the middle of its reveal.
+        viewModel.awaitBrowsingIdle()
         curatedBillboardCandidates = curatedBillboardCandidates + (tab to candidates)
     }
 
@@ -488,6 +499,8 @@ fun HomeScreen(
                 buildHomeTabRows(tab, catalogBuckets, continueWatchingList, watchHistoryMovies,
                     myListMovieIds, myListAddedAt, categoryRows, profileName, isKidProfile)
             }
+            // A warmup started before navigation may finish during the glide.
+            if (tab != contentTab) viewModel.awaitHomeIdle()
             // withContext checks cancellation before returning to the UI thread.
             if (!tabRowsCache.containsKey(tab)) tabRowsCache[tab] = rows
         }
@@ -506,6 +519,7 @@ fun HomeScreen(
                 val candidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     BillboardAlgorithm.rankBillboardMovies(source, tab, isKidProfile, 8)
                 }
+                viewModel.awaitHomeIdle()
                 if (!curatedBillboardCandidates.containsKey(tab)) {
                     curatedBillboardCandidates = curatedBillboardCandidates + (tab to candidates)
                 }
@@ -1197,6 +1211,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
             }
     ) {
         val viewportHeightPx = with(density) { maxHeight.toPx() }
+        val viewportWidth = maxWidth
         val firstRowTopPx = when {
             isKidProfile && activeTab == "Home" -> kidsHeroHeightPx + kidsRowSpacingPx
             isKidProfile -> with(density) { 16.dp.toPx() }
@@ -1362,6 +1377,7 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
                                     firstRowTopPx = firstRowTopPx,
                                     rowHeightPx = rowHeightPx,
                                     viewportHeightPx = viewportHeightPx,
+                                    viewportWidth = viewportWidth,
                                     scrollOffsetProvider = scrollOffsetProvider,
                                     title = title,
                                     movies = movies,
@@ -1618,6 +1634,7 @@ private fun HomeRowWrapper(
     firstRowTopPx: Float,
     rowHeightPx: Float,
     viewportHeightPx: Float,
+    viewportWidth: Dp,
     scrollOffsetProvider: () -> Float,
     title: String,
     movies: List<Movie>,
@@ -1734,7 +1751,8 @@ private fun HomeRowWrapper(
             },
             viewModel = viewModel,
             showSelectionRing = false,
-            onSelectionFrameTopMeasured = onSelectionFrameTopMeasured
+            onSelectionFrameTopMeasured = onSelectionFrameTopMeasured,
+            viewportWidth = viewportWidth
         )
     }
 }
