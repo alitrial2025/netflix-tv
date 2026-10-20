@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 28,
-  "versionName": "1.27",
+  "versionCode": 29,
+  "versionName": "1.28",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14226092,
-  "sha256": "b551f09c3e275df386ca53f9fd9213164ee342880440179cbd57565cad4b4da9",
+  "sizeBytes": 14226084,
+  "sha256": "75c61b3da96d7c4923c053a79655d4e270d4e72489a855cf7bd1670693a85b31",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/28-b551f09c3e275df3.apk",
-  "releaseNotes": "Fix downloads stuck after preparation, automatically retry interrupted operations, recover queued downloads after restart and allow retry without losing saved progress.",
+  "apkUrl": "/downloads/mobile/29-75c61b3da96d7c49.apk",
+  "releaseNotes": "Fix new downloads stopping immediately after Preparing by removing conflicting foreground network tracking; keep Wi-Fi-only protection and recover affected queued downloads.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-20T07:32:38.229Z"
+  "publishedAt": "2026-10-20T08:05:05.124Z"
 }
