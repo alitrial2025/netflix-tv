@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092048,
-  "versionName": "18.10.2026.3",
+  "versionCode": 29092049,
+  "versionName": "20.10.2026.1",
   "minSdk": 24,
   "targetSdk": 35,
   "sizeBytes": 7661743,
-  "sha256": "011310d1386d5fb7725f6bcc1383083b3c00c0d292db86eed33e1c3a5960a5a7",
+  "sha256": "dc00db6fe0da8b2231011f75654000560b85defc85961f77a9e486dd96cb66de",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092048-011310d1386d5fb7.apk",
-  "releaseNotes": "Fix trusted subscription time and restart handling, enforce cloud profile limits, and show accurate membership status. Keep TV upgrade prompts consistent with the current membership.",
+  "apkUrl": "/downloads/tv/29092049-dc00db6fe0da8b22.apk",
+  "releaseNotes": "Smoother TV Home and tab navigation: reduce rail composition and preview cleanup work, and keep optional warmups out of tab animations.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-18T13:42:59.316Z"
+  "publishedAt": "2026-10-20T22:22:11.066Z"
 }
