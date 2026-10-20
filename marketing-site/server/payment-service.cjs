@@ -172,7 +172,9 @@ async function activate(input, payment, { db, serverTimestamp, now = Date.now })
 function createGatewayGet(authorization, fetchImpl = fetch, deadline = Date.now() + 45000) {
   return async (path, parameters) => {
     const unavailable = (message, phase, httpStatus) => {
-      const error = new PaymentError(503, 'GATEWAY_UNAVAILABLE', message);
+      const merchantAuthRejected = httpStatus === 401 || httpStatus === 403;
+      const error = new PaymentError(503, merchantAuthRejected ? 'MERCHANT_AUTH_UNAVAILABLE' : 'GATEWAY_UNAVAILABLE',
+        merchantAuthRejected ? 'The merchant payment connection needs attention. Contact support with your receipt; do not pay again.' : message);
       error.gatewayFailure = {
         endpoint: ['transaction-status', 'transactions'].includes(path) ? path : 'other',
         phase,

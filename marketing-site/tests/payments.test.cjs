@@ -210,7 +210,9 @@ test('verification throttling is atomic bounded and does not block already appli
 
 test('merchant failures expose only safe operational categories in private diagnostics',async()=>{
  for(const scenario of [
-  {fetch:async()=>({ok:false,status:401}),expected:{endpoint:'transaction-status',phase:'HTTP',httpStatus:401}},
+  {fetch:async()=>({ok:false,status:401}),code:'MERCHANT_AUTH_UNAVAILABLE',expected:{endpoint:'transaction-status',phase:'HTTP',httpStatus:401}},
+  {fetch:async()=>({ok:false,status:403}),code:'MERCHANT_AUTH_UNAVAILABLE',expected:{endpoint:'transaction-status',phase:'HTTP',httpStatus:403}},
+  {fetch:async()=>({ok:false,status:500}),expected:{endpoint:'transaction-status',phase:'HTTP',httpStatus:500}},
   {fetch:async()=>{throw Error('secret credential and customer data');},expected:{endpoint:'transaction-status',phase:'TRANSPORT'}},
   {fetch:async()=>({ok:true,json:async()=>{throw Error('private merchant response');}}),expected:{endpoint:'transaction-status',phase:'JSON'}}
  ]) {
@@ -218,8 +220,10 @@ test('merchant failures expose only safe operational categories in private diagn
   const handler=createHandler({...deps(db),verifyIdToken:async()=>({uid:'alice'}),
    gatewayGet:createGatewayGet('Basic PRIVATE_CREDENTIAL',scenario.fetch),logFailure:metadata=>diagnostics.push(metadata)});
   const response=await invoke(handler,{planId:'plan_premium',receiptCode:'TEST123456',paymentReference:reference()});
-  assert.equal(response.status,503);assert.equal(response.result.code,'GATEWAY_UNAVAILABLE');
-  assert.deepEqual(diagnostics,[{category:'GATEWAY_UNAVAILABLE',gateway:scenario.expected}]);
+  const expectedCode=scenario.code||'GATEWAY_UNAVAILABLE';
+  assert.equal(response.status,503);assert.equal(response.result.code,expectedCode);
+  assert.deepEqual(diagnostics,[{category:expectedCode,gateway:scenario.expected}]);
+  if(scenario.code) assert.match(response.result.message,/merchant payment connection/);
   const serialized=JSON.stringify({diagnostics,response:response.result});
   for(const secret of ['PRIVATE_CREDENTIAL','TEST123456',reference(),'Bearer valid','customer data','private merchant response'])
    assert.equal(serialized.includes(secret),false);
