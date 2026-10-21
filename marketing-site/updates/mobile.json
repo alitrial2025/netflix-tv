@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 33,
-  "versionName": "1.32",
+  "versionCode": 34,
+  "versionName": "1.33",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14240672,
-  "sha256": "d5a83e43bc06ae1edc4e5b44dfd39526d54ef341efa4c845d1fd79df283c6e35",
+  "sizeBytes": 14240673,
+  "sha256": "622fef5e289d676f7a06bd277c465196b1f7275de02fe82380218cc399bbe663",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/33-d5a83e43bc06ae1e.apk",
-  "releaseNotes": "Choose a lightweight frosted Glassy Theme or normal appearance. Compact split headers and floating navigation with a separate My Netflix button.",
+  "apkUrl": "/downloads/mobile/34-622fef5e289d676f.apk",
+  "releaseNotes": "Responsive cinematic Home for unfolded, tablet and landscape windows. Glassy Theme matches Clips controls with shinier rims and a lightweight moving lens sheen.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-21T11:43:57.813Z"
+  "publishedAt": "2026-10-21T15:36:05.248Z"
 }
