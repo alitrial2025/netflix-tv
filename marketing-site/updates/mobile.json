@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 31,
-  "versionName": "1.30",
+  "versionCode": 32,
+  "versionName": "1.31",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14226091,
-  "sha256": "e69f876eceec93b26c858fdf1681c2b79dda57349543e56bce98d39aaa9e3869",
+  "sizeBytes": 14226118,
+  "sha256": "388fcad71d68bf979126c3763bf5e98acc96f11f5897241130bc0b27244401b3",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/31-e69f876eceec93b2.apk",
-  "releaseNotes": "Automatically recover payment verification after server cooldowns with a live countdown. Keep the same receipt and preserve payment and membership protections.",
+  "apkUrl": "/downloads/mobile/32-388fcad71d68bf97.apk",
+  "releaseNotes": "Automatically continue full-screen video in picture-in-picture when pressing Home on supported phones.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-20T22:56:58.170Z"
+  "publishedAt": "2026-10-21T10:34:53.245Z"
 }
