@@ -9,3 +9,9 @@ The server now records safe failure categories and upstream endpoint/status only
 The mobile recovery change displays a cancellable countdown and retries only explicit VERIFICATION_BUSY responses within strict bounds. It cannot correct rejected merchant credentials or approve a payment locally. Gateway and evidence failures stop recovery and preserve the receipt for support.
 
 Validation: 45 server/release regressions passed, including sanitized diagnostics and merchant 401/403/500 responses. Twenty focused Android payment/subscription regressions passed, including nine new cooldown recovery cases. Production credentials must be corrected by the merchant owner before successful verification can be confirmed.
+
+## Resolution after credential replacement
+
+The merchant owner replaced the protected production authorization and redeployed. Both PayHero endpoints then returned HTTP 200 and matched the exact KES 150 receipt. A read-only check through the full paymentInput/lookupPayment rules found one matching authenticated checkout account and passed all receipt/evidence/amount checks. The canonical subscription was already ACTIVE on Mobile, with that same redeemed receipt and a future expiry; existingPayment confirmed the correct account. The diagnostic performed no activation, receipt consumption or expiry extension.
+
+Mobile 1.30 (code 31) is published with the original signing certificate. All 474 Android tests passed (10 existing opt-in cases skipped), and the release build/lint, 45 server/release checks, public APK signature/hash checks and retention of 51 existing website/APK files passed. The TV release remains unchanged at 20.10.2026.1.
