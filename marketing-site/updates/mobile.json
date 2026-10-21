@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 36,
-  "versionName": "1.35",
+  "versionCode": 37,
+  "versionName": "1.36",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14257056,
-  "sha256": "553881b2ac83e648c7fcdd13c6e7eded04a19006823af024cdaaf672bb7d2125",
+  "sizeBytes": 14289817,
+  "sha256": "8b2b88b58d2362f4889ed1d7e492bb92c74e7bcd3f6c6c4d888118ea0896115e",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/36-553881b2ac83e648.apk",
-  "releaseNotes": "Accurate genre filtering and Netflix, Prime Video, Disney+, Hotstar, Apple TV and Peacock categories. Service and Series/Films filters apply to the hero and all Home rows, with isolated offline caches and retry.",
+  "apkUrl": "/downloads/mobile/37-8b2b88b58d2362f4.apk",
+  "releaseNotes": "Optional Platforms appearance in App Settings. Choosing a service in Categories applies its design across Home, search, details, downloads, library, settings and player controls. Turn it off to restore the existing NetflixPro design.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-21T17:57:04.350Z"
+  "publishedAt": "2026-10-21T21:15:04.205Z"
 }
