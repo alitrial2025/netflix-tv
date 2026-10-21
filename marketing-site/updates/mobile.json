@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 37,
-  "versionName": "1.36",
+  "versionCode": 38,
+  "versionName": "1.37",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14289817,
-  "sha256": "8b2b88b58d2362f4889ed1d7e492bb92c74e7bcd3f6c6c4d888118ea0896115e",
+  "sizeBytes": 14289825,
+  "sha256": "5589b3972e5eb2d2794842c84d46b27eece8a0cc2eb7cece0c745d7e3eee56d9",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/37-8b2b88b58d2362f4.apk",
-  "releaseNotes": "Optional Platforms appearance in App Settings. Choosing a service in Categories applies its design across Home, search, details, downloads, library, settings and player controls. Turn it off to restore the existing NetflixPro design.",
+  "apkUrl": "/downloads/mobile/38-5589b3972e5eb2d2.apk",
+  "releaseNotes": "Polished platform layouts with split rounded headers, a compact responsive bottom navigation bar, improved card corners, shelf spacing, settings rows and search gutters.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-21T21:15:04.205Z"
+  "publishedAt": "2026-10-21T21:56:31.640Z"
 }
