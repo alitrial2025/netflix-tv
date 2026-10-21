@@ -1,0 +1,9 @@
+# TV launcher playback and Home focus
+
+Release 21.10.2026.1 queues external netflixpro://play links before setting up Navigation. Previously Navigation could open the player on a cold start while membership was still the default Guest value, producing an incorrect upgrade dialog. A cold launch now completes normal splash admission and profile selection before consuming the queued title, episode and resume position. An already admitted session opens immediately with its existing profile. Saved instance state preserves pending links across recreation; restored player destinations also return through entry admission. Unready sessions cannot compose PlayerScreen and show a premature upgrade dialog.
+
+External links are navigation input, not authorization. Invalid episode/position/type values are rejected. Query values are encoded into the internal route and cannot set trailer or other navigation flags. Existing paid-plan/title restrictions, device admission, screen lease, expiry and server checks remain in force. Legacy launcher links still resolve their stored title identity. No player-level network membership check was added.
+
+Home scroll targets now sum the same rounded child heights Compose actually places. Multiplying fractional row heights previously accumulated drift down long lists, particularly at fractional TV densities. Row title/strip metrics now also supply the focus-frame fallback (36dp heading + 4dp strip padding), replacing the incorrect 48dp fallback. The existing ring styling, spring and bounded row composition remain intact.
+
+Validation includes launcher identity/episode/position parsing, cold/revoked/profile-entry admission, parameter injection, invalid links and native Compose deep-row alignment at mdpi, hdpi and 213dpi. Existing rail pixel comparisons and D-pad tests remain applicable. No physical TV is attached; hardware animation smoothness still requires a device check.

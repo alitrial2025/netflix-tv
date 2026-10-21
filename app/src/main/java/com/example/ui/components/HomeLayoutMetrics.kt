@@ -7,6 +7,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+internal val HomeRowHeadingHeight = 36.dp
+internal val HomeRowStripPadding = 4.dp
+
 /** One geometry source for the moving rows and the stationary selection frame. */
 @Immutable
 data class HomeLayoutMetrics(
@@ -37,4 +40,17 @@ fun rememberHomeLayoutMetrics(): HomeLayoutMetrics {
             categoryWidth = ((configuration.screenWidthDp.dp - 32.dp) / 7.2f).coerceAtLeast(108.dp)
         )
     }
+}
+
+/** Distances are sums of rounded child heights, just as Compose places those children. */
+internal fun homeScrollTarget(
+    focusLevel: Int, kids: Boolean, home: Boolean, row: Float,
+    billboard: Float, billboardGap: Float, kidsHero: Float, kidsGap: Float, categories: Float
+): Float = when {
+    focusLevel < 0 -> 0f
+    kids && home -> -(kidsHero + kidsGap) - row * focusLevel
+    kids -> -row * focusLevel
+    home && focusLevel == 0 -> -(billboard + billboardGap)
+    home -> -(billboard + billboardGap + categories) - row * (focusLevel - 1)
+    else -> -(billboard + billboardGap) - row * focusLevel
 }

@@ -67,6 +67,25 @@ private class PreviewPlaybackFlag {
 }
 
 class MainActivity : ComponentActivity() {
+    private var pendingPlayback by mutableStateOf<String?>(null)
+    private var playbackLink: String? = null
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pending_playback", pendingPlayback)
+        outState.putString("playback_link", playbackLink)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun receivePlaybackIntent(incoming: Intent): Boolean {
+        if (!com.example.tv.TvPlaybackRequest.isPlaybackLink(incoming.data)) return false
+        val request = com.example.tv.TvPlaybackRequest.parse(incoming.dataString)
+        pendingPlayback = request?.uri?.toString()
+        playbackLink = pendingPlayback
+        // Navigation must not auto-handle an external player URI before splash admission.
+        intent = Intent(incoming).setData(null).setAction(Intent.ACTION_MAIN)
+        return true
+    }
+
     private val _userInteractionTimestamp = MutableStateFlow(System.currentTimeMillis())
     private val _isWallpaperActiveState = MutableStateFlow(false)
 
@@ -125,6 +144,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!receivePlaybackIntent(intent)) {
+            pendingPlayback = savedInstanceState?.getString("pending_playback")
+            playbackLink = savedInstanceState?.getString("playback_link")
+        }
         com.example.ui.util.AppDiagnosticsLogger.event("MainActivity", "MainActivity onCreate initialized.")
         lifecycleScope.launch(Dispatchers.IO) { DpadSoundManager.init(applicationContext) }
 
@@ -151,8 +174,10 @@ class MainActivity : ComponentActivity() {
                     DisposableEffect(navController, viewModel) {
                         val listener = androidx.core.util.Consumer<Intent> { incoming ->
                             viewModel.stopHomePreviews()
-                            this@MainActivity.intent = incoming
-                            navController.handleDeepLink(incoming)
+                            if (!receivePlaybackIntent(incoming)) {
+                                this@MainActivity.intent = incoming
+                                navController.handleDeepLink(incoming)
+                            }
                         }
                         val destinationListener = androidx.navigation.NavController.OnDestinationChangedListener { _, _, _ ->
                             viewModel.stopHomePreviews()
@@ -169,9 +194,21 @@ class MainActivity : ComponentActivity() {
                     val currentRoute = currentBackStackEntry?.destination?.route ?: ""
                     val appSessionReady by viewModel.appSessionReady.collectAsState()
                     val appSessionError by viewModel.appSessionError.collectAsState()
+                    val selectedPlaybackProfile by viewModel.selectedProfile.collectAsState()
+                    LaunchedEffect(pendingPlayback, appSessionReady, selectedPlaybackProfile?.id, currentRoute) {
+                        val request = com.example.tv.TvPlaybackRequest.parse(pendingPlayback) ?: return@LaunchedEffect
+                        // Cold starts pass splash and the normal profile picker. Warm, admitted
+                        // sessions reuse their existing admission without another subscription request.
+                        if (request.canOpen(appSessionReady, selectedPlaybackProfile != null, currentRoute)) {
+                            pendingPlayback = null
+                            navController.navigate(request.route) { launchSingleTop = true }
+                        }
+                    }
                     LaunchedEffect(currentRoute, appSessionReady, appSessionError) {
                         if (currentRoute.isNotEmpty() && currentRoute != "splash" &&
-                            viewModel.isUserLoggedIn() && !appSessionReady && appSessionError != null) {
+                            !appSessionReady && (currentRoute.startsWith("player/") ||
+                            (viewModel.isUserLoggedIn() && appSessionError != null))) {
+                            if (currentRoute.startsWith("player/") && pendingPlayback == null) pendingPlayback = playbackLink
                             viewModel.retryAppSession()
                             navController.navigate("splash") {
                                 popUpTo(navController.graph.id)
@@ -573,12 +610,6 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(
                                 route = "player/{movieId}?season={season}&episode={episode}&episodeName={episodeName}&mediaKind={mediaKind}&title={title}&pos={pos}&trailer={trailer}",
-                                deepLinks = listOf(
-                                    navDeepLink { uriPattern = "netflixpro://play/{movieId}?season={season}&episode={episode}&pos={pos}&mediaKind={mediaKind}&title={title}" },
-                                    navDeepLink { uriPattern = "netflixpro://play/{movieId}?season={season}&episode={episode}&pos={pos}" },
-                                    navDeepLink { uriPattern = "netflixpro://play/{movieId}?season={season}&episode={episode}" },
-                                    navDeepLink { uriPattern = "netflixpro://play/{movieId}" }
-                                ),
                                 enterTransition = {
                                     fadeIn(animationSpec = tween(TvMotion.duration(380), easing = LinearOutSlowInEasing)) +
                                     scaleIn(initialScale = 0.96f, animationSpec = tween(TvMotion.duration(380), easing = FastOutSlowInEasing))
@@ -613,7 +644,7 @@ class MainActivity : ComponentActivity() {
                                 val mediaKind = backStackEntry.arguments?.getString("mediaKind")?.takeIf { it == "tv" || it == "movie" }
                                 val expectedTitle = backStackEntry.arguments?.getString("title")?.takeIf { it.isNotBlank() }
                                 val resumePositionMs = backStackEntry.arguments?.getLong("pos") ?: 0L
-                                val clickedLink = this@MainActivity.intent?.data?.takeIf {
+                                val clickedLink = playbackLink?.let(android.net.Uri::parse)?.takeIf {
                                     it.scheme == "netflixpro" && it.host == "play" && it.lastPathSegment == movieId
                                 }
                                 val needsLegacyIdentity = clickedLink != null && (expectedTitle == null || mediaKind == null)
@@ -645,7 +676,7 @@ class MainActivity : ComponentActivity() {
                                             duration = if (resolvedKind == "tv") "Series" else "Feature"
                                         )
                                     } else null
-                                if (movie != null) {
+                                if (movie != null && appSessionReady) {
                                     PlayerScreen(
                                         movie = movie,
                                         season = season,
@@ -664,7 +695,7 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                         androidx.compose.material3.Text(
-                                            if (legacyLoading || catalogLoading) "Loading title…" else "Title unavailable. Press Back to browse.",
+                                            if (!appSessionReady || legacyLoading || catalogLoading) "Loading title…" else "Title unavailable. Press Back to browse.",
                                             color = androidx.compose.ui.graphics.Color.White
                                         )
                                     }

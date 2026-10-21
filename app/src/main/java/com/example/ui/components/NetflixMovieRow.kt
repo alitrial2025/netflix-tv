@@ -299,7 +299,7 @@ fun NetflixMovieRow(
     val ringStart = 16.dp
 
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val stripTopPaddingPx = with(density) { 4.dp.roundToPx() }
+    val stripTopPaddingPx = with(density) { HomeRowStripPadding.roundToPx() }
     val currentOnSelectionFrameTopMeasured by rememberUpdatedState(onSelectionFrameTopMeasured)
     val itemSpacingPx = remember(density, itemSpacing) { with(density) { itemSpacing.toPx() } }
     val ringStartPx = remember(density, ringStart) { with(density) { ringStart.toPx() } }
@@ -349,7 +349,7 @@ fun NetflixMovieRow(
     ) {
         // A fixed heading baseline keeps the viewport's focus frame aligned.
         Row(
-            modifier = Modifier.fillMaxWidth().height(36.dp)
+            modifier = Modifier.fillMaxWidth().height(HomeRowHeadingHeight)
                 .onSizeChanged { currentOnSelectionFrameTopMeasured(it.height + stripTopPaddingPx) }
                 .padding(start = 16.dp, end = 20.dp, top = 4.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -363,7 +363,7 @@ fun NetflixMovieRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(cardHeight + 8.dp)
-                .padding(top = 4.dp, bottom = 4.dp)
+                .padding(top = HomeRowStripPadding, bottom = HomeRowStripPadding)
                 .onPreviewKeyEvent { keyEvent ->
                     if (isRowFocused && keyEvent.type == KeyEventType.KeyDown) {
                         if (!isNavigationActive()) return@onPreviewKeyEvent true

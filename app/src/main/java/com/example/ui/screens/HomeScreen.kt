@@ -1047,12 +1047,12 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
 
     // ── Pixel-precise vertical scroll target (matches horizontal carousel's density math) ──
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val rowHeightPx = remember(density, rowHeight) { with(density) { rowHeight.toPx() } }
-    val billboardHeightPx = remember(density, billboardHeight) { with(density) { billboardHeight.toPx() } }
-    val kidsHeroHeightPx = remember(density, kidsHeroHeight) { with(density) { kidsHeroHeight.toPx() } }
-    val kidsRowSpacingPx = remember(density) { with(density) { kidsRowSpacing.toPx() } }
-    val categoriesHeightPx = remember(density, categoriesHeight) { with(density) { categoriesHeight.toPx() } }
-    val billboardSpacingPx = remember(density) { with(density) { billboardSpacing.toPx() } }
+    val rowHeightPx = remember(density, rowHeight) { with(density) { rowHeight.roundToPx().toFloat() } }
+    val billboardHeightPx = remember(density, billboardHeight) { with(density) { billboardHeight.roundToPx().toFloat() } }
+    val kidsHeroHeightPx = remember(density, kidsHeroHeight) { with(density) { kidsHeroHeight.roundToPx().toFloat() } }
+    val kidsRowSpacingPx = remember(density) { with(density) { kidsRowSpacing.roundToPx().toFloat() } }
+    val categoriesHeightPx = remember(density, categoriesHeight) { with(density) { categoriesHeight.roundToPx().toFloat() } }
+    val billboardSpacingPx = remember(density, billboardSpacing) { with(density) { billboardSpacing.roundToPx().toFloat() } }
 
     val calculateTargetScrollY = remember(
         isKidProfile, activeTab,
@@ -1060,32 +1060,9 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
         billboardHeightPx, billboardSpacingPx, categoriesHeightPx
     ) {
         { focusLevel: Int ->
-            if (isKidProfile) {
-                if (activeTab == "Home") {
-                    when {
-                        focusLevel < 0 -> 0f
-                        else -> -(kidsHeroHeightPx + kidsRowSpacingPx) - (rowHeightPx * focusLevel)
-                    }
-                } else {
-                    when {
-                        focusLevel <= 0 -> 0f
-                        else -> -(rowHeightPx * focusLevel)
-                    }
-                }
-            } else {
-                if (activeTab == "Home") {
-                    when {
-                        focusLevel < 0 -> 0f
-                        focusLevel == 0 -> -(billboardHeightPx + billboardSpacingPx)
-                        else -> -(billboardHeightPx + billboardSpacingPx + categoriesHeightPx) - (rowHeightPx * (focusLevel - 1))
-                    }
-                } else {
-                    when {
-                        focusLevel < 0 -> 0f
-                        else -> -(billboardHeightPx + billboardSpacingPx) - (rowHeightPx * focusLevel)
-                    }
-                }
-            }
+            com.example.ui.components.homeScrollTarget(
+                focusLevel, isKidProfile, activeTab == "Home", rowHeightPx,
+                billboardHeightPx, billboardSpacingPx, kidsHeroHeightPx, kidsRowSpacingPx, categoriesHeightPx)
         }
     }
 
@@ -1418,9 +1395,9 @@ private fun HomeBrowseTab(scope: HomeRenderScope, activeTab: String): Unit = wit
                     val rowIndex = currentFocusLevelState.intValue - firstRowLevel
                     val rowTitle = activeDisplayedCategoryRows.getOrNull(rowIndex)?.first
                     alpha = if (rowTitle != null && activeTab == navBarTab) 1f else 0f
-                    val topPx = rowTitle?.let { selectionFrameTops[it] }?.toFloat() ?: 48.dp.toPx()
+                    val topPx = rowTitle?.let { selectionFrameTops[it] }?.toFloat() ?: (HomeRowHeadingHeight.roundToPx() + HomeRowStripPadding.roundToPx()).toFloat()
                     translationY = topPx + manualTouchOffsetAnim.value + dragOffsetState.floatValue +
-                        (if (isKidProfile && activeTab != "Home") 16.dp.toPx() else 0f)
+                        (if (isKidProfile && activeTab != "Home") 16.dp.roundToPx().toFloat() else 0f)
                 }
                 .border(1.5.dp, Color.White, RoundedCornerShape(8.dp))
                 .zIndex(20f)
