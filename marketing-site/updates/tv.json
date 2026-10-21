@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092049,
-  "versionName": "20.10.2026.1",
+  "versionCode": 29092050,
+  "versionName": "21.10.2026.1",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7661743,
-  "sha256": "dc00db6fe0da8b2231011f75654000560b85defc85961f77a9e486dd96cb66de",
+  "sizeBytes": 7661735,
+  "sha256": "45e6ec2dd13277f3f65d82773c3208235a7bc6a375ce1911590744b3b4c97915",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092049-dc00db6fe0da8b22.apk",
-  "releaseNotes": "Smoother TV Home and tab navigation: reduce rail composition and preview cleanup work, and keep optional warmups out of tab animations.",
+  "apkUrl": "/downloads/tv/29092050-45e6ec2dd13277f3.apk",
+  "releaseNotes": "Resume titles from TV Play Next without an incorrect subscription prompt, and keep the focus ring aligned while browsing Home.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-20T22:22:11.066Z"
+  "publishedAt": "2026-10-21T10:30:09.010Z"
 }
