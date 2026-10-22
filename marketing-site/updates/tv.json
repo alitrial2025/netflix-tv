@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092050,
-  "versionName": "21.10.2026.1",
+  "versionCode": 29092051,
+  "versionName": "22.10.2026.1",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7661735,
-  "sha256": "45e6ec2dd13277f3f65d82773c3208235a7bc6a375ce1911590744b3b4c97915",
+  "sizeBytes": 7878371,
+  "sha256": "dc4326618079f6a7052b1fea3646aeff898b217a0da50ebed73f5bf66c9624cf",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092050-45e6ec2dd13277f3.apk",
-  "releaseNotes": "Resume titles from TV Play Next without an incorrect subscription prompt, and keep the focus ring aligned while browsing Home.",
+  "apkUrl": "/downloads/tv/29092051-dc4326618079f6a7.apk",
+  "releaseNotes": "Watch together on TV and phones with host-controlled synchronized playback, continue a phone title on your signed-in open TV, organize custom collections, and remember subtitle timing per title.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-21T10:30:09.010Z"
+  "publishedAt": "2026-10-22T12:46:38.550Z"
 }
