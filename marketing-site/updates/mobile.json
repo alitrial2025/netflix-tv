@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 39,
-  "versionName": "1.38",
+  "versionCode": 40,
+  "versionName": "1.39",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14309271,
-  "sha256": "908ee448575cdd96038c33a668f0cb32ac3abcded8f815ff5066ffe05bd02612",
+  "sizeBytes": 14391525,
+  "sha256": "2f72bfc621e23304fd0435ea3946b69168a2efba152cb4a923764a2622615870",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/39-908ee448575cdd96.apk",
-  "releaseNotes": "Platforms is now a Premium appearance benefit. Bundled SVG wordmarks replace platform-name branding in headers, category choices, details and player controls. Other plans retain category filtering and the normal UI.",
+  "apkUrl": "/downloads/mobile/40-2f72bfc621e23304.apk",
+  "releaseNotes": "Watch together with phones and TVs, continue playback on an open signed-in TV, organize collections, adjust subtitle timing, use verified intro and credits markers, and check or repair saved downloads with storage controls.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-22T07:19:12.594Z"
+  "publishedAt": "2026-10-22T12:51:07.059Z"
 }
