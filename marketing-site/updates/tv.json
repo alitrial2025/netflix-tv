@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092052,
-  "versionName": "22.10.2026.2",
+  "versionCode": 29092053,
+  "versionName": "22.10.2026.3",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7936442,
-  "sha256": "1e19d3de7d71db896c6cfb77074b9bb00ef3c9cb8c4bff60c2758e13669b242c",
+  "sizeBytes": 7936433,
+  "sha256": "07731ef6bba1c2afafcb96a9ffd93691bf64d12198a2751fd1fae2cca4384886",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092052-1e19d3de7d71db89.apk",
-  "releaseNotes": "Basic+ watch parties with live comments, reactions and faster synchronized playback. Watch together and Collections now open in TV side panels.",
+  "apkUrl": "/downloads/tv/29092053-07731ef6bba1c2af.apk",
+  "releaseNotes": "Fix Disney/Hotstar series resolution, including Perfect Crown. Verify series premieres using dated first episodes while preserving exact season and episode selection.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-22T18:18:36.121Z"
+  "publishedAt": "2026-10-22T19:04:06.987Z"
 }
