@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 40,
-  "versionName": "1.39",
+  "versionCode": 41,
+  "versionName": "1.40",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14391525,
-  "sha256": "2f72bfc621e23304fd0435ea3946b69168a2efba152cb4a923764a2622615870",
+  "sizeBytes": 14407900,
+  "sha256": "e7015bba5d87a8b8aefe1b9c925b0970d9ee75963242eb03709008ceb624816f",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/40-2f72bfc621e23304.apk",
-  "releaseNotes": "Watch together with phones and TVs, continue playback on an open signed-in TV, organize collections, adjust subtitle timing, use verified intro and credits markers, and check or repair saved downloads with storage controls.",
+  "apkUrl": "/downloads/mobile/41-e7015bba5d87a8b8.apk",
+  "releaseNotes": "Basic+ watch parties with live comments, reactions and faster synchronized playback. New Watch together and Collections bottom sheets, plus a clearer audio/subtitle sheet with separate timing controls.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-22T12:51:07.059Z"
+  "publishedAt": "2026-10-22T18:21:47.820Z"
 }
