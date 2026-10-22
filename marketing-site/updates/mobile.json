@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 41,
-  "versionName": "1.40",
+  "versionCode": 42,
+  "versionName": "1.41",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14407900,
-  "sha256": "e7015bba5d87a8b8aefe1b9c925b0970d9ee75963242eb03709008ceb624816f",
+  "sizeBytes": 14407917,
+  "sha256": "aa8328c23d0fc6dc714a322bea6b435826404013d0a2032c9e62807ec5190179",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/41-e7015bba5d87a8b8.apk",
-  "releaseNotes": "Basic+ watch parties with live comments, reactions and faster synchronized playback. New Watch together and Collections bottom sheets, plus a clearer audio/subtitle sheet with separate timing controls.",
+  "apkUrl": "/downloads/mobile/42-aa8328c23d0fc6dc.apk",
+  "releaseNotes": "Fix Disney/Hotstar series resolution, including Perfect Crown. Verify series premieres using dated first episodes while preserving exact season and episode selection.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-22T18:21:47.820Z"
+  "publishedAt": "2026-10-22T19:06:29.106Z"
 }
