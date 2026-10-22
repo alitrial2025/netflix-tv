@@ -50,7 +50,8 @@ fun AudioSubtitlesModal(
     selectedSubLang: String,
     onSelectSubtitle: (String) -> Unit,
     onClose: () -> Unit,
-    onUserActivity: () -> Unit
+    onUserActivity: () -> Unit,
+    subtitleOffsetMs: Int = 0, onSetSubtitleOffset: (Int) -> Unit = {}
 ) {
     val allSubtitleOptions = remember(activeStream) {
         availableSubtitleOptions(activeStream?.captions)
@@ -154,6 +155,16 @@ fun AudioSubtitlesModal(
                 }
             }
 
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(String.format(java.util.Locale.US, "Subtitle timing: %+.2f s", subtitleOffsetMs / 1000.0), color = Color.White, fontSize = 16.sp)
+                listOf("−0.25 s" to subtitleOffsetMs - 250, "Reset" to 0, "+0.25 s" to subtitleOffsetMs + 250).forEach { (label, value) ->
+                    Surface(onClick = { onUserActivity(); onSetSubtitleOffset(value) }, shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF282828), focusedContainerColor = Color.White)) {
+                        Text(label, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                    }
+                }
+                Text("Positive displays later", color = Color.LightGray, fontSize = 13.sp)
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

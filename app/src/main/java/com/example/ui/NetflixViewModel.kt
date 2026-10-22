@@ -132,8 +132,52 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    suspend fun resolveViewingTitle(kind: String, id: String): Movie? {
+        val profile = _selectedProfile.value ?: return null
+        val owner = authenticatedUid() ?: return null
+        val movie = getMovieById(id, expectedMediaKind = kind)
+            ?: kotlinx.coroutines.withTimeoutOrNull(12_000L) { repository.fetchViewingTitle(kind, id) }
+            ?: return null
+        if (authenticatedUid() != owner || _selectedProfile.value?.id != profile.id) return null
+        val ratingLabel = movie.rating.trim().uppercase(java.util.Locale.ROOT)
+        val rating = when (ratingLabel) {
+            "G", "ALL", "TV-Y", "TV-G", "U" -> 0
+            "TV-Y7" -> 7
+            "PG", "TV-PG" -> 10
+            "PG-13" -> 13
+            "TV-14" -> 14
+            "R" -> 17
+            "TV-MA", "NC-17" -> 18
+            else -> Regex("[0-9]{1,2}").find(ratingLabel)?.value?.toIntOrNull() ?: 18
+        }
+        if (profile.isKid && !isKidSafeMovie(movie) || rating > com.example.model.MaturityRating.fromLabel(profile.maturityRating).maxAge) return null
+        cacheMovie(movie)
+        return movie
+    }
+
+    val viewing by lazy { com.example.viewing.ViewingCoordinator(getApplication(), "tv", viewModelScope) }
+
+    private val subtitleTimingStore by lazy { com.example.playback.SubtitleTimingStore(getApplication()) }
+    private val subtitleClock = java.util.concurrent.atomic.AtomicInteger(0)
+    private val _subtitleOffsetMs = MutableStateFlow(0)
+    val subtitleOffsetMs: StateFlow<Int> = _subtitleOffsetMs.asStateFlow()
+    private var subtitleTitleKey: String? = null
+    fun loadSubtitleTiming(movie: Movie, trailer: Boolean = false) {
+        subtitleTitleKey = if (trailer) null else "${movie.catalogMediaKind()}:${movie.id}"
+        val value = subtitleTitleKey?.let { subtitleTimingStore.get(authenticatedUid().orEmpty(), _selectedProfile.value?.id.orEmpty(), it) } ?: 0
+        _subtitleOffsetMs.value = value
+        subtitleClock.set(value)
+    }
+    fun setSubtitleOffset(value: Int) {
+        val key = subtitleTitleKey ?: return
+        val offset = com.example.playback.SubtitleTiming.clamp(value)
+        subtitleTimingStore.put(authenticatedUid().orEmpty(), _selectedProfile.value?.id.orEmpty(), key, offset)
+        _subtitleOffsetMs.value = offset
+        subtitleClock.set(offset)
+    }
+
     private val sharedExoPlayerDelegate = lazy {
-        val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(application).apply {
+        val renderersFactory = com.example.playback.SubtitleTimingRenderersFactory(application) { subtitleClock.get() }.apply {
             setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             setEnableDecoderFallback(true)
         }
@@ -254,6 +298,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     override fun onCleared() {
+        viewing.close()
         super.onCleared()
         if (releaseRefreshJob != null) sharedReleaseReminders.close()
         sharedPlaybackView?.player = null

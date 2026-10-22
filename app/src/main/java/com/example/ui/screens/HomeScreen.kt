@@ -172,7 +172,9 @@ fun HomeScreen(
     onPlayMovie: (Movie) -> Unit,
     onMovieClick: (Movie) -> Unit,
     onCategoryClick: (String) -> Unit,
-    onNavigateToProfiles: () -> Unit = {}
+    onNavigateToProfiles: () -> Unit = {},
+    onOpenCollectionItem: (com.example.collections.CollectionTitle) -> Unit = {},
+    onWatchTogether: () -> Unit = {}
 ) {
     androidx.activity.compose.BackHandler {
         // Prevent exiting app on back press from root
@@ -192,6 +194,14 @@ fun HomeScreen(
     val myListAddedAt by viewModel.myListAddedAt.collectAsStateWithLifecycle()
     val remindedMovieIds by viewModel.remindedMovieIds.collectAsStateWithLifecycle()
 
+    var showCollections by remember(selectedProfile?.id) { mutableStateOf(false) }
+    if (showCollections && selectedProfile != null) {
+        val owner = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.takeUnless { it.isAnonymous }?.uid
+        val savedTitles = categoryRows.flatMap { it.second }.filter { it.id in myListMovieIds }.distinctBy { it.catalogMediaKind() to it.id }
+        com.example.collections.CollectionsDialog(owner, selectedProfile!!.id,
+            savedTitles.map { com.example.collections.CollectionTitle(it.id, it.catalogMediaKind(), it.title, it.posterUrl) },
+            onOpenTitle = onOpenCollectionItem, onDismiss = { showCollections = false }, isTv = true)
+    }
     val profileName = selectedProfile?.name ?: "User"
     val homeArtworkReadyState = remember(selectedProfile?.id) { mutableStateOf(false) }
     var homeArtworkReady by homeArtworkReadyState
@@ -681,6 +691,8 @@ fun HomeScreen(
             currentOnMovieClick = currentOnMovieClick,
             currentOnCategoryClick = currentOnCategoryClick,
             onNavigateToProfiles = onNavigateToProfiles,
+            onOpenCollections = { showCollections = true },
+            onWatchTogether = onWatchTogether,
             continueWatchingProgressMap = continueWatchingProgressMap,
             continueWatchingRemainingMap = continueWatchingRemainingMap,
             myListAddedAt = myListAddedAt,
@@ -744,6 +756,8 @@ private class HomeRenderScope(
     val currentOnMovieClick: (Movie) -> Unit,
     val currentOnCategoryClick: (String) -> Unit,
     val onNavigateToProfiles: () -> Unit,
+    val onOpenCollections: () -> Unit,
+    val onWatchTogether: () -> Unit,
     val continueWatchingProgressMap: Map<String, Float>,
     val continueWatchingRemainingMap: Map<String, Long>,
     val myListAddedAt: Map<String, Long>,
@@ -943,6 +957,8 @@ private fun HomeNavigationBar(scope: HomeRenderScope, isSearchTab: Boolean): Uni
                 }
             },
             onManageProfiles = onNavigateToProfiles,
+            onOpenCollections = onOpenCollections,
+            onWatchTogether = onWatchTogether,
             compactProfile = true,
             onFocused = {
                 pendingTabFocus = null

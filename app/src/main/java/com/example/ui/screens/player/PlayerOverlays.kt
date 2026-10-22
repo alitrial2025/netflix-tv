@@ -356,12 +356,13 @@ fun SubtitleOverlay(
     exoPlayer: ExoPlayer,
     cues: List<SubtitleCue>,
     exoText: String = "",
+    subtitleOffsetMs: Int = 0,
     showControls: Boolean,
     modifier: Modifier = Modifier
 ) {
     var currentText by remember { mutableStateOf("") }
 
-    LaunchedEffect(exoPlayer, cues) {
+    LaunchedEffect(exoPlayer, cues, subtitleOffsetMs) {
         while (cues.isNotEmpty()) {
             val pos = try {
                 exoPlayer.currentPosition
@@ -369,7 +370,7 @@ fun SubtitleOverlay(
                 delay(100L)
                 continue
             }
-            currentText = findActiveCueAt(cues, pos)?.text ?: ""
+            currentText = findActiveCueAt(cues, com.example.playback.SubtitleTiming.captionPositionUs(pos * 1000L, subtitleOffsetMs) / 1000L)?.text ?: ""
             delay(100L)
         }
         currentText = ""

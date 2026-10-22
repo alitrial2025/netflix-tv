@@ -209,3 +209,35 @@ test('clients cannot edit or enumerate the payment verification budget',async()=
  await assertFails(getDoc(doc(store,'payment_verification_limits/alice')));
  await assertFails(getDocs(collection(store,'payment_verification_limits')));
 });
+
+test('viewing session and handoff mirrors are readable only by their authenticated owner',async()=>{
+ const paths=['users/alice/viewing_sessions/tv-device','users/alice/viewing_commands/tv-device'];
+ await env.withSecurityRulesDisabled(async c=>{
+  for(const path of paths) await setDoc(doc(c.firestore(),path),{roomCode:'AABBCCDDEE',target:{kind:'movie',id:'550',title:'Fixture'}});
+ });
+ const anonymous=env.authenticatedContext('unrelated-anonymous-viewer',{firebase:{sign_in_provider:'anonymous'}}).firestore();
+ const signedOut=env.unauthenticatedContext().firestore();
+ for(const path of paths) {
+  await assertSucceeds(getDoc(doc(db('alice'),path)));
+  for(const store of [db('bob'),anonymous,signedOut]) {
+   await assertFails(getDoc(doc(store,path)));
+   await assertFails(setDoc(doc(store,path),{fixture:true}));
+  }
+ }
+});
+
+test('canonical viewing rooms, device accounts and rate budgets remain Admin-only even for paid owners',async()=>{
+ const roots=['viewing_rooms','viewing_accounts','viewing_rates'];
+ await paidAccount('plan_premium');
+ await env.withSecurityRulesDisabled(async c=>{
+  for(const root of roots) await setDoc(doc(c.firestore(),`${root}/private-record`),{hostUid:'alice',fixture:true});
+ });
+ for(const store of [db('alice'),db('bob'),env.unauthenticatedContext().firestore()]) {
+  for(const root of roots) {
+   await assertFails(getDoc(doc(store,`${root}/private-record`)));
+   await assertFails(getDocs(collection(store,root)));
+   await assertFails(setDoc(doc(store,`${root}/forged`),{hostUid:'alice'}));
+   await assertFails(deleteDoc(doc(store,`${root}/private-record`)));
+  }
+ }
+});

@@ -19,6 +19,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -195,6 +196,37 @@ class MainActivity : ComponentActivity() {
                     val appSessionReady by viewModel.appSessionReady.collectAsState()
                     val appSessionError by viewModel.appSessionError.collectAsState()
                     val selectedPlaybackProfile by viewModel.selectedProfile.collectAsState()
+                    var showWatchTogether by remember { mutableStateOf(false) }
+                    val viewingScope = rememberCoroutineScope()
+                    var viewingOpenJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+                    var viewingOpenError by remember { mutableStateOf<String?>(null) }
+                    if (viewingOpenError != null) androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { viewingOpenError = null }, title = { androidx.compose.material3.Text("Couldn't open title") },
+                        text = { androidx.compose.material3.Text(viewingOpenError.orEmpty()) },
+                        confirmButton = { androidx.compose.material3.TextButton(onClick = { viewingOpenError = null }) { androidx.compose.material3.Text("Close") } })
+
+                    com.example.viewing.ViewingSessionHost(viewModel.viewing,
+                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.takeUnless { it.isAnonymous }?.uid,
+                        selectedPlaybackProfile?.id.orEmpty(), selectedPlaybackProfile?.name ?: "Viewer",
+                        ready = appSessionReady && selectedPlaybackProfile != null) { incoming ->
+                        viewingOpenJob?.cancel()
+                        val profileId = selectedPlaybackProfile?.id
+                        viewingOpenJob = viewingScope.launch {
+                            try {
+                                val t = incoming.target
+                                val movie = viewModel.resolveViewingTitle(t.kind, t.id)
+                                if (movie == null) { viewingOpenError = "This title is unavailable for this profile. Check your connection or choose another title."; return@launch }
+                                if (viewModel.selectedProfile.value?.id != profileId) return@launch
+                                pendingPlayback = android.net.Uri.Builder().scheme("netflixpro").authority("play").appendPath(movie.id)
+                                    .appendQueryParameter("mediaKind", t.kind).appendQueryParameter("title", movie.title)
+                                    .appendQueryParameter("season", t.season.toString()).appendQueryParameter("episode", t.episode.toString())
+                                    .appendQueryParameter("pos", incoming.positionMs.toString()).build().toString()
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                            catch (_: Exception) { viewingOpenError = "Check your connection and try opening the party again." }
+                        }
+                    }
+                    if (showWatchTogether) com.example.viewing.WatchTogetherDialog(viewModel.viewing) { showWatchTogether = false }
+
                     LaunchedEffect(pendingPlayback, appSessionReady, selectedPlaybackProfile?.id, currentRoute) {
                         val request = com.example.tv.TvPlaybackRequest.parse(pendingPlayback) ?: return@LaunchedEffect
                         // Cold starts pass splash and the normal profile picker. Warm, admitted
@@ -446,6 +478,18 @@ class MainActivity : ComponentActivity() {
                                 }
                             ) {
                                 HomeScreen(
+                                        onWatchTogether = { showWatchTogether = true },
+                                        onOpenCollectionItem = { item ->
+                                            viewingOpenJob?.cancel()
+                                            viewingOpenJob = viewingScope.launch {
+                                                try {
+                                                    val movie = viewModel.resolveViewingTitle(item.kind, item.id)
+                                                    if (movie != null) navController.navigate(detailsRouteFor(movie)) { launchSingleTop = true }
+                                                    else viewingOpenError = "This title is unavailable for this profile. Reconnect and try again."
+                                                } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                                                catch (_: Exception) { viewingOpenError = "Couldn't load title details. Try again shortly." }
+                                            }
+                                        },
                                     viewModel = viewModel,
                                     onPlayMovie = { movie ->
                                         _isWallpaperActiveState.value = false
@@ -457,7 +501,7 @@ class MainActivity : ComponentActivity() {
                                         val season = cw?.season ?: 1
                                         val episode = cw?.episode ?: 1
                                         val epName = cw?.episodeName ?: ""
-                                        navController.navigate("player/${movie.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${movie.catalogMediaKind()}&title=${android.net.Uri.encode(movie.title)}")
+                                        if (viewModel.viewing.isGuest) { showWatchTogether = true } else navController.navigate("player/${movie.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${movie.catalogMediaKind()}&title=${android.net.Uri.encode(movie.title)}")
                                     },
                                     onMovieClick = { movie ->
                                         viewModel.cacheMovie(movie)
@@ -515,7 +559,7 @@ class MainActivity : ComponentActivity() {
                                         val season = cw?.season ?: 1
                                         val episode = cw?.episode ?: 1
                                         val epName = cw?.episodeName ?: ""
-                                        navController.navigate("player/${movie.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${movie.catalogMediaKind()}&title=${android.net.Uri.encode(movie.title)}")
+                                        if (viewModel.viewing.isGuest) { showWatchTogether = true } else navController.navigate("player/${movie.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${movie.catalogMediaKind()}&title=${android.net.Uri.encode(movie.title)}")
                                     },
                                     onMovieClick = { movie ->
                                         viewModel.cacheMovie(movie)
@@ -584,12 +628,12 @@ class MainActivity : ComponentActivity() {
                                         onPlayMovie = { m, season, episode, epName ->
                                             _isWallpaperActiveState.value = false
                                             viewModel.cacheMovie(m)
-                                            navController.navigate("player/${m.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${m.catalogMediaKind()}&title=${android.net.Uri.encode(m.title)}")
+                                            if (viewModel.viewing.isGuest) { showWatchTogether = true } else navController.navigate("player/${m.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${m.catalogMediaKind()}&title=${android.net.Uri.encode(m.title)}")
                                         },
                                         onPlayTrailer = { m, season, episode, epName ->
                                             _isWallpaperActiveState.value = false
                                             viewModel.cacheMovie(m)
-                                            navController.navigate("player/${m.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${m.catalogMediaKind()}&title=${android.net.Uri.encode(m.title)}&trailer=true")
+                                            if (viewModel.viewing.isGuest) { showWatchTogether = true } else navController.navigate("player/${m.id}?season=$season&episode=$episode&episodeName=${android.net.Uri.encode(epName)}&mediaKind=${m.catalogMediaKind()}&title=${android.net.Uri.encode(m.title)}&trailer=true")
                                         },
                                         onNavigateToDetails = { m ->
                                             viewModel.cacheMovie(m)

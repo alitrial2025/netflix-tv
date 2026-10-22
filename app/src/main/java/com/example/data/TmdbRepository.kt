@@ -132,6 +132,17 @@ class TmdbRepository {
         } catch (_: Exception) { null }
     }
 
+    /** Exact typed metadata for an invite/collection; display metadata from the sender is never trusted. */
+    suspend fun fetchViewingTitle(kind: String, id: String): Movie? {
+        if (kind !in setOf("movie", "tv") || !id.matches(Regex("[1-9][0-9]{0,9}"))) return null
+        val number = id.toLongOrNull() ?: return null
+        val item = if (kind == "tv") TmdbClient.instance.getTvArtworkTitle(number, apiKey)
+            else TmdbClient.instance.getMovieArtworkTitle(number, apiKey)
+        if (item.id != number) return null
+        // Basic artwork responses contain no maturity certificate. Unknown ratings stay adult-only.
+        return item.copy(mediaType = kind).toMovie().copy(rating = "18+")
+    }
+
     private fun TmdbItemDto.toMovie(logoUrl: String? = null): Movie {
         val imageBase = "https://image.tmdb.org/t/p/"
         val backdrop = backdropPath?.let { 

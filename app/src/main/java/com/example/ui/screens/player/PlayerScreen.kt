@@ -138,6 +138,11 @@ fun PlayerScreen(
     var currentEpisodeName by remember(movie.id, season, episode, episodeName) { mutableStateOf(episodeName) }
     var verifiedNextTarget by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf<Pair<Int, Int>?>(null) }
 
+    var showWatchTogether by remember { mutableStateOf(false) }
+    val watchParty by viewModel.viewing.party.collectAsStateWithLifecycle()
+    val partyGuest = watchParty?.isHost == false
+    val latestPartyGuest by rememberUpdatedState(partyGuest)
+
     val markerRepository = remember { PlaybackMarkerRepository() }
     var playbackMarkers by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(PlaybackMarkers()) }
     var thumbnailCues by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(emptyList<ThumbnailCue>()) }
@@ -212,12 +217,25 @@ fun PlayerScreen(
 
     var showSubtitleModal by remember { mutableStateOf(false) }
     val selectedSubLang by viewModel.selectedSubtitleLanguage.collectAsStateWithLifecycle()
+    val subtitleOffsetMs by viewModel.subtitleOffsetMs.collectAsStateWithLifecycle()
+    LaunchedEffect(movie.id, movie.catalogMediaKind(), isTrailerPlayback) { viewModel.loadSubtitleTiming(movie, isTrailerPlayback) }
     var activeStream by remember(movie.id, currentSeason, currentEpisode) {
         mutableStateOf(if (isTrailerPlayback) null else viewModel.getCachedStream(movie, currentSeason, currentEpisode))
     }
     var logoUrl by remember(movie) { mutableStateOf(movie.logoUrl) }
 
     var currentSubtitleCues by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(emptyList<SubtitleCue>()) }
+    var previousSubtitleOffset by remember(initialTargetMediaId) { mutableIntStateOf(subtitleOffsetMs) }
+    LaunchedEffect(subtitleOffsetMs, initialTargetMediaId) {
+        val changed = previousSubtitleOffset != subtitleOffsetMs
+        previousSubtitleOffset = subtitleOffsetMs
+        if (changed && currentSubtitleCues.isEmpty() && ownsPlayback &&
+            exoPlayer.currentMediaItem?.mediaId == initialTargetMediaId && exoPlayer.playbackState == Player.STATE_READY) {
+            val resume = exoPlayer.playWhenReady
+            exoPlayer.seekTo(exoPlayer.currentPosition.coerceAtLeast(0))
+            exoPlayer.playWhenReady = resume
+        }
+    }
     var exoPlayerSubtitleText by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf("") }
     var playerTracks by remember(exoPlayer) { mutableStateOf(exoPlayer.currentTracks) }
 
@@ -273,6 +291,7 @@ fun PlayerScreen(
 
     val nextEpisodeJobHolder = remember(movie.id) { PlayerJobHolder() }
     fun playNextEpisode() {
+        if (viewModel.viewing.isGuest) return
         if (isLoading || isBuffering) return
         if (isTrailerPlayback || !viewModel.ownsSharedPlayback(playbackOwner)) return
         if (!movie.isSeriesContent() && currentSeason <= 1 && currentEpisode <= 1 && currentEpisodeName.isBlank()) return
@@ -304,6 +323,7 @@ fun PlayerScreen(
                     forceFirestoreSync = true
                 )
             }
+            viewModel.viewing.clearPlayback()
             currentSubtitleCues = emptyList()
             exoPlayerSubtitleText = ""
             activeStream = null
@@ -815,6 +835,22 @@ fun PlayerScreen(
         } catch (_: Exception) {}
     }
 
+    LaunchedEffect(exoPlayer, movie.id, currentSeason, currentEpisode, isTrailerPlayback) {
+        while (true) {
+            if (!isTrailerPlayback && viewModel.ownsSharedPlayback(playbackOwner) && exoPlayer.currentMediaItem?.mediaId == initialTargetMediaId && exoPlayer.duration > 0) {
+                val target = com.example.viewing.ViewingTarget(movie.catalogMediaKind(), movie.id, movie.title, currentSeason, currentEpisode)
+                val adjustment = viewModel.viewing.sample(com.example.viewing.LocalViewingPlayback(target,
+                    exoPlayer.currentPosition.coerceAtLeast(0), exoPlayer.duration, exoPlayer.playWhenReady && exoPlayer.playbackState != Player.STATE_ENDED,
+                    exoPlayer.playbackState == Player.STATE_BUFFERING))
+                adjustment.seekMs?.let { exoPlayer.seekTo(it) }
+                adjustment.playing?.let { isPlaying = it; exoPlayer.playWhenReady = it }
+                if (viewModel.viewing.party.value != null && exoPlayer.playbackParameters.speed != 1f) exoPlayer.setPlaybackSpeed(1f)
+            }
+            kotlinx.coroutines.delay(500)
+        }
+    }
+    DisposableEffect(viewModel.viewing, playbackOwner) { onDispose { viewModel.viewing.clearPlayback() } }
+
     BackHandler {
         if (showSubtitleModal) {
             showSubtitleModal = false
@@ -833,6 +869,12 @@ fun PlayerScreen(
             .focusable()
             .onPreviewKeyEvent { keyEvent ->
                 val nativeEvent = keyEvent.nativeKeyEvent
+                if (latestPartyGuest && !showSubtitleModal && nativeEvent.keyCode in setOf(
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
+                    KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+                    KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                    showControls = true; userActivity(); return@onPreviewKeyEvent true
+                }
                 val remoteAction = remoteKeys.dispatch(
                     nativeEvent.keyCode, nativeEvent.action, nativeEvent.repeatCount, showControls
                 )
@@ -846,9 +888,9 @@ fun PlayerScreen(
                         try { toFocus.requestFocus() } catch (_: Exception) {}
                     }
                     when (remoteAction) {
-                        PlayerRemoteKeys.Action.TOGGLE -> isPlaying = !isPlaying
-                        PlayerRemoteKeys.Action.PLAY -> isPlaying = true
-                        PlayerRemoteKeys.Action.PAUSE -> isPlaying = false
+                        PlayerRemoteKeys.Action.TOGGLE -> if (!latestPartyGuest) { isPlaying = !isPlaying }
+                        PlayerRemoteKeys.Action.PLAY -> if (!latestPartyGuest) { isPlaying = true }
+                        PlayerRemoteKeys.Action.PAUSE -> if (!latestPartyGuest) { isPlaying = false }
                         PlayerRemoteKeys.Action.FORWARD -> {
                             val safePair = try {
                                 exoPlayer.currentPosition to exoPlayer.duration
@@ -1065,7 +1107,9 @@ fun PlayerScreen(
                 hasNextEpisode = verifiedNextTarget != null && !isTrailerPlayback,
                 isTrailerPlayback = isTrailerPlayback,
                 onBack = { safeSaveAndExit() },
+                onWatchTogether = { showWatchTogether = true },
                 onReplay10 = onReplay10@{
+                    if (latestPartyGuest) return@onReplay10
                     userActivity()
                     val safePos = try { exoPlayer.currentPosition } catch (_: IllegalStateException) { return@onReplay10 } catch (_: Exception) { return@onReplay10 }
                     val newPos = (safePos - 10000).coerceAtLeast(0)
@@ -1127,11 +1171,13 @@ fun PlayerScreen(
                 currentEpisode = currentEpisode,
                 isTvShow = isTvShow,
                 selectedSubLang = selectedSubLang,
+
                 playButtonRequester = playButtonRequester,
                 progressRequester = progressRequester,
+                partyGuest = partyGuest,
                 onTogglePlay = {
                     userActivity()
-                    isPlaying = !isPlaying
+                    if (!latestPartyGuest) isPlaying = !isPlaying
                 },
                 onUserActivity = { userActivity() },
                 onTrackFocus = { requester -> lastFocusedControlRequester = requester },
@@ -1148,7 +1194,7 @@ fun PlayerScreen(
 
         val introStart = playbackMarkers.introStart
         val introEnd = playbackMarkers.introEnd
-        if (introStart != null && introEnd != null) {
+        if (!partyGuest && introStart != null && introEnd != null) {
             val skipBottomPadding by animateDpAsState(
                 targetValue = if (showControls) 175.dp else 48.dp,
                 animationSpec = tween(220, easing = FastOutSlowInEasing),
@@ -1166,7 +1212,7 @@ fun PlayerScreen(
         }
 
         val outroStart = playbackMarkers.outroStart
-        if (outroStart != null && isTvShow && verifiedNextTarget != null) {
+        if (!partyGuest && outroStart != null && isTvShow && verifiedNextTarget != null) {
             val nextBottomPadding by animateDpAsState(
                 targetValue = if (showControls) 185.dp else 48.dp,
                 animationSpec = tween(220, easing = FastOutSlowInEasing),
@@ -1186,8 +1232,12 @@ fun PlayerScreen(
             )
         }
 
+        if (showWatchTogether) com.example.viewing.WatchTogetherDialog(viewModel.viewing) { showWatchTogether = false }
+
         if (showSubtitleModal) {
             AudioSubtitlesModal(
+                subtitleOffsetMs = subtitleOffsetMs,
+                onSetSubtitleOffset = viewModel::setSubtitleOffset,
                 exoPlayer = exoPlayer,
                 playerTracks = playerTracks,
                 activeStream = activeStream,
@@ -1205,6 +1255,7 @@ fun PlayerScreen(
             SubtitleOverlay(
                 exoPlayer = exoPlayer,
                 cues = currentSubtitleCues,
+                subtitleOffsetMs = subtitleOffsetMs,
                 exoText = exoPlayerSubtitleText,
                 showControls = showControls,
                 modifier = Modifier.align(Alignment.BottomCenter)

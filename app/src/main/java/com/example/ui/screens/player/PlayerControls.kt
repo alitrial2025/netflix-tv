@@ -74,7 +74,8 @@ fun PlayerTopBar(
     onBack: () -> Unit,
     onReplay10: () -> Unit,
     onNextEpisode: () -> Unit,
-    hasNextEpisode: Boolean = isTvShow
+    hasNextEpisode: Boolean = isTvShow,
+    onWatchTogether: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -184,6 +185,12 @@ fun PlayerTopBar(
 
         // Top Right Title Header
         Column(horizontalAlignment = Alignment.End) {
+            Surface(onClick = onWatchTogether,
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                colors = ClickableSurfaceDefaults.colors(containerColor = Color.Black.copy(alpha = .55f), focusedContainerColor = Color.White, focusedContentColor = Color.Black)) {
+                Text("Watch together", modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp), fontSize = 14.sp)
+            }
+            Spacer(Modifier.height(8.dp))
             if (!logoUrl.isNullOrBlank()) {
                 val ctx = LocalContext.current
                 val density = LocalDensity.current
@@ -435,7 +442,8 @@ fun PlayerBottomControls(
     onTogglePlay: () -> Unit,
     onUserActivity: () -> Unit,
     onSelectSubtitle: (String) -> Unit,
-    onOpenSubtitleSettings: () -> Unit
+    onOpenSubtitleSettings: () -> Unit,
+    partyGuest: Boolean = false
 ) {
     var isProgressFocused by remember { mutableStateOf(false) }
     var isScrubbing by remember(movie.id, currentSeason, currentEpisode) { mutableStateOf(false) }
@@ -557,7 +565,7 @@ fun PlayerBottomControls(
                 Surface(
                     onClick = {
                         onUserActivity()
-                        if (isScrubbing) {
+                        if (isScrubbing && !partyGuest) {
                             val canSeek = try { exoPlayer.playbackState != Player.STATE_IDLE } catch (_: IllegalStateException) { false } catch (_: Exception) { false }
                             if (canSeek) {
                                 try { exoPlayer.seekTo((scrubProgress * totalSeconds * 1000L).toLong()) } catch (_: IllegalStateException) {} catch (_: Exception) {}
@@ -580,6 +588,7 @@ fun PlayerBottomControls(
                             }
                         }
                         .onPreviewKeyEvent { keyEvent ->
+                            if (partyGuest && keyEvent.nativeKeyEvent.keyCode in setOf(KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) return@onPreviewKeyEvent true
                             if (keyEvent.type == KeyEventType.KeyDown) {
                                 when (keyEvent.nativeKeyEvent.keyCode) {
                                     KeyEvent.KEYCODE_DPAD_LEFT -> {

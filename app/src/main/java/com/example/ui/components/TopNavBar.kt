@@ -33,6 +33,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -471,11 +473,13 @@ private fun HomeProfileMenu(
     onSwitchProfiles: () -> Unit,
     onAlternateProfile: () -> Unit,
     onHelp: () -> Unit,
+    onCollections: () -> Unit,
+    onWatchTogether: () -> Unit,
     onExit: () -> Unit,
     onReturnToTabs: () -> Unit
 ) {
     // The current profile is always first; other account profiles belong in the picker.
-    val itemIds = remember { listOf("current", "alternate", "help", "exit") }
+    val itemIds = remember { listOf("current", "alternate", "collections", "party", "help", "exit") }
     val requesters = remember { List(itemIds.size) { FocusRequester() } }
     val keyPacer = remember { TvKeyPacer() }
     val fallbackKids = remember {
@@ -505,6 +509,8 @@ private fun HomeProfileMenu(
                     "current" -> onSwitchProfiles
                     "alternate" -> onAlternateProfile
                     "help" -> onHelp
+                    "collections" -> onCollections
+                    "party" -> onWatchTogether
                     else -> onExit
                 }
                 val clickState = rememberUpdatedState(click)
@@ -560,13 +566,20 @@ private fun HomeProfileMenu(
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (profile != null) ProfileAvatar(profile, size = 28.dp)
                         else Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) {
-                            Icon(if (id == "help") Icons.Default.HelpOutline else Icons.AutoMirrored.Filled.ExitToApp,
+                            Icon(when (id) {
+                                "help" -> Icons.Default.HelpOutline
+                                "collections" -> Icons.Default.FolderOpen
+                                "party" -> Icons.Default.Groups
+                                else -> Icons.AutoMirrored.Filled.ExitToApp
+                            },
                                 contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                             val label = when (id) {
                                 "current" -> currentProfile.name.ifBlank { if (currentProfile.isKid) "Kids" else "Profile" }
                                 "alternate" -> if (currentProfile.isKid && alternateProfile != null) alternateProfile.name.ifBlank { "Home" } else "Kids"
+                                "collections" -> "Collections"
+                                "party" -> "Watch together"
                                 "help" -> "Get Help"
                                 else -> "Exit Netflix"
                             }
@@ -598,6 +611,8 @@ fun TopNavBar(
     profiles: List<Profile> = emptyList(),
     onProfileSelected: (Profile) -> Unit = {},
     onManageProfiles: () -> Unit = {},
+    onOpenCollections: () -> Unit = {},
+    onWatchTogether: () -> Unit = {},
     compactProfile: Boolean = false,
     onDpadUp: () -> Boolean = { false },
     onDpadDown: () -> Boolean = { false }
@@ -739,6 +754,8 @@ fun TopNavBar(
                             if (alternateProfile != null) onProfileSelected(alternateProfile) else onManageProfiles()
                         },
                         onHelp = { dismissMenu(null); showHelpDialog = true },
+                        onCollections = { dismissMenu(null); onOpenCollections() },
+                        onWatchTogether = { dismissMenu(null); onWatchTogether() },
                         onExit = { dismissMenu(null); (context as? Activity)?.finishAffinity() },
                         onReturnToTabs = { dismissMenu(activeTabRequester()) }
                     )
