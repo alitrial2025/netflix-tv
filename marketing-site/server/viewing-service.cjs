@@ -1,5 +1,6 @@
 const { createHash, randomBytes, randomUUID } = require('node:crypto');
 const { PaymentError } = require('./payment-service.cjs');
+const PARTY_PLANS = new Set(['plan_basic','plan_standard','plan_premium']);
 const PLANS = new Set(['plan_mobile','plan_basic','plan_standard','plan_premium']);
 const fail = (status, code, message) => { throw new PaymentError(status, code, message); };
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -26,9 +27,15 @@ function allowed(sub, now, deviceKind) {
 }
 const mirror = (db,uid,device) => db.collection('users').doc(uid).collection('viewing_sessions').doc(device);
 const command = (db,uid,device) => db.collection('users').doc(uid).collection('viewing_commands').doc(device);
+function partyAllowed(sub, now, kind) { return allowed(sub,now,kind) && PARTY_PLANS.has(sub.planId); }
+function commentInput(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 160 || /[\x00-\x1F\x7F]/.test(value))
+    fail(400,'INVALID_COMMENT','Use a message of 1–160 characters.');
+  return value.trim();
+}
 function publicRoom(room, uid, device, now) {
   const self = room.members.find(m => m.uid === uid && m.deviceId === device);
-  return {roomCode:room.code,revision:room.revision,target:room.target,playback:room.playback,updatedAtMs:room.updatedAtMs,
+  return {roomCode:room.code,revision:room.revision,eventRevision:room.eventRevision ?? room.revision,commentsEnabled:room.commentsEnabled !== false,messages:room.messages || [],target:room.target,playback:room.playback,updatedAtMs:room.updatedAtMs,
     hostSeenAtMs:room.hostSeenAtMs,expiresAtMs:room.expiresAtMs,ended:room.ended === true,serverNowMs:now,
     isHost:room.hostUid === uid && room.hostDevice === device,memberId:self?.memberId ?? '',
     members:room.members.map(m=>({id:m.memberId,name:m.name,lastSeenAtMs:m.seenAtMs,isHost:m.uid === room.hostUid && m.deviceId === room.hostDevice}))};
@@ -38,34 +45,43 @@ function fanout(tx,db,room,now) {
 }
 async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>randomBytes(5).toString('hex').toUpperCase(),uuid=randomUUID}) {
   const action = body?.action, deviceId=body?.deviceId;
-  if (!validId(deviceId) || !['register','devices','handoff','create','join','heartbeat','control','leave','end'].includes(action))
+  if (!validId(deviceId) || !['register','devices','handoff','create','join','heartbeat','control','comment','moderate','leave','end'].includes(action))
     fail(400,'INVALID_ACTION','This viewing action is unavailable.');
   const kind = body.deviceKind === 'tv' ? 'tv' : 'mobile';
   const time=now();
   const accountRef=db.collection('viewing_accounts').doc(hash(uid));
   const subRef=db.collection('users').doc(uid).collection('subscription').doc('current');
-  const rateRef=db.collection('viewing_rates').doc(hash(uid));
-  let code=['join','heartbeat','control','leave','end'].includes(action)?body.roomCode:null;
+  const chatLane=['comment','moderate'].includes(action);
+  const cleanup=['leave','end'].includes(action);
+  const partyAction=['create','join','heartbeat','control','comment','moderate'].includes(action);
+  const rateRef=db.collection('viewing_rates').doc(hash(chatLane ? uid+':chat' : uid));
+  const admit=sub=>{
+    if (cleanup) return; // Canonical membership and host checks below still apply.
+    if (!allowed(sub,time,kind)) fail(403,'MEMBERSHIP_REQUIRED',kind==='tv'?'Use an active TV-enabled membership.':'Use an active membership.');
+    if (partyAction && !partyAllowed(sub,time,kind)) fail(403,'PARTY_PLAN_REQUIRED','Watch parties are included with Basic, Standard and Premium.');
+  };
+  let code=['join','heartbeat','control','comment','moderate','leave','end'].includes(action)?body.roomCode:null;
   if (action === 'create') code=codeGenerator();
-  if (['create','join','heartbeat','control','leave','end'].includes(action) && !/^[A-F0-9]{10}$/.test(code || ''))
+  if (['create','join','heartbeat','control','comment','moderate','leave','end'].includes(action) && !/^[A-F0-9]{10}$/.test(code || ''))
     fail(400,'INVALID_ROOM','Enter the ten-character party code.');
   const roomRef=code ? db.collection('viewing_rooms').doc(code) : null;
   // Commit rate admission independently, so rejected code guesses and stale
   // controls count too. An aborted room transaction must not erase the attempt.
   await db.runTransaction(async tx=>{
-    const [subSnap,rateSnap]=await Promise.all([tx.get(subRef),tx.get(rateRef)]);
+    const [subSnap,rateSnap,retryRoom]=await Promise.all([tx.get(subRef),tx.get(rateRef),action==='comment'&&roomRef?tx.get(roomRef):null]);
     const sub=subSnap.exists?subSnap.data():{};
-    if (!allowed(sub,time,kind)) fail(403,'MEMBERSHIP_REQUIRED',kind==='tv'?'Use an active TV-enabled membership.':'Use an active membership to watch together.');
+    admit(sub);
+    if (retryRoom?.exists && retryRoom.data().messages?.some(m=>m.id===body.messageId && retryRoom.data().members.some(member=>member.uid===uid&&member.deviceId===deviceId&&member.memberId===m.memberId))) return;
     const rate=rateSnap.exists?rateSnap.data():{};
     const recent=(rate.times||[]).filter(t=>integer(t,0,time)&&time-t<60000);
-    if (recent.length>=120 || recent.filter(t=>time-t<1000).length>=8) fail(429,'SLOW_DOWN','Please wait a moment before trying again.');
+    if (recent.length>=(chatLane?20:120) || recent.filter(t=>time-t<1000).length>=(chatLane?2:8)) fail(429,'SLOW_DOWN','Please wait a moment before trying again.');
     tx.set(rateRef,{times:[...recent,time],expiresAtMs:time+120000});
   });
   return db.runTransaction(async tx=>{
     // All membership, claim, and room reads precede writes.
     const [subSnap,accountSnap,roomSnap]=await Promise.all([tx.get(subRef),tx.get(accountRef),roomRef?tx.get(roomRef):null]);
     const sub=subSnap.exists?subSnap.data():{};
-    if (!allowed(sub,time,kind)) fail(403,'MEMBERSHIP_REQUIRED',kind==='tv'?'Use an active TV-enabled membership.':'Use an active membership to watch together.');
+    admit(sub);
     const account=accountSnap.exists?accountSnap.data():{};
     const claimed=account.rooms?.[deviceId];
     // Claims are leases. Read their canonical room before deciding whether an ended
@@ -81,7 +97,8 @@ async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>rando
       if (!oldSelf) return;
       if (previous.hostUid===uid&&previous.hostDevice===deviceId) previous.ended=true;
       else previous.members=previous.members.filter(m=>m!==oldSelf);
-      previous.revision++;
+      if (previous.ended) previous.revision++;
+      previous.eventRevision=(previous.eventRevision ?? previous.revision)+1;
       tx.set(db.collection('viewing_rooms').doc(claimed.code),previous);
       fanout(tx,db,previous,time);
     };
@@ -108,7 +125,7 @@ async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>rando
         if (claimLive) fail(409,'ALREADY_IN_PARTY','Leave your current party before creating another.');
         detachPrevious();
         room={code,hostUid:uid,hostDevice:deviceId,target:targetInput(body.target),playback:playbackInput(body.playback),
-          createdAtMs:time,updatedAtMs:time,hostSeenAtMs:time,expiresAtMs:time+21600000,revision:1,
+          createdAtMs:time,updatedAtMs:integer(body.sampledAtMs,time-2000,time)?body.sampledAtMs:time,hostSeenAtMs:time,expiresAtMs:time+21600000,revision:1,eventRevision:0,commentsEnabled:true,messages:[],
           members:[{uid,deviceId,memberId:uuid(),name:String(body.name||'Host').trim().slice(0,40),seenAtMs:time}],ended:false};
         tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:{code,expiresAtMs:room.expiresAtMs,seenAtMs:time}}});
       } else {
@@ -123,7 +140,6 @@ async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>rando
             room.members.push({uid,deviceId,memberId:uuid(),name:String(body.name||'Viewer').trim().slice(0,40),seenAtMs:time});
           } else self.seenAtMs=time;
           detachPrevious();
-          room.revision++;
           tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:{code,expiresAtMs:room.expiresAtMs,seenAtMs:time}}});
         } else {
           if (!self || !['leave','end'].includes(action) && account.rooms?.[deviceId]?.code!==code)
@@ -131,13 +147,34 @@ async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>rando
           self.seenAtMs=time;
           if (action==='control') {
             if (!host) fail(403,'HOST_ONLY','The host controls party playback.');
-            if (!integer(body.expectedRevision,1,Number.MAX_SAFE_INTEGER) || body.expectedRevision!==room.revision)
-              fail(409,'STALE_CONTROL','The party changed. Reconnect to sync playback.');
-            const target=body.target?targetInput(body.target):room.target;
-            const same=sameTitle(target,room.target);
-            // A changed episode must reset its position explicitly; never carry the old episode's seek target.
-            if (!same && body.playback?.positionMs!==0) fail(400,'INVALID_PLAYBACK','A new party title must start at its beginning.');
-            room.target=target;room.playback=playbackInput(body.playback);room.updatedAtMs=time;room.hostSeenAtMs=time;room.revision++;
+            if (body.commandId !== undefined && !validId(body.commandId)) fail(400,'INVALID_ACTION','Invalid playback command.');
+            const duplicate=body.commandId && (room.recentCommands||[]).includes(body.commandId);
+            if (!duplicate) {
+              if (!integer(body.expectedRevision,1,Number.MAX_SAFE_INTEGER) || body.expectedRevision!==room.revision)
+                fail(409,'STALE_CONTROL','The party changed. Reconnect to sync playback.');
+              const target=body.target?targetInput(body.target):room.target;
+              const same=sameTitle(target,room.target);
+              // A changed episode must reset its position explicitly; never carry the old episode's seek target.
+              if (!same && body.playback?.positionMs!==0) fail(400,'INVALID_PLAYBACK','A new party title must start at its beginning.');
+              room.target=target;room.playback=playbackInput(body.playback);room.updatedAtMs=integer(body.sampledAtMs,time-2000,time)?body.sampledAtMs:time;room.hostSeenAtMs=time;room.revision++;
+              if (body.commandId) room.recentCommands=[...(room.recentCommands||[]),body.commandId].slice(-16);
+            } else publish=false;
+          } else if (action==='comment') {
+            if (!validId(body.messageId)) fail(400,'INVALID_COMMENT','Invalid message identifier.');
+            const text=commentInput(body.text);
+            const existing=(room.messages||[]).find(m=>m.id===body.messageId);
+            if (existing && existing.memberId!==self.memberId) fail(409,'MESSAGE_CONFLICT','Send this as a new message.');
+            if (!existing) {
+              if (room.commentsEnabled===false) fail(403,'COMMENTS_DISABLED','The host has paused comments.');
+              room.messages=[...(room.messages||[]),{id:body.messageId,memberId:self.memberId,name:self.name,text,createdAtMs:time}].slice(-40);
+            } else publish=false;
+          } else if (action==='moderate') {
+            if (!host) fail(403,'HOST_ONLY','Only the host can manage party comments.');
+            if ((body.commentsEnabled!==undefined && typeof body.commentsEnabled!=='boolean') ||
+                (body.deleteMessageId!==undefined && !validId(body.deleteMessageId)) || (body.commentsEnabled===undefined && body.deleteMessageId===undefined))
+              fail(400,'INVALID_ACTION','Choose a comment setting or message.');
+            if (body.commentsEnabled!==undefined) room.commentsEnabled=body.commentsEnabled;
+            if (body.deleteMessageId!==undefined) room.messages=(room.messages||[]).filter(m=>m.id!==body.deleteMessageId);
           } else if (action==='heartbeat') {
             if (host) room.hostSeenAtMs=time; else publish=false;
             tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:{code,expiresAtMs:room.expiresAtMs,seenAtMs:time}}});
@@ -149,13 +186,14 @@ async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>rando
             if (account.rooms?.[deviceId]?.code===code)
               tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:null}});
           } else if (action==='leave') {
-            room.members=room.members.filter(m=>m!==self);room.revision++;
+            room.members=room.members.filter(m=>m!==self);
             tx.set(mirror(db,uid,deviceId),{ended:true,roomCode:code,serverNowMs:time});
             if (account.rooms?.[deviceId]?.code===code)
               tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:null}});
           }
         }
       }
+      if (publish) room.eventRevision=(room.eventRevision ?? room.revision)+1;
       tx.set(roomRef,room);if (publish) fanout(tx,db,room,time);
       Object.assign(result,publicRoom(room,uid,deviceId,time));
     }
@@ -181,4 +219,4 @@ function createViewingHandler(deps) {
     }
   };
 }
-module.exports={targetInput,playbackInput,allowed,viewingAction,createViewingHandler};
+module.exports={targetInput,playbackInput,allowed,partyAllowed,commentInput,viewingAction,createViewingHandler};

@@ -143,3 +143,73 @@ test('concurrent host controls for the same revision commit exactly once',async(
  assert.equal(results.find(x=>x.status==='rejected').reason.code,'STALE_CONTROL');
  assert.equal(db.data.get('users/host/viewing_sessions/phone').revision,room.revision+1);
 });
+test('watch parties start at Basic while Mobile keeps same-account handoff and cannot host or join',async()=>{
+ const db=dbMock();for(const [id,plan] of [['host','plan_basic'],['mobile','plan_mobile'],['standard','plan_standard']])member(db,id,plan);const d=deps(db);const room=await create(d);
+ await assert.rejects(create(d,'mobile'),{code:'PARTY_PLAN_REQUIRED'});
+ await assert.rejects(viewingAction('mobile',{action:'join',deviceId:'phone',roomCode:room.roomCode},d),{code:'PARTY_PLAN_REQUIRED'});
+ await viewingAction('mobile',{action:'register',deviceId:'phone'},d);
+ assert.equal((await viewingAction('standard',{action:'join',deviceId:'phone',roomCode:room.roomCode},d)).isHost,false);
+ member(db,'host','plan_mobile');await assert.rejects(viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d),{code:'PARTY_PLAN_REQUIRED'});
+ assert.equal((await viewingAction('host',{action:'end',deviceId:'phone',roomCode:room.roomCode},d)).ended,true);
+});
+test('expired members can clean up their own room but outsiders cannot end or leave it',async()=>{
+ const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);member(db,'stranger');
+ db.data.set('users/host/subscription/current',{planId:'plan_basic',status:'SUSPENDED',expiresAt:now+1});
+ await assert.rejects(viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback},d),{code:'MEMBERSHIP_REQUIRED'});
+ await assert.rejects(viewingAction('stranger',{action:'leave',deviceId:'phone',roomCode:room.roomCode},d),{code:'NOT_A_MEMBER'});
+ assert.equal((await viewingAction('host',{action:'leave',deviceId:'phone',roomCode:room.roomCode},d)).ended,true);
+});
+test('comments derive author from membership, are idempotent, and cannot change playback revision',async()=>{
+ const db=dbMock();member(db,'host','plan_basic');member(db,'guest','plan_basic');const d=deps(db);const room=await create(d);
+ const joined=await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode,name:'Real guest'},d);
+ assert.equal(joined.revision,room.revision);
+ const message={action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:'one',text:'Hello 👏',uid:'host',name:'Spoof',memberId:room.memberId};
+ const sent=await viewingAction('guest',message,d);const retry=await viewingAction('guest',message,d);
+ assert.equal(sent.messages[0].name,'Real guest');assert.equal(sent.messages[0].memberId,joined.memberId);assert.equal(retry.messages.length,1);
+ assert.equal(sent.revision,room.revision);assert.ok(sent.eventRevision>joined.eventRevision);assert.ok(!JSON.stringify(sent).includes('hostUid'));
+ const paused=await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:false}},d);
+ assert.equal(paused.playback.playing,false);assert.equal(paused.messages.length,1);
+ await assert.rejects(viewingAction('host',{...message,text:'Replace'},d),{code:'MESSAGE_CONFLICT'});
+});
+test('host moderation pauses new comments and removes messages without interrupting playback',async()=>{
+ const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
+ await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
+ const message={action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:'one',text:'Hi'};
+ await viewingAction('guest',message,d);
+ await assert.rejects(viewingAction('guest',{action:'moderate',deviceId:'phone',roomCode:room.roomCode,commentsEnabled:false},d),{code:'HOST_ONLY'});
+ const stopped=await viewingAction('host',{action:'moderate',deviceId:'phone',roomCode:room.roomCode,commentsEnabled:false,deleteMessageId:'one'},d);
+ assert.equal(stopped.commentsEnabled,false);assert.equal(stopped.messages.length,0);assert.equal(stopped.revision,room.revision);
+ time+=1001;await assert.rejects(viewingAction('guest',{...message,messageId:'two'},d),{code:'COMMENTS_DISABLED'});
+ await viewingAction('host',{action:'moderate',deviceId:'phone',roomCode:room.roomCode,commentsEnabled:true},d);
+ time+=1001;assert.equal((await viewingAction('guest',{...message,messageId:'two'},d)).messages.length,1);
+});
+test('comment bursts have their own budget and never block host pause controls',async()=>{
+ const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);
+ const message={action:'comment',deviceId:'phone',roomCode:room.roomCode,text:'👏'};
+ await viewingAction('host',{...message,messageId:'one'},d);await viewingAction('host',{...message,messageId:'two'},d);
+ await assert.rejects(viewingAction('host',{...message,messageId:'three'},d),{code:'SLOW_DOWN'});
+ assert.equal((await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:false}},d)).playback.playing,false);
+});
+test('comments reject malformed text, non-members, and cross-device claim reuse',async()=>{
+ for(const text of ['', 'x'.repeat(161),'line\nbreak','bad\u0000text']){
+  const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);
+  await assert.rejects(viewingAction('host',{action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:'one',text},d),{code:'INVALID_COMMENT'});
+ }
+ const db=dbMock();member(db,'host');member(db,'guest');const d=deps(db);const room=await create(d);
+ await assert.rejects(viewingAction('guest',{action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:'one',text:'hi'},d),{code:'NOT_A_MEMBER'});
+ await assert.rejects(viewingAction('host',{action:'comment',deviceId:'other',roomCode:room.roomCode,messageId:'one',text:'hi'},d),{code:'NOT_A_MEMBER'});
+});
+test('comment history is bounded and old messages never expand a snapshot indefinitely',async()=>{
+ const db=dbMock();member(db,'host');let time=now;const d=deps(db,()=>time);const room=await create(d);
+ for(let i=0;i<45;i++){time+=3100;await viewingAction('host',{action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:`m${i}`,text:'Hello'},d);}
+ const snapshot=db.data.get('users/host/viewing_sessions/phone');assert.equal(snapshot.messages.length,40);assert.equal(snapshot.messages[0].id,'m5');assert.equal(snapshot.revision,room.revision);
+});
+test('timestamped controls compensate transit, clamp untrusted clocks and retry without reapplying',async()=>{
+ const db=dbMock();member(db,'host');let time=now;const d=deps(db,()=>time);const room=await create(d);
+ const control={action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,commandId:'pause1',sampledAtMs:time-350,playback:{...playback,playing:false}};
+ const first=await viewingAction('host',control,d);assert.equal(first.updatedAtMs,time-350);
+ time+=250;const retry=await viewingAction('host',control,d);assert.equal(retry.revision,first.revision);assert.equal(retry.updatedAtMs,first.updatedAtMs);
+ const future=await viewingAction('host',{...control,expectedRevision:first.revision,commandId:'play1',sampledAtMs:time+100000,playback},d);assert.equal(future.updatedAtMs,time);
+ const ancient=await viewingAction('host',{...control,expectedRevision:future.revision,commandId:'play2',sampledAtMs:time-100000,playback},d);assert.equal(ancient.updatedAtMs,time);
+ const oldClient=await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:ancient.revision,playback},d);assert.equal(oldClient.updatedAtMs,time);
+});

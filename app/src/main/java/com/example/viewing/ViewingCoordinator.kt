@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
+import java.util.UUID
 
 /** One session per app device/profile. Snapshots never authorize media playback. */
 class ViewingCoordinator(context: Context, kind: String, private val scope: CoroutineScope) {
@@ -22,6 +23,17 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
     private var roomListener: ListenerRegistration? = null
     private var heartbeat: Job? = null
     private val commands = Mutex()
+    private val preferences = context.getSharedPreferences("viewing_comments", Context.MODE_PRIVATE)
+    private val _commentsVisible = MutableStateFlow(preferences.getBoolean("visible", true))
+    val commentsVisible: StateFlow<Boolean> = _commentsVisible.asStateFlow()
+    private val _chatBusy = MutableStateFlow(false)
+    val chatBusy: StateFlow<Boolean> = _chatBusy.asStateFlow()
+    private val _sentComment = MutableStateFlow<Pair<String, String>?>(null)
+    val sentComment: StateFlow<Pair<String, String>?> = _sentComment.asStateFlow()
+    private var chatJob: Job? = null
+    fun showComments(value: Boolean) { _commentsVisible.value = value; preferences.edit().putBoolean("visible", value).apply() }
+    fun serverNowMs(): Long = client.serverNowMs()
+    private data class Publication(val playback: LocalViewingPlayback, val sampledAtMs: Long, val commandId: String = UUID.randomUUID().toString())
     private val _party = MutableStateFlow<WatchParty?>(null)
     val party: StateFlow<WatchParty?> = _party.asStateFlow()
     private val _incoming = MutableStateFlow<IncomingViewing?>(null)
@@ -35,11 +47,13 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
     private val _status = MutableStateFlow("")
     val status: StateFlow<String> = _status.asStateFlow()
     private var local: LocalViewingPlayback? = null
+    private var localSampledAtMs = 0L
     private var lastPublication: LocalViewingPlayback? = null
     private var lastPublishedAt = 0L
     private var lastSeekAt = 0L
     private var publishJob: Job? = null
-    private var pendingPublication: LocalViewingPlayback? = null
+    private var pendingPublication: Publication? = null
+    private var nextPublicationAt = 0L
     private var pendingForced = false
     private var targetDelivered: String? = null
     val isGuest: Boolean get() = _party.value?.let { !it.isHost && !it.ended } == true
@@ -50,7 +64,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
         if (next == owner && profileId == profile) { name = displayName.take(40); return }
         val previousOwner = owner; val previousProfile = profile; val previousCode = activeCode
         generation++
-        _busy.value = false
+        _busy.value = false; _chatBusy.value = false; chatJob?.cancel()
         if (previousCode != null && previousOwner.isNotBlank()) scope.launch {
             commands.withLock {
                 try { client.call(previousOwner, "leave", JSONObject().put("roomCode", previousCode)); client.saveRoom(previousOwner, previousProfile, null) }
@@ -59,7 +73,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
         }
         heartbeat?.cancel(); receiver?.remove(); roomListener?.remove(); publishJob?.cancel()
         owner = next; profile = profileId; name = displayName.take(40)
-        _party.value = null; _incoming.value = null; _devices.value = emptyList(); _error.value = null
+        _sentComment.value = null; nextPublicationAt = 0; _party.value = null; _incoming.value = null; _devices.value = emptyList(); _error.value = null
         local = null; activeCode = null; targetDelivered = null; pendingPublication = null; pendingForced = false
         lastPublication = null; lastPublishedAt = 0
         if (owner.isBlank()) return
@@ -108,7 +122,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
                     activeCode?.let { code -> acceptResponse(client.call(owner, "heartbeat", JSONObject().put("roomCode", code))) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (e: ViewingException) {
-                    if (e.code in setOf("PARTY_ENDED", "NOT_A_MEMBER", "MEMBERSHIP_REQUIRED", "ACCOUNT_CHANGED")) clearParty()
+                    if (e.code in setOf("PARTY_ENDED", "NOT_A_MEMBER", "MEMBERSHIP_REQUIRED", "PARTY_PLAN_REQUIRED", "ACCOUNT_CHANGED")) clearParty()
                     else _party.update { it?.copy(connected = false) }
                 } catch (_: Exception) { _party.update { it?.copy(connected = false) } }
                 delay(20_000)
@@ -119,7 +133,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
     private fun accept(room: WatchParty) {
         if (room.code != activeCode) return
         val previous = _party.value
-        if (previous != null && room.revision < previous.revision) return
+        if (!PartySnapshotPolicy.accepts(previous, room)) return
         if (room.ended || client.serverNowMs() >= room.expiresMs) { clearParty(); return }
         _party.value = room
         _status.value = if (!room.connected) "Reconnecting to party…" else if (!room.isHost && client.serverNowMs() - room.hostSeenMs > 45_000) "Waiting for host…"
@@ -142,7 +156,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
     fun create() = operation {
         val bound = generation; val boundOwner = owner
         val playback = local?.takeIf { it.ready && it.durationMs > 0 } ?: throw ViewingException("CHOOSE_TITLE", "Start a movie or episode before hosting.")
-        val response = client.call(boundOwner, "create", JSONObject().put("name", name).put("target", playback.target.json()).put("playback", playback.json()))
+        val response = client.call(boundOwner, "create", JSONObject().put("name", name).put("target", playback.target.json()).put("playback", playback.json()).put("sampledAtMs", localSampledAtMs))
         if (bound != generation) { abandonStaleRoom(boundOwner, response.optString("roomCode")); return@operation }
         activeCode = response.optString("roomCode"); client.saveRoom(owner, profile, activeCode); acceptResponse(response)
         lastPublication = playback; lastPublishedAt = SystemClock.elapsedRealtime()
@@ -171,7 +185,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
         if (owner.isNotBlank()) client.saveRoom(owner, profile, null)
         activeCode = null; _party.value = null; targetDelivered = null
         if (_incoming.value?.party == true) _incoming.value = null
-        lastPublication = null; lastPublishedAt = 0; pendingPublication = null; pendingForced = false
+        lastPublication = null; lastPublishedAt = 0; nextPublicationAt = 0; pendingPublication = null; pendingForced = false
     }
     fun dismissError() { _error.value = null }
     private fun operation(silent: Boolean = false, block: suspend () -> Unit) {
@@ -185,7 +199,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) {
                 if (bound == generation) {
-                    if (silent) { if (e is ViewingException && e.code in setOf("PARTY_ENDED", "NOT_A_MEMBER", "MEMBERSHIP_REQUIRED", "ACCOUNT_CHANGED")) clearParty() } else _error.value = if (e is ViewingException) e.message else "Could not connect. Try again shortly."
+                    if (silent) { if (e is ViewingException && e.code in setOf("PARTY_ENDED", "NOT_A_MEMBER", "MEMBERSHIP_REQUIRED", "PARTY_PLAN_REQUIRED", "ACCOUNT_CHANGED")) clearParty() } else _error.value = if (e is ViewingException) e.message else "Could not connect. Try again shortly."
                 }
             } finally { if (bound == generation) _busy.value = false }
         }
@@ -204,14 +218,14 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
         if (bound == generation) _status.value = "Sent to your TV"
     }
     fun sample(playback: LocalViewingPlayback): PartyAdjustment {
-        local = playback
+        local = playback; localSampledAtMs = client.serverNowMs()
         val room = _party.value ?: return PartyAdjustment()
         if (room.isHost) {
             if (foreground && playback.durationMs > 0) publish(playback.copy(playing = playback.playing && playback.ready))
             return PartyAdjustment()
         }
         val now = SystemClock.elapsedRealtime()
-        val adjustment = PartySyncPolicy.adjustment(room, playback, client.serverNowMs(), now - lastSeekAt >= 2000)
+        val adjustment = PartySyncPolicy.adjustment(room, playback, client.serverNowMs(), now - lastSeekAt >= 800)
         if (adjustment.seekMs != null) lastSeekAt = now
         if (adjustment.waitingForHost) _status.value = "Waiting for host…"
         if (adjustment.incompatibleEdition) _status.value = "This version has different timing. Leave the party to watch it separately."
@@ -230,22 +244,24 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
             previous.buffering != playback.buffering || kotlin.math.abs((predicted ?: playback.positionMs) - playback.positionMs) > 1500
         if (!force && !changed && now - lastPublishedAt < 10_000) return
         // Always retain the newest state, especially a pause while another control is in flight.
-        pendingPublication = playback; pendingForced = pendingForced || force
+        pendingPublication = Publication(playback, client.serverNowMs()); pendingForced = pendingForced || force
         if (publishJob?.isActive == true) return
         val bound = generation; val boundOwner = owner
         publishJob = scope.launch {
             var staleRetries = 0
             while (bound == generation && pendingPublication != null) {
-                delay(if (pendingForced) 0 else 200)
-                commands.withLock {
-                    if (bound != generation) return@withLock
-                    val candidate = pendingPublication ?: return@withLock
+                // Controls never queue behind chat, device discovery or the management mutex.
+                delay((nextPublicationAt - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+                run {
+                    if (bound != generation) return@run
+                    val publication = pendingPublication ?: return@run
+                    val candidate = publication.playback
                     pendingPublication = null; pendingForced = false
-                    val latest = _party.value?.takeIf { it.isHost && it.code == room.code } ?: return@withLock
+                    val latest = _party.value?.takeIf { it.isHost && it.code == room.code } ?: return@run
                     val changedTitle = latest.target.key != candidate.target.key
                     val sent = if (changedTitle) candidate.copy(positionMs = 0) else candidate
                     val sentAt = SystemClock.elapsedRealtime()
-                    val data = JSONObject().put("roomCode", latest.code).put("expectedRevision", latest.revision).put("playback", sent.json())
+                    val data = JSONObject().put("commandId", publication.commandId).put("sampledAtMs", publication.sampledAtMs).put("roomCode", latest.code).put("expectedRevision", latest.revision).put("playback", sent.json())
                     if (changedTitle) data.put("target", candidate.target.json())
                     try {
                         val response = client.call(boundOwner, "control", data)
@@ -253,26 +269,50 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
                     } catch (cancelled: CancellationException) { throw cancelled }
                     catch (e: ViewingException) {
                         if (bound == generation) {
-                            if (e.code in setOf("PARTY_ENDED", "NOT_A_MEMBER", "MEMBERSHIP_REQUIRED")) clearParty()
+                            if (e.code in setOf("PARTY_ENDED", "NOT_A_MEMBER", "MEMBERSHIP_REQUIRED", "PARTY_PLAN_REQUIRED")) clearParty()
                             else if (e.code == "STALE_CONTROL" && staleRetries++ < 2) {
-                                // A join can revise the room while a pause is in flight.
+                                // Another host control can revise playback while a pause is in flight.
                                 // Refresh and retain that final intent after backgrounding.
                                 try {
                                     val refreshed = client.call(boundOwner, "heartbeat", JSONObject().put("roomCode", room.code))
                                     if (bound == generation) {
                                         acceptResponse(refreshed)
-                                        pendingPublication = pendingPublication ?: candidate
+                                        pendingPublication = pendingPublication ?: publication
                                         pendingForced = true
                                     }
                                 } catch (cancelled: CancellationException) { throw cancelled }
                                 catch (_: Exception) { if (bound == generation) _party.update { it?.copy(connected = false) } }
                             }
-                            else if (e.code != "STALE_CONTROL") _party.update { it?.copy(connected = false) }
+                            else if (e.code != "STALE_CONTROL") { nextPublicationAt = SystemClock.elapsedRealtime() + 1500; _party.update { it?.copy(connected = false) } }
                         }
-                    } catch (_: Exception) { if (bound == generation) _party.update { it?.copy(connected = false) } }
+                    } catch (_: Exception) { if (bound == generation) { nextPublicationAt = SystemClock.elapsedRealtime() + 1500; _party.update { it?.copy(connected = false) } } }
                 }
             }
         }
     }
-    fun close() { generation++; heartbeat?.cancel(); publishJob?.cancel(); receiver?.remove(); roomListener?.remove() }
+    fun sendComment(text: String) = chatOperation("comment", JSONObject().put("messageId", UUID.randomUUID().toString()).put("text", text.trim()))
+    fun setCommentsEnabled(value: Boolean) = chatOperation("moderate", JSONObject().put("commentsEnabled", value))
+    fun deleteComment(id: String) = chatOperation("moderate", JSONObject().put("deleteMessageId", id))
+    private fun chatOperation(action: String, data: JSONObject) {
+        val code = activeCode ?: return
+        if (_chatBusy.value) return
+        val bound = generation; val boundOwner = owner
+        _chatBusy.value = true; _error.value = null
+        chatJob = scope.launch {
+            try {
+                val result = client.call(boundOwner, action, data.put("roomCode", code))
+                if (bound == generation && activeCode == code) {
+                    acceptResponse(result)
+                    if (action == "comment") _sentComment.value = data.optString("messageId") to data.optString("text")
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (e: Exception) {
+                if (bound == generation && activeCode == code) {
+                    if (e is ViewingException && e.code in setOf("PARTY_ENDED", "NOT_A_MEMBER", "MEMBERSHIP_REQUIRED", "PARTY_PLAN_REQUIRED")) clearParty()
+                    _error.value = if (e is ViewingException) e.message else "Message not sent. Try again shortly."
+                }
+            } finally { if (bound == generation) _chatBusy.value = false }
+        }
+    }
+    fun close() { generation++; chatJob?.cancel(); heartbeat?.cancel(); publishJob?.cancel(); receiver?.remove(); roomListener?.remove() }
 }

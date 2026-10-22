@@ -23,8 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 
 private enum class CollectionPanel { LIST, TITLES, ADD, CREATE, RENAME, DELETE }
@@ -58,7 +56,7 @@ fun CollectionsDialog(ownerUid: String?, profileId: String, availableTitles: Lis
     LaunchedEffect(state.items, state.loading) {
         if (!state.loading && selectedId != null && selected == null && panel != CollectionPanel.LIST) panel = CollectionPanel.LIST
     }
-    Dialog(onDismissRequest = ::back, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    com.example.ui.components.AdaptiveFeaturePanel(isTv, "Collections", ::back, Modifier.testTag("collections_dialog")) {
         // The dialog owns a different Android window. Request only after this
         // window is attached/focused, and restore focus when its panel changes.
         val dialogView = LocalView.current
@@ -72,11 +70,7 @@ fun CollectionsDialog(ownerUid: String?, profileId: String, availableTitles: Lis
                 if (dialogView.viewTreeObserver.isAlive) dialogView.viewTreeObserver.removeOnWindowFocusChangeListener(observer)
             }
         }
-        Surface(color = Color(0xFF17191D), contentColor = Color.White, shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = .16f)),
-            modifier = Modifier.fillMaxWidth(if (isTv) .78f else .94f).widthIn(max = 720.dp)
-                .heightIn(max = if (isTv) 450.dp else 720.dp).testTag("collections_dialog")) {
-            Column(Modifier.padding(if (isTv) 20.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(Modifier.weight(1f)) {
                         Text(when (panel) {
@@ -169,7 +163,6 @@ fun CollectionsDialog(ownerUid: String?, profileId: String, availableTitles: Lis
                 }
                 if (panel != CollectionPanel.LIST) CollectionButton("Back", ::back, isTv, Modifier.testTag("collection_back"))
             }
-        }
     }
 }
 

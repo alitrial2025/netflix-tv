@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
 package com.example.viewing
 
 import android.content.Intent
@@ -53,26 +55,35 @@ fun ViewingSessionHost(coordinator: ViewingCoordinator, uid: String?, profileId:
 }
 
 @Composable
-fun WatchTogetherDialog(coordinator: ViewingCoordinator, onDismiss: () -> Unit) {
+fun WatchTogetherDialog(coordinator: ViewingCoordinator, eligible: Boolean = true, onDismiss: () -> Unit) {
     val party by coordinator.party.collectAsStateWithLifecycle()
     val busy by coordinator.busy.collectAsStateWithLifecycle()
     val error by coordinator.error.collectAsStateWithLifecycle()
     val status by coordinator.status.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val commentsVisible by coordinator.commentsVisible.collectAsStateWithLifecycle()
+    var showChat by rememberSaveable { mutableStateOf(false) }
+    if (showChat && party != null) { PartyChatDialog(coordinator) { showChat = false }; return }
     var code by rememberSaveable { mutableStateOf("") }
     val television = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION
     val closeFocus = remember { FocusRequester() }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Watch together") }, text = {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    com.example.ui.components.AdaptiveFeaturePanel(television, "Watch together", onDismiss) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Watch together", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(top = 12.dp))
+            ViewingDialogFocus(closeFocus, television, party?.code)
+            TextButton(onClick = { coordinator.dismissError(); onDismiss() }, modifier = Modifier.focusRequester(closeFocus).viewingFocus(television).testTag("party_close")) { Text("Close") }
+        }
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val room = party
             if (room == null) {
-                Text("Watch the same movie or episode with up to 8 people on phones and TVs. Each viewer uses their own membership.")
-                Button(onClick = coordinator::create, enabled = !busy, modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_host")) { Text("Host the title playing now") }
+                Text("Watch the same movie or episode with up to 8 people on phones and TVs. Each viewer needs Basic, Standard or Premium.")
+                if (!eligible) Text("Watch parties are included with Basic, Standard and Premium. Choose a plan in Membership & Plans.")
+                Button(onClick = coordinator::create, enabled = eligible && !busy, modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_host")) { Text("Host the title playing now") }
                 HorizontalDivider()
                 OutlinedTextField(value = code, onValueChange = { code = it.uppercase().filterNot(Char::isWhitespace).take(10) },
                     singleLine = true, label = { Text("Party code") }, supportingText = { Text("10 characters: A–F and 0–9") },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters), modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_code_input"))
-                Button(onClick = { coordinator.join(code) }, enabled = !busy && code.matches(Regex("[A-F0-9]{10}")), modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_join")) { Text("Join party") }
+                Button(onClick = { coordinator.join(code) }, enabled = eligible && !busy && code.matches(Regex("[A-F0-9]{10}")), modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_join")) { Text("Join party") }
             } else {
                 Text(room.target.title, fontWeight = FontWeight.Bold)
                 if (room.target.kind == "tv") Text("Season ${room.target.season} · Episode ${room.target.episode}")
@@ -81,10 +92,12 @@ fun WatchTogetherDialog(coordinator: ViewingCoordinator, onDismiss: () -> Unit) 
                 OutlinedButton(onClick = coordinator::reopenPartyTitle, enabled = !busy, modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_open_title")) { Text("Open party title") }
                 Text(if (room.isHost) "Your play, pause, seek and next episode controls sync to everyone. Leaving ends this party."
                     else "The host controls play, pause, seeking and episodes. Your audio and subtitle choices stay yours.")
+                OutlinedButton(onClick = { coordinator.dismissError(); showChat = true }, modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_open_chat")) { Text("Comments & reactions") }
+                TextButton(onClick = { coordinator.showComments(!commentsVisible) }, modifier = Modifier.viewingFocus(television)) { Text(if (commentsVisible) "Hide comments on video" else "Show comments on video") }
                 room.members.forEach { Text("${it.name}${if (it.host) " · Host" else ""}") }
                 TextButton(modifier = Modifier.viewingFocus(television).testTag("party_share"), onClick = {
                     runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "Join my NetflixPro watch party: ${room.code}\nOpen Watch together in NetflixPro and enter this code. Each viewer needs an active membership.")
+                        type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "Join my NetflixPro watch party: ${room.code}\nOpen Watch together in NetflixPro and enter this code. Each viewer needs Basic, Standard or Premium.")
                     }, "Invite to party")) }
                 }) { Text("Share invitation") }
                 OutlinedButton(onClick = coordinator::leave, enabled = !busy, modifier = Modifier.fillMaxWidth().viewingFocus(television).testTag("party_leave")) { Text(if (room.isHost) "End party" else "Leave party") }
@@ -92,10 +105,8 @@ fun WatchTogetherDialog(coordinator: ViewingCoordinator, onDismiss: () -> Unit) 
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
         }
-    }, confirmButton = {
-        ViewingDialogFocus(closeFocus, television, party?.code)
-        TextButton(onClick = { coordinator.dismissError(); onDismiss() },
-        modifier = Modifier.focusRequester(closeFocus).viewingFocus(television).testTag("party_close")) { Text("Close") } })
+    }
+
 }
 
 @Composable
@@ -126,7 +137,7 @@ fun ContinueOnTvDialog(coordinator: ViewingCoordinator, onDismiss: () -> Unit) {
 
 /** Keyboard focus remains explicit on television while touch styling stays unchanged on phones. */
 @Composable
-private fun Modifier.viewingFocus(television: Boolean): Modifier {
+internal fun Modifier.viewingFocus(television: Boolean): Modifier {
     if (!television) return this
     var focused by remember { mutableStateOf(false) }
     return onFocusChanged { focused = it.isFocused }
@@ -135,7 +146,7 @@ private fun Modifier.viewingFocus(television: Boolean): Modifier {
 
 /** Run inside the dialog composition so the Android window is the correct one. */
 @Composable
-private fun ViewingDialogFocus(requester: FocusRequester, television: Boolean, panel: String?) {
+internal fun ViewingDialogFocus(requester: FocusRequester, television: Boolean, panel: String?) {
     val view = LocalView.current
     val inputMode = LocalInputModeManager.current
     DisposableEffect(view, requester, television, panel, inputMode.inputMode) {

@@ -161,6 +161,7 @@ data class SubscriptionPlan(
         "plan_mobile" -> 3; "plan_basic" -> 5; "plan_standard" -> 25
         "plan_premium" -> 999; else -> 0
     }
+    val watchParties: Boolean get() = id in setOf("plan_basic", "plan_standard", "plan_premium")
     val smartNextEpisode: Boolean get() = id == "plan_standard" || id == "plan_premium"
     val downloadsForYou: Boolean get() = id == "plan_premium"
     val clips: Boolean get() = id == "plan_premium"
@@ -307,6 +308,9 @@ data class UserSubscription(
         expiresAt > 0L -> "EXPIRED"
         else -> "INACTIVE"
     }
+    val isWatchPartyAllowed: Boolean
+        get() = isActive && SubscriptionPlans.PLANS.firstOrNull { it.id == planId }?.watchParties == true
+
     val isInRenewalGrace: Boolean get() = isActive && expiresAt <= nowMillis()
     val renewalReminderDue: Boolean get() = isActive && com.example.data.RenewalPolicy.reminderDue(expiresAt, nowMillis())
 

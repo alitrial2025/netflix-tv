@@ -10,7 +10,7 @@ class PartySyncPolicyTest {
         now - 1_000, now, now + 60_000, false, false, listOf(PartyMember("host", "Host", true)))
     private fun local() = LocalViewingPlayback(target, 13_000, 2_400_000, true, false)
     @Test fun matchingPlaybackDoesNotSeekOrToggleThePlayer() {
-        assertEquals(PartyAdjustment(), PartySyncPolicy.adjustment(room(), local(), now, true))
+        assertEquals(PartyAdjustment(speed = 1f), PartySyncPolicy.adjustment(room(), local(), now, true))
     }
     @Test fun hostIsTheOnlyAuthorityAndUnreadyOrDifferentTitlesAreNotMutated() {
         assertEquals(PartyAdjustment(), PartySyncPolicy.adjustment(room().copy(isHost = true), local().copy(positionMs = 0), now, true))
@@ -29,8 +29,8 @@ class PartySyncPolicyTest {
         assertEquals(13_000L, result.seekMs);assertEquals(true, result.playing)
     }
     @Test fun driftWithinToleranceAndSeekThrottlePreventRepeatedCorrections() {
-        assertNull(PartySyncPolicy.adjustment(room(), local().copy(positionMs = 11_200), now, true).seekMs)
-        assertEquals(13_000L, PartySyncPolicy.adjustment(room(), local().copy(positionMs = 11_199), now, true).seekMs)
+        assertNull(PartySyncPolicy.adjustment(room(), local().copy(positionMs = 11_800), now, true).seekMs)
+        assertEquals(13_000L, PartySyncPolicy.adjustment(room(), local().copy(positionMs = 11_799), now, true).seekMs)
         assertNull(PartySyncPolicy.adjustment(room(), local().copy(positionMs = 0), now, false).seekMs)
     }
     @Test fun disconnectedExpiredEndedAndStaleHostRoomsPauseInsteadOfRunningAhead() {
@@ -52,4 +52,23 @@ class PartySyncPolicyTest {
         assertEquals(57_000L, room().targetPosition(now + 100_000))
         assertEquals(2_400_000L, room().copy(positionMs = 2_399_999).targetPosition(now))
     }
+    @Test fun modestPlayingDriftUsesBoundedSpeedAndAlignmentRestoresNormalSpeed() {
+        assertEquals(1.02f, PartySyncPolicy.adjustment(room(), local().copy(positionMs = 12_400), now, true).speed!!, .001f)
+        assertEquals(.98f, PartySyncPolicy.adjustment(room(), local().copy(positionMs = 13_600), now, true).speed!!, .001f)
+        assertEquals(1f, PartySyncPolicy.adjustment(room(), local(), now, true).speed!!, .001f)
+        assertEquals(1.03f, PartySyncPolicy.adjustment(room(), local().copy(positionMs = 0), now, false).speed!!, .001f)
+    }
+    @Test fun pausedGuestsCorrectSmallPositionErrorsExactlyWithoutChangingSpeed() {
+        val paused = room().copy(playing = false, positionMs = 13_000)
+        val result = PartySyncPolicy.adjustment(paused, local().copy(positionMs = 12_800), now, true)
+        assertEquals(13_000L, result.seekMs); assertEquals(false, result.playing); assertEquals(1f, result.speed!!, .001f)
+    }
+    @Test fun delayedChatOrPlaybackRepliesCannotReplaceANewerSnapshot() {
+        val current = room().copy(revision = 4, eventRevision = 10)
+        assertFalse(PartySnapshotPolicy.accepts(current, current.copy(revision = 3, eventRevision = 11)))
+        assertFalse(PartySnapshotPolicy.accepts(current, current.copy(eventRevision = 9)))
+        assertTrue(PartySnapshotPolicy.accepts(current, current.copy(eventRevision = 11)))
+        assertTrue(PartySnapshotPolicy.accepts(current, current.copy(revision = 5, eventRevision = 12)))
+    }
+
 }

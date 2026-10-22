@@ -140,6 +140,7 @@ fun PlayerScreen(
 
     var showWatchTogether by remember { mutableStateOf(false) }
     val watchParty by viewModel.viewing.party.collectAsStateWithLifecycle()
+    val partyCommentsVisible by viewModel.viewing.commentsVisible.collectAsStateWithLifecycle()
     val partyGuest = watchParty?.isHost == false
     val latestPartyGuest by rememberUpdatedState(partyGuest)
 
@@ -835,19 +836,30 @@ fun PlayerScreen(
         } catch (_: Exception) {}
     }
 
-    LaunchedEffect(exoPlayer, movie.id, currentSeason, currentEpisode, isTrailerPlayback) {
-        while (true) {
-            if (!isTrailerPlayback && viewModel.ownsSharedPlayback(playbackOwner) && exoPlayer.currentMediaItem?.mediaId == initialTargetMediaId && exoPlayer.duration > 0) {
-                val target = com.example.viewing.ViewingTarget(movie.catalogMediaKind(), movie.id, movie.title, currentSeason, currentEpisode)
-                val adjustment = viewModel.viewing.sample(com.example.viewing.LocalViewingPlayback(target,
-                    exoPlayer.currentPosition.coerceAtLeast(0), exoPlayer.duration, exoPlayer.playWhenReady && exoPlayer.playbackState != Player.STATE_ENDED,
-                    exoPlayer.playbackState == Player.STATE_BUFFERING))
-                adjustment.seekMs?.let { exoPlayer.seekTo(it) }
-                adjustment.playing?.let { isPlaying = it; exoPlayer.playWhenReady = it }
-                if (viewModel.viewing.party.value != null && exoPlayer.playbackParameters.speed != 1f) exoPlayer.setPlaybackSpeed(1f)
-            }
-            kotlinx.coroutines.delay(500)
+    val sampleParty by rememberUpdatedState<() -> Unit>({
+        if (playbackActive && !isTrailerPlayback && viewModel.ownsSharedPlayback(playbackOwner) && exoPlayer.currentMediaItem?.mediaId == initialTargetMediaId && exoPlayer.duration > 0) {
+            val target = com.example.viewing.ViewingTarget(movie.catalogMediaKind(), movie.id, movie.title, currentSeason, currentEpisode)
+            val adjustment = viewModel.viewing.sample(com.example.viewing.LocalViewingPlayback(target,
+                exoPlayer.currentPosition.coerceAtLeast(0), exoPlayer.duration, exoPlayer.playWhenReady && exoPlayer.playbackState != Player.STATE_ENDED,
+                exoPlayer.playbackState == Player.STATE_BUFFERING))
+            adjustment.seekMs?.let { exoPlayer.seekTo(it) }
+            adjustment.playing?.let { isPlaying = it; exoPlayer.playWhenReady = it }
+            adjustment.speed?.let { if (kotlin.math.abs(exoPlayer.playbackParameters.speed - it) > .001f) exoPlayer.setPlaybackSpeed(it) }
         }
+    })
+    DisposableEffect(exoPlayer, playbackOwner) {
+        val listener = object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (events.containsAny(Player.EVENT_PLAY_WHEN_READY_CHANGED, Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_PLAYBACK_STATE_CHANGED)) sampleParty()
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose { exoPlayer.removeListener(listener) }
+    }
+    LaunchedEffect(watchParty?.revision, watchParty?.connected) { if (watchParty?.isHost == false) sampleParty() }
+    LaunchedEffect(watchParty?.code, watchParty?.isHost) { exoPlayer.setPlaybackSpeed(1f) }
+    LaunchedEffect(exoPlayer, movie.id, currentSeason, currentEpisode, isTrailerPlayback) {
+        while (true) { sampleParty(); kotlinx.coroutines.delay(250) }
     }
     DisposableEffect(viewModel.viewing, playbackOwner) { onDispose { viewModel.viewing.clearPlayback() } }
 
@@ -1232,7 +1244,10 @@ fun PlayerScreen(
             )
         }
 
-        if (showWatchTogether) com.example.viewing.WatchTogetherDialog(viewModel.viewing) { showWatchTogether = false }
+        com.example.viewing.PartyCommentPeek(watchParty, partyCommentsVisible && !showControls && !showWatchTogether && !showSubtitleModal,
+            viewModel.viewing.serverNowMs(), Modifier.align(Alignment.TopStart).padding(start = 48.dp, top = 24.dp))
+
+        if (showWatchTogether) com.example.viewing.WatchTogetherDialog(viewModel.viewing, eligible = userSubscription.isWatchPartyAllowed) { showWatchTogether = false }
 
         if (showSubtitleModal) {
             AudioSubtitlesModal(

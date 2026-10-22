@@ -194,6 +194,7 @@ class MainActivity : ComponentActivity() {
                     val currentBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = currentBackStackEntry?.destination?.route ?: ""
                     val appSessionReady by viewModel.appSessionReady.collectAsState()
+                    val partySubscription by viewModel.userSubscription.collectAsState()
                     val appSessionError by viewModel.appSessionError.collectAsState()
                     val selectedPlaybackProfile by viewModel.selectedProfile.collectAsState()
                     var showWatchTogether by remember { mutableStateOf(false) }
@@ -225,7 +226,7 @@ class MainActivity : ComponentActivity() {
                             catch (_: Exception) { viewingOpenError = "Check your connection and try opening the party again." }
                         }
                     }
-                    if (showWatchTogether) com.example.viewing.WatchTogetherDialog(viewModel.viewing) { showWatchTogether = false }
+                    if (showWatchTogether) com.example.viewing.WatchTogetherDialog(viewModel.viewing, eligible = partySubscription.isWatchPartyAllowed) { showWatchTogether = false }
 
                     LaunchedEffect(pendingPlayback, appSessionReady, selectedPlaybackProfile?.id, currentRoute) {
                         val request = com.example.tv.TvPlaybackRequest.parse(pendingPlayback) ?: return@LaunchedEffect
