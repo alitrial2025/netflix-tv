@@ -189,7 +189,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 try {
                     val html = publicPages[path to "partner"] ?: text(("https://www.airtelxstream.in" + path).toHttpUrl(), publicNetflix = true)
                         .also(::requirePublicSuccess).body.also { publicPages[path to "partner"] = it }
-                    if (titleAliases.none { PublicProviderIdentity.matchesAirtel(html,it,year,type, (partnerId to "hs") in typedCandidates) }) continue
+                    if (titleAliases.none { PublicProviderIdentity.matchesAirtelCandidate(html,it,year,type) }) continue
                     val nativeIds = (if (partnerId.length >= 10) listOf(partnerId) else emptyList()) +
                         PublicProviderIdentity.linkedHotstarIds(html)
                     validateCandidates(nativeIds.distinct().map { it to "hs" }.filter { it !in attempted },title,year,type)?.let { return it }
@@ -361,7 +361,20 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                         }
                         "hs" -> (json("/mobile/hs/post.php", "id" to id) as? JSONObject)?.let { details ->
                             providerDetails[id to ott] = details
-                            titleAliases.any { PublicProviderIdentity.matches(details, it, year, type, (id to ott) in typedCandidates) }
+                            if (titleAliases.any { PublicProviderIdentity.matches(details, it, year, type, (id to ott) in typedCandidates) }) true
+                            else if (type == "tv" && titleAliases.any { PublicProviderIdentity.matches(details, it, "", "tv", typedMapping = true) }) {
+                                // The landing post may contain only the latest season. Verify the
+                                // premiere using the explicitly published first-season ID, once.
+                                val seasons = objects(details.optJSONArray("season") ?: details.optJSONArray("seasons") ?: JSONArray())
+                                val firstSeason = seasons.filter { row ->
+                                    Regex("(?i)(?:s|season)?\\s*0*1").matches(field(row, "s", "season", "name", "title").trim())
+                                }.map(::id).distinct().singleOrNull()?.takeIf { PublicIdentityDiscovery.validId(it, "hs") }
+                                if (firstSeason == null) false else {
+                                    val first = json("/mobile/hs/episodes.php", "s" to firstSeason, "series" to id) as? JSONObject
+                                    val evidence = JSONObject(details.toString()).put("episodes", first?.optJSONArray("episodes") ?: JSONArray())
+                                    titleAliases.any { PublicProviderIdentity.matches(evidence, it, year, "tv") }
+                                }
+                            } else false
                         } == true
                         else -> false
                     }

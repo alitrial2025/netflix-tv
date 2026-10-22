@@ -29,7 +29,7 @@ test('Netflix season numbers come from the public selector, never an assumed ari
 test('a new show absent from the snapshot is discovered and its verified episode metadata is reused', async () => {
   const flow=new PublicCatalogFlow({tmdbKey:'fixture'}), calls=[];
   const path='/tv-shows/new-series/HOTSTAR_DTH_TVSHOW_1971999001';
-  const details={status:'y',title:'New Series',type:'t',year:'2026',episodes:[{id:'1971999002',s:'1',ep:'1'}]};
+  const details={status:'y',title:'New Series',type:'t',year:'2026',first_air_date:'2025-01-01',episodes:[{id:'1971999002',s:'1',ep:'1'}]};
   flow.request=async(stage,raw)=>{
     const u=new URL(raw);calls.push(u.pathname);
     if(u.pathname.endsWith('search.php')) return {data:{head:'Top Searches'},body:'{}'};

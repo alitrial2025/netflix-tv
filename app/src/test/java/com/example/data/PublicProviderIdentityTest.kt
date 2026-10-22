@@ -10,6 +10,42 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 class PublicProviderIdentityTest {
+    private fun pilotDetails(season: String = "S1", episode: String = "E1", date: String = "10 Apr 2026") =
+        JSONObject("""{"status":"y","title":"Perfect Crown","type":"t","year":"2026","episodes":[{"id":"1271531262","s":"$season","ep":"$episode","date":"$date"}]}""")
+
+    @Test fun datedPilotVerifiesUntypedHotstarSeriesWithoutTrustingTheGenericYear() {
+        assertTrue(PublicProviderIdentity.matches(pilotDetails(), "Perfect Crown", "2026", "tv"))
+        assertTrue(PublicProviderIdentity.matches(pilotDetails(date = "2026-04-10").put("year", "2028"), "Perfect Crown", "2026", "tv"))
+        assertFalse(PublicProviderIdentity.matches(pilotDetails(), "Perfect Crown", "2025", "tv"))
+        assertFalse(PublicProviderIdentity.matches(pilotDetails(), "Other Show", "2026", "tv"))
+        assertFalse(PublicProviderIdentity.matches(pilotDetails(), "Perfect Crown", "2026", "movie"))
+        assertFalse(PublicProviderIdentity.matches(pilotDetails().put("status", "n"), "Perfect Crown", "2026", "tv"))
+        assertFalse(PublicProviderIdentity.matches(pilotDetails().put("first_air_date", "2025-04-10"), "Perfect Crown", "2026", "tv"))
+    }
+
+    @Test fun laterEpisodesAmbiguousPilotsAndInvalidDatesCannotEstablishPremiereYear() {
+        for ((season, episode, date) in listOf(
+            Triple("S2", "E1", "10 Apr 2026"), Triple("S1", "E2", "10 Apr 2026"),
+            Triple("S1", "S2E1", "10 Apr 2026"), Triple("", "E1", "10 Apr 2026"),
+            Triple("S1", "E1", "31 Apr 2026"), Triple("S1", "E1", "2026-02-30"),
+            Triple("S1", "E1", "2026"), Triple("S1", "E1", "")
+        )) assertFalse("$season/$episode/$date", PublicProviderIdentity.matches(pilotDetails(season, episode, date), "Perfect Crown", "2026", "tv"))
+        val ambiguous = pilotDetails()
+        ambiguous.getJSONArray("episodes").put(JSONObject("""{"id":"1271531266","s":"S1","ep":"E1","date":"10 Apr 2026"}"""))
+        assertFalse(PublicProviderIdentity.matches(ambiguous, "Perfect Crown", "2026", "tv"))
+        val missingId = pilotDetails()
+        missingId.getJSONArray("episodes").getJSONObject(0).remove("id")
+        assertFalse(PublicProviderIdentity.matches(missingId, "Perfect Crown", "2026", "tv"))
+    }
+
+    @Test fun partnerSeriesPageCanSupplyACandidateWithoutVerifyingItsPremiereYear() {
+        val page = """<p id="banner-content-release-year">2028</p><script>{"@type":"VideoObject","name":"Perfect Crown","uploadDate":"1970-01-01"}</script>"""
+        assertTrue(PublicProviderIdentity.matchesAirtelCandidate(page, "Perfect Crown", "2026", "tv"))
+        assertFalse(PublicProviderIdentity.matchesAirtel(page, "Perfect Crown", "2026", "tv"))
+        assertFalse(PublicProviderIdentity.matchesAirtelCandidate(page, "Other Show", "2026", "tv"))
+        assertFalse(PublicProviderIdentity.matchesAirtelCandidate(page, "Perfect Crown", "2026", "movie"))
+    }
+
     @Test fun hotstarShortWatchLinksRetainNativeIdsAndRejectUnrelatedUrls() {
         val page = """<a href="https://hotstar.com/1260057812/watch">Watch</a>
             <a href="https://www.hotstar.com/in/movies/the-new-mutants/1260057812/watch">Watch</a>

@@ -7,6 +7,7 @@ import {readFile, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {matchesPartnerPage,partnerRow,publishedLinks,linkedHotstarIds} from './partner-catalog.mjs';
+import {matchesHotstarDetails,firstHotstarSeasonId} from './hotstar-identity.mjs';
 const norm = s => String(s ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const fail = (code, stage) => {throw new FlowError(code, stage)};
 export function hotstarIds(entity, entityId) {
@@ -103,9 +104,14 @@ export class PublicCatalogFlow extends NoWarmFlow {
           if(this.rejected.has(id)) continue;
           this.rejected.add(id);
           const d = await this.json('public_identity_validation','/mobile/hs/post.php',{id});
-          const title = t.type === 'tv' ? d.title?.replace(/\s+(?:S|Season\s+)\d+$/i,'') : d.title;
-          if (d.status === 'y' && norm(title) === norm(t.title) && d.type === (t.type === 'tv' ? 't' : 'm') && (t.type === 'tv' || Number(d.year) === t.year)) {
-            t.ott = 'hs'; return {id,yearVerified:Number(d.year) === t.year};
+          let matched=matchesHotstarDetails(d,t);
+          const firstSeason=t.type==='tv' && !matched && matchesHotstarDetails(d,t,true) ? firstHotstarSeasonId(d) : null;
+          if (firstSeason) {
+            const first=await this.json('public_premiere_validation','/mobile/hs/episodes.php',{s:firstSeason,series:id});
+            matched=matchesHotstarDetails({...d,episodes:first.episodes},t);
+          }
+          if (matched) {
+            t.ott = 'hs'; return {id,yearVerified:true};
           }
         }
       } return null; };
@@ -125,9 +131,7 @@ export class PublicCatalogFlow extends NoWarmFlow {
     }
     for (const id of ids.slice(0,3)) {
       const d = await this.json('public_identity_validation', '/mobile/hs/post.php', {id});
-      const title = t.type === 'tv' ? d.title?.replace(/\s+(?:S|Season\s+)\d+$/i, '') : d.title;
-      if (d.status === 'y' && norm(title) === norm(t.title) && d.type === (t.type === 'tv' ? 't' : 'm') &&
-        (t.type === 'tv' || Number(d.year) === t.year)) {t.ott = 'hs'; return {id,yearVerified:Number(d.year) === t.year}}
+      if (matchesHotstarDetails(d,t,true)) {t.ott = 'hs'; return {id,yearVerified:true}}
     }
     return null;
   }

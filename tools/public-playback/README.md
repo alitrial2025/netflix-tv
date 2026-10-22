@@ -37,3 +37,5 @@ Run metadata-only validation without Android builds:
 ```powershell
 node --test tools/public-playback/netflix-catalog.test.mjs tools/public-playback/provider-feed.test.mjs tools/public-playback/partner-catalog.test.mjs
 ```
+
+Hotstar partner pages supply title candidates only; their banner year can belong to a later season. Untyped series must match the requested title/type and either an explicit series first-air year or one uniquely identified, strictly dated S1E1 from live provider metadata. If the landing post contains a later season, the resolver checks the published Season 1 ID for premiere evidence. Generic years, upload/trailer dates, unlabelled rows, ambiguous pilots and later episodes cannot establish a series premiere. Typed TMDB/native joins retain their existing verification rules. Perfect Crown first and last episodes were checked with bounded video and audio samples on October 22, 2026; device decoding and every episode are not proven by this audit.

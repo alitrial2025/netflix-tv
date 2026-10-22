@@ -2,6 +2,9 @@ package com.example.data
 
 import org.json.JSONObject
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.util.GregorianCalendar
+import java.util.Locale
+import java.util.TimeZone
 
 /** Native IDs from public catalog metadata. This contains identities, never playback URLs or session tokens. */
 internal object PublicProviderIdentity {
@@ -49,14 +52,22 @@ internal object PublicProviderIdentity {
             ids("P14440",Regex("[A-Z0-9]{10,30}")).map { it to "pv" }).distinct()
     }
     fun matchesAirtel(html: String, title: String, year: String, type: String = "movie", typedMapping: Boolean = false): Boolean {
+        if (!matchesAirtelCandidate(html, title, year, type)) return false
+        return type != "tv" || typedMapping || airtelTitles(html, title).any { hasFirstAirYear(it, year) }
+    }
+    /** A matching partner page supplies candidates, never proof of a series' premiere year. */
+    fun matchesAirtelCandidate(html: String, title: String, year: String, type: String): Boolean {
+        if (type !in listOf("movie", "tv")) return false
         val displayedYear = Regex("""id=["']banner-content-release-year["'][^>]*>\s*([0-9]{4})\s*<""").find(html)?.groupValues?.get(1)
         if (type != "tv" && displayedYear != year) return false
+        return airtelTitles(html, title).isNotEmpty()
+    }
+    private fun airtelTitles(html: String, title: String): List<JSONObject> {
         val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>",RegexOption.IGNORE_CASE)
-        return scripts.findAll(html).any { match ->
-            val obj = try { JSONObject(match.groupValues[1]) } catch (_: org.json.JSONException) { return@any false }
-            obj.optString("@type") in listOf("VideoObject", "TVSeries") && PublicIdentityDiscovery.sameTitle(obj.optString("name"), title) &&
-                (type != "tv" || typedMapping || hasFirstAirYear(obj, year))
-        }
+        return scripts.findAll(html).mapNotNull { match ->
+            val obj = try { JSONObject(match.groupValues[1]) } catch (_: org.json.JSONException) { return@mapNotNull null }
+            obj.takeIf { it.optString("@type") in listOf("VideoObject", "TVSeries") && PublicIdentityDiscovery.sameTitle(it.optString("name"), title) }
+        }.toList()
     }
     /** Discover opaque IDs from actual public links, including releases absent from the feed. */
     fun partnerLinks(html: String, title: String, type: String): List<Pair<String, String>> {
@@ -131,4 +142,46 @@ internal object PublicProviderIdentity {
     // Generic dateCreated/startDate/year can describe a later season. Only explicit first-air fields anchor a title-only series match.
     private fun firstAirYear(data: JSONObject): String? = listOf("first_air_date", "firstAirDate", "seriesFirstAirDate")
         .firstNotNullOfOrNull { field -> data.optString(field).take(4).takeIf { it.matches(Regex("[0-9]{4}")) } }
+        ?: premiereEpisodeYear(data)
+
+    // Hotstar omits a series first-air field but dates its explicitly labelled pilot.
+    // Latest-season dates, generic show years and unlabelled rows cannot establish identity.
+    private fun premiereEpisodeYear(data: JSONObject): String? {
+        if (data.optString("status") != "y" || data.optString("type") != "t") return null
+        val episodes = data.optJSONArray("episodes") ?: return null
+        if (episodes.length() > 1000) return null
+        val pilots = (0 until episodes.length()).mapNotNull(episodes::optJSONObject).filter { row ->
+            val season = row.optString("s").ifBlank { row.optString("season") }
+            val episode = row.optString("ep").ifBlank { row.optString("episode") }
+            Regex("(?i)(?:s|season)?\\s*0*1").matches(season.trim()) &&
+                Regex("(?i)(?:s0*1\\s*)?(?:e|ep|episode)?\\s*0*1").matches(episode.trim())
+        }
+        if (pilots.isEmpty()) return null
+        val identities = pilots.map { row ->
+            val id = row.optString("id")
+            if (!id.matches(Regex("[0-9]{5,20}"))) return null
+            val date = premiereDate(row.optString("date").trim()) ?: return null
+            id to date
+        }.distinct()
+        return identities.singleOrNull()?.second?.take(4)
+    }
+    // GregorianCalendar keeps this path compatible with Android 7 (API 24).
+    private fun premiereDate(raw: String): String? {
+        val iso = Regex("([0-9]{4})-([0-9]{2})-([0-9]{2})").matchEntire(raw)
+        val named = Regex("([0-9]{1,2}) ([A-Z][a-z]{2}) ([0-9]{4})").matchEntire(raw)
+        val year: Int; val month: Int; val day: Int
+        if (iso != null) {
+            year = iso.groupValues[1].toInt(); month = iso.groupValues[2].toInt(); day = iso.groupValues[3].toInt()
+        } else if (named != null) {
+            year = named.groupValues[3].toInt(); day = named.groupValues[1].toInt()
+            month = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec").indexOf(named.groupValues[2]) + 1
+        } else return null
+        if (year !in 1900..2100 || month !in 1..12) return null
+        try {
+            GregorianCalendar(TimeZone.getTimeZone("UTC"), Locale.ROOT).apply {
+                isLenient = false; clear(); set(year, month - 1, day)
+            }.timeInMillis
+        } catch (_: IllegalArgumentException) { return null }
+        return "$year-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
+    }
 }
