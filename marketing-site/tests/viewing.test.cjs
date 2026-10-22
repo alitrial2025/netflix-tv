@@ -2,10 +2,10 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {viewingAction,createViewingHandler,targetInput,playbackInput,allowed}=require('../server/viewing-service.cjs');
 const now=1800000000000,target={kind:'tv',id:'4604',title:'Smallville',season:6,episode:22},playback={positionMs:12000,durationMs:2400000,playing:true,buffering:false};
 function dbMock(){
- const data=new Map();let queue=Promise.resolve();
+ const data=new Map(),usage={transactions:0,reads:[],writes:[]};let queue=Promise.resolve();
  const doc=path=>({path,collection:name=>collection(path+'/'+name)}),collection=path=>({doc:id=>doc(path+'/'+id)});
  function merge(a,b){const v={...a};for(const[k,x]of Object.entries(b))v[k]=x&&typeof x==='object'&&!Array.isArray(x)?merge(a?.[k]||{},x):x;return v;}
- return {data,collection,runTransaction:fn=>{const result=queue.then(async()=>{const writes=[];const tx={get:async r=>{assert.equal(writes.length,0);return {exists:data.has(r.path),data:()=>structuredClone(data.get(r.path))};},set:(r,v,options)=>writes.push([r.path,structuredClone(v),options])};const result=await fn(tx);for(const[p,v,o]of writes)data.set(p,o?.merge?merge(data.get(p),v):v);return result;});queue=result.catch(()=>{});return result;}};
+ return {data,usage,collection,runTransaction:fn=>{const result=queue.then(async()=>{usage.transactions++;const writes=[];const tx={get:async r=>{usage.reads.push(r.path);assert.equal(writes.length,0);return {exists:data.has(r.path),data:()=>structuredClone(data.get(r.path))};},set:(r,v,options)=>writes.push([r.path,structuredClone(v),options])};const result=await fn(tx);for(const[p,v,o]of writes){data.set(p,o?.merge?merge(data.get(p),v):v);usage.writes.push(p);}return result;});queue=result.catch(()=>{});return result;}};
 }
 function deps(db,clock=()=>now){let next=0;return{db,now:clock,codeGenerator:()=>String(++next).padStart(10,'A'),uuid:()=>`member-${++next}`};}
 const member=(db,id,plan='plan_premium')=>db.data.set(`users/${id}/subscription/current`,{planId:plan,status:'ACTIVE',expiresAt:now+86400000});
@@ -221,4 +221,92 @@ test('repeated delivery retries remain idempotent and cannot bypass the separate
  await assert.rejects(viewingAction('host',message,d),{code:'SLOW_DOWN'});
  const pause=await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:false}},d);
  assert.equal(pause.playback.playing,false);assert.equal(pause.messages.length,1);
+});
+
+test('one transaction reads fresh membership once and commits rate admission with controls',async()=>{
+ const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);
+ db.usage.transactions=0;db.usage.reads.length=0;db.usage.writes.length=0;
+ await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:false}},d);
+ assert.equal(db.usage.transactions,1);
+ assert.equal(db.usage.reads.filter(p=>p==='users/host/subscription/current').length,1);
+ assert.equal(db.usage.reads.length,4);
+ assert.equal(db.usage.writes.filter(p=>p.startsWith('viewing_rates/')).length,1);
+ // No membership decision is cached between requests.
+ db.data.set('users/host/subscription/current',{planId:'plan_basic',status:'SUSPENDED',expiresAt:now+10000});
+ await assert.rejects(viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d),{code:'MEMBERSHIP_REQUIRED'});
+});
+
+test('validation after staging a detach cannot commit partial room or mirror changes',async()=>{
+ const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
+ await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
+ const before=new Map([...db.data].filter(([p])=>!p.startsWith('viewing_rates/')).map(([p,v])=>[p,structuredClone(v)]));
+ time+=90001;db.usage.writes.length=0;
+ await assert.rejects(viewingAction('host',{action:'create',deviceId:'phone',target:{...target,id:'bad'},playback},d),{code:'INVALID_TITLE'});
+ assert.deepEqual(new Map([...db.data].filter(([p])=>!p.startsWith('viewing_rates/'))),before);
+ assert.equal(db.usage.writes.length,1);assert.ok(db.usage.writes[0].startsWith('viewing_rates/'));
+});
+
+test('heartbeats reuse recent host presence without broadcasting history and renew before client timeout',async()=>{
+ const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
+ await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
+ time+=10000;
+ const changed=await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback},d);
+ const snapshot=structuredClone(db.data.get('users/guest/viewing_sessions/phone'));
+ time+=10000;db.usage.writes.length=0;
+ const quiet=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
+ assert.equal(quiet.eventRevision,changed.eventRevision);
+ assert.equal(quiet.hostSeenAtMs,changed.hostSeenAtMs);
+ assert.deepEqual(db.data.get('users/guest/viewing_sessions/phone'),snapshot);
+ assert.equal(db.usage.writes.length,2); // Rate + canonical account lease only.
+ assert.ok(!db.usage.writes.some(p=>p.startsWith('viewing_rooms/') || p.includes('/viewing_sessions/')));
+ time+=10000;db.usage.writes.length=0;
+ const renewed=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
+ assert.equal(renewed.hostSeenAtMs,time);assert.equal(renewed.eventRevision,quiet.eventRevision+1);
+ assert.equal(db.data.get('users/guest/viewing_sessions/phone').hostSeenAtMs,time);
+ assert.ok(time-snapshot.hostSeenAtMs<45000);
+ assert.equal(renewed.updatedAtMs,changed.updatedAtMs); // Presence must not shift the playback anchor.
+});
+
+test('duplicate deliveries, unchanged moderation and repeated joins do not rewrite every member snapshot',async()=>{
+ const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
+ await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
+ const control={action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,commandId:'once',playback};
+ const changed=await viewingAction('host',control,d);
+ const message={action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:'once',text:'Hi'};
+ const sent=await viewingAction('guest',message,d);
+ for (const [uid,body] of [['host',control],['guest',message],['host',{action:'moderate',deviceId:'phone',roomCode:room.roomCode,commentsEnabled:true,deleteMessageId:'missing'}],['guest',{action:'join',deviceId:'phone',roomCode:room.roomCode}]]) {
+  time+=1001;db.usage.writes.length=0;
+  const result=await viewingAction(uid,body,d);
+  assert.equal(result.revision,changed.revision);assert.equal(result.eventRevision,sent.eventRevision);
+  assert.ok(!db.usage.writes.some(p=>p.includes('/viewing_sessions/')));
+  assert.equal(db.usage.writes.filter(p=>p.startsWith('viewing_rates/')).length,1);
+  if (body.action!=='join') assert.ok(!db.usage.writes.some(p=>p.startsWith('viewing_rooms/')));
+ }
+});
+
+test('a transaction retry rechecks a revoked subscription instead of reusing an earlier admission',async()=>{
+ const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);
+ const original=db.runTransaction;const before=structuredClone(db.data.get('viewing_rooms/'+room.roomCode));
+ db.runTransaction=fn=>original(async tx=>{
+  // First attempt loses a Firestore conflict; none of its buffered writes commit.
+  const discarded=[];
+  await fn({get:r=>tx.get(r),set:(...args)=>discarded.push(args)});
+  assert.ok(discarded.some(([r])=>r.path.startsWith('viewing_rates/')));
+  db.data.set('users/host/subscription/current',{planId:'plan_basic',status:'SUSPENDED',expiresAt:now+10000});
+  return fn(tx);
+ });
+ await assert.rejects(viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:false}},d),{code:'MEMBERSHIP_REQUIRED'});
+ assert.deepEqual(db.data.get('viewing_rooms/'+room.roomCode),before);
+});
+
+test('host presence is renewed after a coalesced heartbeat before the existing 45-second timeout',async()=>{
+ const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
+ await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
+ time+=11999;
+ const quiet=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
+ assert.equal(quiet.hostSeenAtMs,now);
+ time+=20000;
+ const fresh=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
+ assert.equal(time-now,31999);assert.equal(fresh.hostSeenAtMs,time);
+ assert.equal(db.data.get('users/guest/viewing_sessions/phone').hostSeenAtMs,time);
 });

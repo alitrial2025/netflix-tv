@@ -1,0 +1,90 @@
+{
+  "baseline": "39761509f7d15f5d58253fde09b6d48fbae75e59",
+  "scope": "One-hour deterministic simulation. Includes 20-second heartbeats, 40-second registration, optional 10-second controls and two comments/minute. Counts exclude setup and transaction retries; JSON mirror bytes are payload estimates, not measured production transfer.",
+  "scenarios": [
+    {
+      "viewers": 2,
+      "controls": true,
+      "chat": true,
+      "before": {
+        "requests": 1020,
+        "transactions": 2040,
+        "reads": 4920,
+        "writes": 3720,
+        "mirrorWrites": 1320,
+        "mirrorJsonBytes": 6335280
+      },
+      "after": {
+        "requests": 1020,
+        "transactions": 1020,
+        "reads": 3900,
+        "writes": 3180,
+        "mirrorWrites": 960,
+        "mirrorJsonBytes": 4609288
+      },
+      "reductionPercent": {
+        "transactions": 50,
+        "reads": 20.7,
+        "writes": 14.5,
+        "mirrorWrites": 27.3,
+        "mirrorJsonBytes": 27.2
+      }
+    },
+    {
+      "viewers": 8,
+      "controls": true,
+      "chat": true,
+      "before": {
+        "requests": 2640,
+        "transactions": 5280,
+        "reads": 12480,
+        "writes": 12000,
+        "mirrorWrites": 5280,
+        "mirrorJsonBytes": 28141596
+      },
+      "after": {
+        "requests": 2640,
+        "transactions": 2640,
+        "reads": 9840,
+        "writes": 10380,
+        "mirrorWrites": 3840,
+        "mirrorJsonBytes": 20473888
+      },
+      "reductionPercent": {
+        "transactions": 50,
+        "reads": 21.2,
+        "writes": 13.5,
+        "mirrorWrites": 27.3,
+        "mirrorJsonBytes": 27.2
+      }
+    },
+    {
+      "viewers": 8,
+      "controls": false,
+      "chat": false,
+      "before": {
+        "requests": 2160,
+        "transactions": 4320,
+        "reads": 10080,
+        "writes": 7200,
+        "mirrorWrites": 1440,
+        "mirrorJsonBytes": 1538444
+      },
+      "after": {
+        "requests": 2160,
+        "transactions": 2160,
+        "reads": 7920,
+        "writes": 7191,
+        "mirrorWrites": 1432,
+        "mirrorJsonBytes": 1529893
+      },
+      "reductionPercent": {
+        "transactions": 50,
+        "reads": 21.4,
+        "writes": 0.1,
+        "mirrorWrites": 0.6,
+        "mirrorJsonBytes": 0.6
+      }
+    }
+  ]
+}

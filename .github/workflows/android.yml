@@ -82,6 +82,7 @@ jobs:
         working-directory: tools/discovery-validation
         run: |
           npm ci
+          npm ci --prefix ../../marketing-site
           npm test
   release:
     if: github.event_name != 'pull_request'
