@@ -71,4 +71,13 @@ class PartySyncPolicyTest {
         assertTrue(PartySnapshotPolicy.accepts(current, current.copy(revision = 5, eventRevision = 12)))
     }
 
+    @Test fun aBufferingGuestIsNotRepeatedlySeekedButStillObeysHostPause() {
+        val buffering = local().copy(positionMs = 0, buffering = true)
+        val waiting = PartySyncPolicy.adjustment(room(), buffering, now, true)
+        assertNull(waiting.seekMs); assertNull(waiting.playing); assertEquals(1f, waiting.speed!!, .001f)
+        val paused = PartySyncPolicy.adjustment(room().copy(playing = false), buffering, now, true)
+        assertNull(paused.seekMs); assertEquals(false, paused.playing); assertEquals(1f, paused.speed!!, .001f)
+        assertEquals(13_000L, PartySyncPolicy.adjustment(room(), buffering.copy(buffering = false), now, true).seekMs)
+    }
+
 }

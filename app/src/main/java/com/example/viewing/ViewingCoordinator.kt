@@ -51,6 +51,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
     private var lastPublication: LocalViewingPlayback? = null
     private var lastPublishedAt = 0L
     private var lastSeekAt = 0L
+    private var lastBufferingAt = 0L
     private var publishJob: Job? = null
     private var pendingPublication: Publication? = null
     private var nextPublicationAt = 0L
@@ -75,7 +76,7 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
         owner = next; profile = profileId; name = displayName.take(40)
         _sentComment.value = null; nextPublicationAt = 0; _party.value = null; _incoming.value = null; _devices.value = emptyList(); _error.value = null
         local = null; activeCode = null; targetDelivered = null; pendingPublication = null; pendingForced = false
-        lastPublication = null; lastPublishedAt = 0
+        lastPublication = null; lastPublishedAt = 0; lastSeekAt = 0; lastBufferingAt = 0
         if (owner.isBlank()) return
         val boundOwner = owner; val bound = generation
         receiver = client.listen(owner, "viewing_commands") { json, connected ->
@@ -225,7 +226,10 @@ class ViewingCoordinator(context: Context, kind: String, private val scope: Coro
             return PartyAdjustment()
         }
         val now = SystemClock.elapsedRealtime()
-        val adjustment = PartySyncPolicy.adjustment(room, playback, client.serverNowMs(), now - lastSeekAt >= 800)
+        if (playback.buffering) lastBufferingAt = now
+        // Let a guest establish a buffer before seeking again. Pause commands still apply immediately.
+        val maySeek = now - lastSeekAt >= 800 && (!room.playing || room.buffering || now - lastBufferingAt >= 2000)
+        val adjustment = PartySyncPolicy.adjustment(room, playback, client.serverNowMs(), maySeek)
         if (adjustment.seekMs != null) lastSeekAt = now
         if (adjustment.waitingForHost) _status.value = "Waiting for host…"
         if (adjustment.incompatibleEdition) _status.value = "This version has different timing. Leave the party to watch it separately."

@@ -70,8 +70,8 @@ object PartySyncPolicy {
         val target = room.targetPosition(nowMs)
         val play = room.playing && !room.buffering
         val drift = target - local.positionMs
-        val seek = if (maySeek && abs(drift) > if (play) 1200 else 150) target else null
-        val speed = if (!play || seek != null || abs(drift) < 250) 1f
+        val seek = if (maySeek && !local.buffering && abs(drift) > if (play) 1200 else 150) target else null
+        val speed = if (!play || local.buffering || seek != null || abs(drift) < 250) 1f
             else (1f + drift / 30_000f).coerceIn(0.97f, 1.03f)
         return PartyAdjustment(seek, if (local.playing != play) play else null, speed = speed)
     }
