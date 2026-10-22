@@ -213,3 +213,12 @@ test('timestamped controls compensate transit, clamp untrusted clocks and retry 
  const ancient=await viewingAction('host',{...control,expectedRevision:future.revision,commandId:'play2',sampledAtMs:time-100000,playback},d);assert.equal(ancient.updatedAtMs,time);
  const oldClient=await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:ancient.revision,playback},d);assert.equal(oldClient.updatedAtMs,time);
 });
+
+test('repeated delivery retries remain idempotent and cannot bypass the separate chat rate budget',async()=>{
+ const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);
+ const message={action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:'retry',text:'Hello'};
+ await viewingAction('host',message,d);const retry=await viewingAction('host',message,d);assert.equal(retry.messages.length,1);
+ await assert.rejects(viewingAction('host',message,d),{code:'SLOW_DOWN'});
+ const pause=await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:false}},d);
+ assert.equal(pause.playback.playing,false);assert.equal(pause.messages.length,1);
+});

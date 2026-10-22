@@ -68,10 +68,9 @@ async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>rando
   // Commit rate admission independently, so rejected code guesses and stale
   // controls count too. An aborted room transaction must not erase the attempt.
   await db.runTransaction(async tx=>{
-    const [subSnap,rateSnap,retryRoom]=await Promise.all([tx.get(subRef),tx.get(rateRef),action==='comment'&&roomRef?tx.get(roomRef):null]);
+    const [subSnap,rateSnap]=await Promise.all([tx.get(subRef),tx.get(rateRef)]);
     const sub=subSnap.exists?subSnap.data():{};
     admit(sub);
-    if (retryRoom?.exists && retryRoom.data().messages?.some(m=>m.id===body.messageId && retryRoom.data().members.some(member=>member.uid===uid&&member.deviceId===deviceId&&member.memberId===m.memberId))) return;
     const rate=rateSnap.exists?rateSnap.data():{};
     const recent=(rate.times||[]).filter(t=>integer(t,0,time)&&time-t<60000);
     if (recent.length>=(chatLane?20:120) || recent.filter(t=>time-t<1000).length>=(chatLane?2:8)) fail(429,'SLOW_DOWN','Please wait a moment before trying again.');
