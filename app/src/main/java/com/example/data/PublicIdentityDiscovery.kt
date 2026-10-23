@@ -2,6 +2,7 @@ package com.example.data
 
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.HttpUrl
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.Normalizer
@@ -35,12 +36,19 @@ internal object PublicIdentityDiscovery {
         val candidate = when (url.host) {
             "netflix.com", "www.netflix.com" -> Regex("^/(?:[A-Za-z]{2}(?:-[A-Za-z]{2})?/)?title/([0-9]{5,20})/?$")
                 .find(url.encodedPath)?.groupValues?.get(1)?.let { it to "nf" }
-            "primevideo.com", "www.primevideo.com" -> Regex("^/(?:-/[A-Za-z_-]+/)?detail/([A-Z0-9]{10,30})/?$")
-                .find(url.encodedPath)?.groupValues?.get(1)?.let { it to "pv" }
+            "primevideo.com", "www.primevideo.com" -> primeDetailId(url)?.let { it to "pv" }
             "hotstar.com", "www.hotstar.com" -> PublicProviderIdentity.linkedHotstarIds(homepage).singleOrNull()?.let { it to "hs" }
             else -> null
         }
         return listOfNotNull(candidate)
+    }
+
+    /** Official locale/region routes still identify the same opaque title; never accept an action URL. */
+    fun primeDetailId(url: HttpUrl): String? {
+        if (!url.isHttps || url.host !in setOf("primevideo.com", "www.primevideo.com") || url.port != 443 ||
+            url.username.isNotEmpty() || url.password.isNotEmpty()) return null
+        return Regex("^/(?:-/[A-Za-z_-]+/)?(?:region/[A-Za-z0-9_-]{1,16}/)?detail/(?:[^/]+/)?([A-Z0-9]{10,30})/?$")
+            .matchEntire(url.encodedPath)?.groupValues?.get(1)
     }
 
     fun wikidataQuery(tmdbId: String, type: String): String? {
@@ -84,8 +92,8 @@ internal object PublicIdentityDiscovery {
                     if (type == "tv" && season != null && season != 1) continue
                     if (row.optString("releaseYear") != year) continue
                     val url = "https://www.primevideo.com".toHttpUrl().resolve(row.optJSONObject("link")?.optString("url").orEmpty()) ?: continue
-                    if (!url.isHttps || url.host != "www.primevideo.com") continue
-                    val id = Regex("^/(?:-/[a-zA-Z_-]+/)?detail/([A-Z0-9]{10,30})$").find(url.encodedPath)?.groupValues?.get(1) ?: continue
+                    if (url.host != "www.primevideo.com") continue
+                    val id = primeDetailId(url) ?: continue
                     result += id to "pv"
                 }
             }

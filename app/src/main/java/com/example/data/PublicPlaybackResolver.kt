@@ -355,8 +355,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                         "nf" -> (type == "tv" && netflixSeasons["$base:$id:${normalize(title)}"]?.let { it.expiresAt > System.currentTimeMillis() } == true) ||
                             PublicProviderIdentity.matchesNetflixAny(netflixPage(id), titleAliases, year, type, (id to ott) in typedCandidates, id)
                         "pv" -> {
-                            val html = publicPages[id to ott] ?: text("https://www.primevideo.com/detail/$id".toHttpUrl(), publicNetflix = true)
-                                .also(::requirePublicSuccess).body.also { publicPages[id to ott] = it }
+                            val html = primePage(id)
                             titleAliases.any { PublicProviderIdentity.matchesPrime(html, it, year, type, (id to ott) in typedCandidates) }
                         }
                         "hs" -> (json("/mobile/hs/post.php", "id" to id) as? JSONObject)?.let { details ->
@@ -477,6 +476,37 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             throw IOException("Netflix public season metadata unavailable")
         }
 
+        private suspend fun primePage(nativeId: String): String {
+            publicPages[nativeId to "pv"]?.let { return it }
+            if (!PublicIdentityDiscovery.validId(nativeId, "pv")) throw IOException("Invalid Prime title ID")
+            var url = "https://www.primevideo.com/detail/$nativeId".toHttpUrl()
+            val visited = mutableSetOf<HttpUrl>()
+            var redirects = 0
+            var localeFallback = false
+            repeat(5) {
+                if (!visited.add(url)) throw IOException("Invalid Prime redirect")
+                val response = text(url, publicNetflix = true)
+                if (response.code in listOf(301, 302, 303, 307, 308)) {
+                    if (redirects++ >= 3) throw IOException("Invalid Prime redirect")
+                    val next = response.header("Location")?.takeIf(String::isNotBlank)?.let(url::resolve)
+                        ?: throw IOException("Invalid Prime redirect")
+                    if (next.host != "www.primevideo.com" || PublicIdentityDiscovery.primeDetailId(next) != nativeId)
+                        throw IOException("Invalid Prime redirect")
+                    url = next
+                } else if (!localeFallback && response.code in listOf(502, 503, 504)) {
+                    // The default regional page can fail while Prime's explicit English
+                    // detail route works. One same-ID metadata fallback; never retry auth/limits.
+                    localeFallback = true
+                    url = "https://www.primevideo.com/-/en/detail/$nativeId".toHttpUrl()
+                } else {
+                    requirePublicSuccess(response)
+                    publicPages[nativeId to "pv"] = response.body
+                    return response.body
+                }
+            }
+            throw IOException("Prime public season metadata unavailable")
+        }
+
         private fun cacheLabelledEpisodes(showId: String, ott: String, season: Int, rows: JSONArray, verifiedSeason: Boolean = false) {
             val labelled = objects(rows).filter {
                 val label = field(it, "s", "season", "s_num").trim()
@@ -548,7 +578,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 } else if (ott == "pv" && showId == PRIME_MR_ROBOT.first()) {
                     PRIME_MR_ROBOT.getOrNull(season - 1) ?: throw IOException("Requested season is unavailable")
                 } else if (ott == "pv") {
-                    val html = publicPages[showId to ott] ?: text("https://www.primevideo.com/detail/$showId".toHttpUrl(), publicNetflix = true).also(::requirePublicSuccess).body
+                    val html = primePage(showId)
                     val seasons = parsePrimeSeasons(html, titleAliases.firstOrNull { PublicProviderIdentity.matchesPrime(html, it, year = "", type = "tv", typedMapping = true) } ?: title, showId)
                     catalog?.episodeCatalog?.saveSeasons(base.toString(), ott, showId, seasons, System.currentTimeMillis(), "official-public")
                     seasons[season] ?: throw IOException("Requested Prime season is unavailable in the public catalog")
@@ -663,7 +693,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     // from an unavailable source. The per-run attempted set prevents repeating it.
                     val catalogFailure = error.message.orEmpty().let {
                         it.startsWith("Public title metadata unavailable") || it.startsWith("Netflix public") ||
-                            it.startsWith("Invalid Netflix") || it == "Netflix show identity mismatch" ||
+                            it.startsWith("Invalid Netflix") || it.startsWith("Invalid Prime") || it == "Netflix show identity mismatch" ||
                             it == "Media playlist unavailable" || it == "Missing playback video variant" || it == "Invalid playback variant"
                     }
                     if (mediaFailure || catalogFailure) alternateCatalogsOnly = true
@@ -843,8 +873,8 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                     for (row in objects(seasons.optJSONArray(key) ?: JSONArray())) {
                         val number = row.optInt("sequenceNumber", 0)
                         val link = "https://www.primevideo.com".toHttpUrl().resolve(row.optString("seasonLink")) ?: continue
-                        if (!link.isHttps || link.host != "www.primevideo.com") continue
-                        val id = Regex("^/(?:-/[a-zA-Z_-]+/)?detail/([A-Z0-9]{10,30})$").find(link.encodedPath)?.groupValues?.get(1) ?: continue
+                        if (link.host != "www.primevideo.com") continue
+                        val id = PublicIdentityDiscovery.primeDetailId(link) ?: continue
                         if (number !in 1..30 || ids.containsKey(number) && ids[number] != id) throw IOException("Ambiguous Prime season metadata")
                         ids[number] = id
                     }

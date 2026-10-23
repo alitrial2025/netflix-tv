@@ -1,0 +1,74 @@
+{
+  "init": {
+    "preparations": {
+      "body": {
+        "atf": {
+          "state": {
+            "detail": {
+              "headerDetail": {
+                "amzn1.dv.gti.329c3ebd-3571-4416-8060-f662cc1106d5": {
+                  "title": "The Expanse - Season 1",
+                  "titleType": "season",
+                  "releaseYear": 2015,
+                  "seasonNumber": 1
+                }
+              }
+            },
+            "seasons": {
+              "amzn1.dv.gti.329c3ebd-3571-4416-8060-f662cc1106d5": [
+                {
+                  "seasonId": "amzn1.dv.gti.329c3ebd-3571-4416-8060-f662cc1106d5",
+                  "seasonLink": "/region/eu/detail/0I5H35HHPY3456HRI7TQO7EKLX?ref_=atv_dp_season_select_s1",
+                  "displayName": "Season 1",
+                  "seasonSelectorIcon": "Unentitled",
+                  "sequenceNumber": 1,
+                  "isSelected": true
+                },
+                {
+                  "seasonId": "amzn1.dv.gti.280b017d-04dd-4981-a52f-7265e4d24f8a",
+                  "seasonLink": "/region/eu/detail/0HIYALAUVS1FS8HVF299SZONEY?ref_=atv_dp_season_select_s2",
+                  "displayName": "Season 2",
+                  "seasonSelectorIcon": "Unentitled",
+                  "sequenceNumber": 2,
+                  "isSelected": false
+                },
+                {
+                  "seasonId": "amzn1.dv.gti.bf141aea-2392-4d53-b2fe-16bb958d068e",
+                  "seasonLink": "/region/eu/detail/0QGUP4W6GL3ZLYRD6RC3WWZEZ2?ref_=atv_dp_season_select_s3",
+                  "displayName": "Season 3",
+                  "seasonSelectorIcon": "Unentitled",
+                  "sequenceNumber": 3,
+                  "isSelected": false
+                },
+                {
+                  "seasonId": "amzn1.dv.gti.c90e1d0e-4ed2-4130-8863-7998e123d0db",
+                  "seasonLink": "/region/eu/detail/0R245YWI2U7TB3YKMV1JWUFGT7?ref_=atv_dp_season_select_s4",
+                  "displayName": "Season 4",
+                  "seasonSelectorIcon": "Unentitled",
+                  "sequenceNumber": 4,
+                  "isSelected": false
+                },
+                {
+                  "seasonId": "amzn1.dv.gti.9abad7ee-cf46-5793-74e8-b34e1fda23b6",
+                  "seasonLink": "/region/eu/detail/0OBDSPAICFE4VNWZNFPW2I8TYU?ref_=atv_dp_season_select_s5",
+                  "displayName": "Season 5",
+                  "seasonSelectorIcon": "Unentitled",
+                  "sequenceNumber": 5,
+                  "isSelected": false
+                },
+                {
+                  "seasonId": "amzn1.dv.gti.a8f4bdae-ec3e-462d-ae76-274544c27430",
+                  "seasonLink": "/region/eu/detail/0P5PBGVVW11X6D7IBS6OP020Q8?ref_=atv_dp_season_select_s6",
+                  "displayName": "Season 6",
+                  "seasonSelectorIcon": "Unentitled",
+                  "sequenceNumber": 6,
+                  "isSelected": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

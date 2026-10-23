@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {netflixPublicMetadata} from './netflix-public-metadata.mjs';
+import {primeDetailId} from './prime-public-url.mjs';
 import {orderedProviderSeason,orderedEpisodeMetadata,joinOrderedEpisodes} from './series-episode-order.mjs';
 // Node 22+. Mirrors the Kotlin public identity and season discovery flow; no cookie jar.
 import {NoWarmFlow, TARGETS, FlowError} from './no-warm-flow.mjs';
@@ -25,13 +26,13 @@ export function primeSeasons(html, title) {
   for (const m of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
     let root; try {root = JSON.parse(m[1])} catch {continue}
     const state = root.init?.preparations?.body?.atf?.state;
-    const details = Object.values(state?.detail?.headerDetail ?? {}).filter(d => d.titleType === 'season' &&
+    const details = Object.entries(state?.detail?.headerDetail ?? {}).filter(([,d]) => d.titleType === 'season' &&
       norm(d.title.replace(/\s*[-:]?\s*Season\s+\d+$/i, '')) === norm(title));
     if (details.length !== 1) continue;
     const result = new Map();
-    for (const rows of Object.values(state.seasons ?? {})) for (const row of Array.isArray(rows) ? rows : []) {
+    for (const [key] of details) for (const row of Array.isArray(state.seasons?.[key]) ? state.seasons[key] : []) {
       let u; try {u = new URL(row.seasonLink, 'https://www.primevideo.com')} catch {continue}
-      const id = u.pathname.match(/^\/detail\/([A-Z0-9]{10,30})$/)?.[1];
+      const id = primeDetailId(u);
       const n = row.sequenceNumber;
       if (u.hostname !== 'www.primevideo.com' || !id || !Number.isInteger(n) || n < 1 || n > 30) continue;
       if (result.has(n) && result.get(n) !== id) fail('ambiguous_prime_seasons', 'public_seasons');

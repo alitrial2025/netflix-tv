@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
+import { primeDetailId } from './prime-public-url.mjs';
 
 export const TARGETS = [
   { ott: 'nf', title: 'Glass Onion: A Knives Out Mystery', year: 2022, type: 'movie' },
@@ -67,7 +68,7 @@ export class NoWarmFlow {
     this.rateLimited = false; this.requestCount = 0;
     this.appClientMode = appClientMode;
   }
-  async request(stage, raw, binary = false) {
+  async request(stage, raw, binary = false, primeRedirects = 0, primeLocaleFallback = false) {
     this.stage = stage;
     if (this.rateLimited) fail('provider_cooldown', stage);
     const url = new URL(raw, this.base);
@@ -80,8 +81,9 @@ export class NoWarmFlow {
         this.appClientMode && !url.pathname.endsWith('.php') ? 'app.netmirror.netmirrornew' : 'XMLHttpRequest',
       'Referer': this.base + '/', 'Origin': this.base };
     // Match Android's public metadata client; a mobile WebView UA redirects to the Netflix app intent.
-    if (!binary && url.hostname === 'www.netflix.com') {
+    if (!binary && ['www.netflix.com', 'www.primevideo.com'].includes(url.hostname)) {
       headers['User-Agent'] = 'Mozilla/5.0'; headers.Accept = 'text/html'; headers['Accept-Language'] = 'en-US,en;q=0.9';
+      delete headers['X-Requested-With']; delete headers.Referer; delete headers.Origin;
     }
     if (binary) headers.Range = 'bytes=0-65535';
     // Node fetch has no browser cookie jar. Never add Cookie, Authorization or client certificates.
@@ -92,6 +94,22 @@ export class NoWarmFlow {
         signal: AbortSignal.timeout(Math.min(this.requestTimeoutMs, remaining)) });
       event.status = response.status;
       event.retryAfter = response.headers.get('retry-after');
+      if ([301,302,303,307,308].includes(response.status) && url.hostname === 'www.primevideo.com') {
+        const location = response.headers.get('location');
+        let next; try { if (location?.trim()) next = new URL(location, url); } catch {}
+        await response.body?.cancel();
+        const id = primeDetailId(url);
+        if (!id || !next || next.hostname !== 'www.primevideo.com' || primeDetailId(next) !== id ||
+            next.href === url.href || primeRedirects >= 3) fail('invalid_public_catalog_redirect', stage);
+        return await this.request(stage, next.href, binary, primeRedirects + 1, primeLocaleFallback);
+      }
+      if ([502,503,504].includes(response.status) && url.hostname === 'www.primevideo.com' && !primeLocaleFallback) {
+        const id = primeDetailId(url);
+        if (id) {
+          await response.body?.cancel();
+          return await this.request(stage, `https://www.primevideo.com/-/en/detail/${id}`, binary, primeRedirects, true);
+        }
+      }
       if ([301,302,307,308].includes(response.status) && url.hostname === 'www.netflix.com') {
         const next = new URL(response.headers.get('location') || '', url);
         const titleId = url.pathname.match(/\/title\/(\d+)$/)?.[1];

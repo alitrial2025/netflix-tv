@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
+import {readFileSync} from 'node:fs';
+import {primeDetailId} from './prime-public-url.mjs';
 import {NoWarmFlow} from './no-warm-flow.mjs';
 import {hotstarIds, primeSeasons, netflixSeasons, PublicCatalogFlow} from './public-catalog-flow.mjs';
 const claim = (value,rank='normal') => ({rank,mainsnak:{datavalue:{value}}});
@@ -18,6 +20,84 @@ test('Prime public seasons require exact show identity, trusted host and unambig
   assert.deepEqual([...primeSeasons(prime(rows),'Slow Horses')],[[1,'0MEYJKN34E2DBOY4OY7Z31N4Q4']]);
   assert.throws(() => primeSeasons(prime(rows),'Other series'));
   assert.throws(() => primeSeasons(prime([...rows,{sequenceNumber:1,seasonLink:'/detail/0BBBBBBBBBBBBBBBBBBBBBBBBB'}]),'Slow Horses'));
+});
+test('Prime regional Expanse selector retains all six explicitly numbered seasons', () => {
+  const fixture = readFileSync(new URL('../../app/src/test/resources/provider/expanse-prime-regional.json', import.meta.url), 'utf8');
+  const seasons = primeSeasons(`<script>${fixture}</script>`, 'The Expanse');
+  assert.deepEqual([...seasons.keys()], [1,2,3,4,5,6]);
+  assert.equal(seasons.get(5), '0OBDSPAICFE4VNWZNFPW2I8TYU');
+});
+test('Prime detail URLs retain exact IDs across locale, region and title routes', () => {
+  const id = '0TZXL00XCKTUHFBO67U01EGMCX';
+  for (const path of [`/detail/${id}`, `/-/en/detail/${id}/`, `/region/eu/detail/${id}`,
+    `/-/en/region/eu/detail/The-Expanse/${id}?language=en`]) assert.equal(primeDetailId(path), id);
+  for (const url of [`http://www.primevideo.com/detail/${id}`, `https://user:pass@www.primevideo.com/detail/${id}`,
+    `https://www.primevideo.com:444/detail/${id}`, `https://www.primevideo.com.evil.test/detail/${id}`,
+    `https://www.primevideo.com/auth/redirect/detail/${id}`, `/search?id=${id}`]) assert.equal(primeDetailId(url), null);
+});
+test('Prime regional selectors cannot import recommendation seasons or unsafe title links', () => {
+  const state = {detail:{headerDetail:{show:{titleType:'season',title:'The Expanse - Season 1'}}},
+    seasons:{show:[{sequenceNumber:1,seasonLink:'/region/eu/detail/0TZXL00XCKTUHFBO67U01EGMCX'},
+      {sequenceNumber:2,seasonLink:'http://www.primevideo.com/region/eu/detail/0HIYALAUVS1FS8HVF299SZONEY'}],
+      recommendation:[{sequenceNumber:2,seasonLink:'/region/eu/detail/0UNRELATED12345'}]}};
+  const html = `<script>${JSON.stringify({init:{preparations:{body:{atf:{state}}}}})}</script>`;
+  assert.deepEqual([...primeSeasons(html,'The Expanse')], [[1,'0TZXL00XCKTUHFBO67U01EGMCX']]);
+});
+test('HTTP runtime follows only bounded same-title official Prime redirects', async () => {
+  const originalFetch = globalThis.fetch;
+  const id = '0TZXL00XCKTUHFBO67U01EGMCX';
+  try {
+    for (const status of [301,302,303,307,308]) {
+      const seen = [];
+      globalThis.fetch = async (url, options) => {
+        seen.push(url.href);
+        assert.equal(options.redirect, 'manual'); assert.equal(options.credentials, 'omit');
+        assert.equal(options.headers['User-Agent'], 'Mozilla/5.0');
+        assert.equal(options.headers.Cookie, undefined); assert.equal(options.headers.Authorization, undefined);
+        return url.pathname === `/detail/${id}` ? new Response(null,{status,headers:{location:`/-/en/region/eu/detail/${id}?language=en`}}) : new Response('verified metadata');
+      };
+      const flow = new NoWarmFlow(); flow.deadline = Date.now()+10000;
+      assert.equal((await flow.request('public_seasons',`https://www.primevideo.com/detail/${id}`)).body,'verified metadata');
+      assert.equal(seen.length,2);
+    }
+    for (const location of ['',`http://www.primevideo.com/detail/${id}`,`https://evil.test/detail/${id}`,
+      `https://user:password@www.primevideo.com/detail/${id}`, `/region/eu/detail/0WRONGTITLE12345`, `/auth/redirect?id=${id}`, `/detail/${id}`]) {
+      let calls = 0;
+      globalThis.fetch = async () => {calls++; return new Response(null,{status:307,headers:{location}});};
+      const flow = new NoWarmFlow(); flow.deadline=Date.now()+10000;
+      await assert.rejects(flow.request('public_seasons',`https://www.primevideo.com/detail/${id}`),{code:'invalid_public_catalog_redirect'});
+      assert.equal(calls,1);
+    }
+    let calls=0;
+    globalThis.fetch = async () => new Response(null,{status:307,headers:{location:`/region/eu/detail/${id}?hop=${++calls}`}});
+    const flow = new NoWarmFlow(); flow.deadline=Date.now()+10000;
+    await assert.rejects(flow.request('public_seasons',`https://www.primevideo.com/detail/${id}`),{code:'invalid_public_catalog_redirect'});
+    assert.equal(calls,4);
+  } finally {globalThis.fetch=originalFetch;}
+});
+test('HTTP runtime uses one explicit English fallback for unavailable Prime metadata, preserving auth and limits', async () => {
+  const originalFetch = globalThis.fetch;
+  const id = '0TZXL00XCKTUHFBO67U01EGMCX';
+  try {
+    for (const status of [502,503,504,401,403,429]) {
+      const seen=[];
+      globalThis.fetch = async url => {
+        seen.push(url.href);
+        return new Response(url.pathname.startsWith('/-/en/') ? 'verified metadata' : '',{status:url.pathname.startsWith('/-/en/') ? 200 : status});
+      };
+      const flow = new NoWarmFlow(); flow.deadline=Date.now()+10000;
+      if ([502,503,504].includes(status)) {
+        assert.equal((await flow.request('public_seasons',`https://www.primevideo.com/detail/${id}`)).body,'verified metadata');
+        assert.equal(seen.length,2); assert.equal(new URL(seen[1]).pathname,`/-/en/detail/${id}`);
+      } else {
+        await assert.rejects(flow.request('public_seasons',`https://www.primevideo.com/detail/${id}`)); assert.equal(seen.length,1);
+      }
+    }
+    let calls=0;
+    globalThis.fetch = async () => {calls++; return new Response('',{status:503});};
+    const flow=new NoWarmFlow();flow.deadline=Date.now()+10000;
+    await assert.rejects(flow.request('public_seasons',`https://www.primevideo.com/detail/${id}`));assert.equal(calls,2);
+  } finally {globalThis.fetch=originalFetch;}
 });
 test('Netflix season numbers come from the public selector, never an assumed arithmetic ID', () => {
   const html = '<script type="application/ld+json">{"@type":"TVSeries","name":"Smallville"}</script>' +
