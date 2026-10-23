@@ -86,5 +86,8 @@
         "mirrorJsonBytes": 0.6
       }
     }
-  ]
+  ],
+  "status": "rolled_back",
+  "productionApplied": false,
+  "rollbackReason": "Precautionary rollback after production 503 failures and 300-second timeouts. Firestore subsequently confirmed RESOURCE_EXHAUSTED, with approximately 25,000 writes against the 20,000 daily free-write limit. The outage persisted after rollback; transaction contention or an optimization regression was not established. These historical simulation savings are not production results."
 }

@@ -223,13 +223,13 @@ test('repeated delivery retries remain idempotent and cannot bypass the separate
  assert.equal(pause.playback.playing,false);assert.equal(pause.messages.length,1);
 });
 
-test('one transaction reads fresh membership once and commits rate admission with controls',async()=>{
+test('separate admission and mutation transactions both read fresh membership',async()=>{
  const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);
  db.usage.transactions=0;db.usage.reads.length=0;db.usage.writes.length=0;
  await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:false}},d);
- assert.equal(db.usage.transactions,1);
- assert.equal(db.usage.reads.filter(p=>p==='users/host/subscription/current').length,1);
- assert.equal(db.usage.reads.length,4);
+ assert.equal(db.usage.transactions,2);
+ assert.equal(db.usage.reads.filter(p=>p==='users/host/subscription/current').length,2);
+ assert.equal(db.usage.reads.length,5);
  assert.equal(db.usage.writes.filter(p=>p.startsWith('viewing_rates/')).length,1);
  // No membership decision is cached between requests.
  db.data.set('users/host/subscription/current',{planId:'plan_basic',status:'SUSPENDED',expiresAt:now+10000});
@@ -246,43 +246,9 @@ test('validation after staging a detach cannot commit partial room or mirror cha
  assert.equal(db.usage.writes.length,1);assert.ok(db.usage.writes[0].startsWith('viewing_rates/'));
 });
 
-test('heartbeats reuse recent host presence without broadcasting history and renew before client timeout',async()=>{
- const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
- await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
- time+=10000;
- const changed=await viewingAction('host',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback},d);
- const snapshot=structuredClone(db.data.get('users/guest/viewing_sessions/phone'));
- time+=10000;db.usage.writes.length=0;
- const quiet=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
- assert.equal(quiet.eventRevision,changed.eventRevision);
- assert.equal(quiet.hostSeenAtMs,changed.hostSeenAtMs);
- assert.deepEqual(db.data.get('users/guest/viewing_sessions/phone'),snapshot);
- assert.equal(db.usage.writes.length,2); // Rate + canonical account lease only.
- assert.ok(!db.usage.writes.some(p=>p.startsWith('viewing_rooms/') || p.includes('/viewing_sessions/')));
- time+=10000;db.usage.writes.length=0;
- const renewed=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
- assert.equal(renewed.hostSeenAtMs,time);assert.equal(renewed.eventRevision,quiet.eventRevision+1);
- assert.equal(db.data.get('users/guest/viewing_sessions/phone').hostSeenAtMs,time);
- assert.ok(time-snapshot.hostSeenAtMs<45000);
- assert.equal(renewed.updatedAtMs,changed.updatedAtMs); // Presence must not shift the playback anchor.
-});
 
-test('duplicate deliveries, unchanged moderation and repeated joins do not rewrite every member snapshot',async()=>{
- const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
- await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
- const control={action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,commandId:'once',playback};
- const changed=await viewingAction('host',control,d);
- const message={action:'comment',deviceId:'phone',roomCode:room.roomCode,messageId:'once',text:'Hi'};
- const sent=await viewingAction('guest',message,d);
- for (const [uid,body] of [['host',control],['guest',message],['host',{action:'moderate',deviceId:'phone',roomCode:room.roomCode,commentsEnabled:true,deleteMessageId:'missing'}],['guest',{action:'join',deviceId:'phone',roomCode:room.roomCode}]]) {
-  time+=1001;db.usage.writes.length=0;
-  const result=await viewingAction(uid,body,d);
-  assert.equal(result.revision,changed.revision);assert.equal(result.eventRevision,sent.eventRevision);
-  assert.ok(!db.usage.writes.some(p=>p.includes('/viewing_sessions/')));
-  assert.equal(db.usage.writes.filter(p=>p.startsWith('viewing_rates/')).length,1);
-  if (body.action!=='join') assert.ok(!db.usage.writes.some(p=>p.startsWith('viewing_rooms/')));
- }
-});
+
+
 
 test('a transaction retry rechecks a revoked subscription instead of reusing an earlier admission',async()=>{
  const db=dbMock();member(db,'host');const d=deps(db);const room=await create(d);
@@ -299,14 +265,26 @@ test('a transaction retry rechecks a revoked subscription instead of reusing an 
  assert.deepEqual(db.data.get('viewing_rooms/'+room.roomCode),before);
 });
 
-test('host presence is renewed after a coalesced heartbeat before the existing 45-second timeout',async()=>{
- const db=dbMock();member(db,'host');member(db,'guest');let time=now;const d=deps(db,()=>time);const room=await create(d);
- await viewingAction('guest',{action:'join',deviceId:'phone',roomCode:room.roomCode},d);
- time+=11999;
- const quiet=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
- assert.equal(quiet.hostSeenAtMs,now);
- time+=20000;
- const fresh=await viewingAction('host',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d);
- assert.equal(time-now,31999);assert.equal(fresh.hostSeenAtMs,time);
- assert.equal(db.data.get('users/guest/viewing_sessions/phone').hostSeenAtMs,time);
+test('Premium devices on the same account keep both party claims during concurrent registration, heartbeat and control',async()=>{
+ const db=dbMock();member(db,'shared','plan_premium');let time=now;const d=deps(db,()=>time);
+ let room=await create(d,'shared','phone');
+ await viewingAction('shared',{action:'join',deviceId:'tv',deviceKind:'tv',roomCode:room.roomCode,name:'TV'},d);
+ for(let round=0;round<3;round++){
+  time+=20000;
+  const responses=await Promise.all([
+   viewingAction('shared',{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},d),
+   viewingAction('shared',{action:'heartbeat',deviceId:'tv',deviceKind:'tv',roomCode:room.roomCode},d),
+   viewingAction('shared',{action:'register',deviceId:'phone',name:'Phone'},d),
+   viewingAction('shared',{action:'register',deviceId:'tv',deviceKind:'tv',name:'TV'},d),
+   viewingAction('shared',{action:'comment',deviceId:'tv',deviceKind:'tv',roomCode:room.roomCode,messageId:'m'+round,text:'Hi'},d),
+   viewingAction('shared',{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:round%2===0}},d)
+  ]);
+  room=responses[5];
+  const account=[...db.data.entries()].find(([p])=>p.startsWith('viewing_accounts/'))[1];
+  assert.equal(account.rooms.phone.code,room.roomCode);assert.equal(account.rooms.tv.code,room.roomCode);
+  assert.equal(db.data.get('users/shared/viewing_sessions/phone').ended,false);
+  const tv=db.data.get('users/shared/viewing_sessions/tv');
+  assert.equal(tv.isHost,false);assert.equal(tv.members.length,2);assert.equal(tv.messages.length,round+1);
+  assert.equal(tv.playback.playing,round%2===0);
+ }
 });

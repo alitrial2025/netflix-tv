@@ -2,7 +2,6 @@ const { createHash, randomBytes, randomUUID } = require('node:crypto');
 const { PaymentError } = require('./payment-service.cjs');
 const PARTY_PLANS = new Set(['plan_basic','plan_standard','plan_premium']);
 const PLANS = new Set(['plan_mobile','plan_basic','plan_standard','plan_premium']);
-const HOST_HEARTBEAT_REUSE_MS = 12000;
 const fail = (status, code, message) => { throw new PaymentError(status, code, message); };
 const hash = value => createHash('sha256').update(value).digest('hex');
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value);
@@ -66,161 +65,139 @@ async function viewingAction(uid, body, {db,now=Date.now,codeGenerator=()=>rando
   if (['create','join','heartbeat','control','comment','moderate','leave','end'].includes(action) && !/^[A-F0-9]{10}$/.test(code || ''))
     fail(400,'INVALID_ROOM','Enter the ten-character party code.');
   const roomRef=code ? db.collection('viewing_rooms').doc(code) : null;
-  // Read membership once, inside the same transaction as the room mutation.
-  // Stage room writes until validation succeeds: rejected guesses/controls
-  // still commit their rate admission without committing partial room changes.
-  const outcome=await db.runTransaction(async transaction=>{
-    const [subSnap,rateSnap]=await Promise.all([transaction.get(subRef),transaction.get(rateRef)]);
+  // Commit rate admission independently, so rejected code guesses and stale
+  // controls count too. An aborted room transaction must not erase the attempt.
+  await db.runTransaction(async tx=>{
+    const [subSnap,rateSnap]=await Promise.all([tx.get(subRef),tx.get(rateRef)]);
     const sub=subSnap.exists?subSnap.data():{};
     admit(sub);
     const rate=rateSnap.exists?rateSnap.data():{};
     const recent=(rate.times||[]).filter(t=>integer(t,0,time)&&time-t<60000);
     if (recent.length>=(chatLane?20:120) || recent.filter(t=>time-t<1000).length>=(chatLane?2:8)) fail(429,'SLOW_DOWN','Please wait a moment before trying again.');
-    const rateWrite={times:[...recent,time],expiresAtMs:time+120000};
-    const writes=[];
-    const tx={get:ref=>transaction.get(ref),set:(...args)=>writes.push(args)};
-    try {
-      // All membership, claim, and room reads precede the committed writes.
-      const [accountSnap,roomSnap]=await Promise.all([tx.get(accountRef),roomRef?tx.get(roomRef):null]);
-      const account=accountSnap.exists?accountSnap.data():{};
-      const claimed=account.rooms?.[deviceId];
-      // Claims are leases. Read their canonical room before deciding whether an ended
-      // or departed party should block a new one; never clear another party's claim.
-      const previousRoom=claimed?.code && claimed.code!==code && ['create','join'].includes(action)
-        ? await tx.get(db.collection('viewing_rooms').doc(claimed.code)) : null;
-      const previous=previousRoom?.exists?previousRoom.data():null;
-      const claimLive=claimed && claimed.code!==code && claimed.expiresAtMs>time &&
-        integer(claimed.seenAtMs,0,time) && time-claimed.seenAtMs<90000 && previous && !previous.ended && time<previous.expiresAtMs;
-      const detachPrevious=()=>{
-        if (!previous || previous.ended) return;
-        const oldSelf=previous.members.find(m=>m.uid===uid&&m.deviceId===deviceId);
-        if (!oldSelf) return;
-        if (previous.hostUid===uid&&previous.hostDevice===deviceId) previous.ended=true;
-        else previous.members=previous.members.filter(m=>m!==oldSelf);
-        if (previous.ended) previous.revision++;
-        previous.eventRevision=(previous.eventRevision ?? previous.revision)+1;
-        tx.set(db.collection('viewing_rooms').doc(claimed.code),previous);
-        fanout(tx,db,previous,time);
-      };
-      let devices=(account.devices||[]).filter(d=>validId(d.id)&&integer(d.seenAtMs,0,time)&&time-d.seenAtMs<90000);
-      const result={serverNowMs:time};
-      if (action==='register') {
-        const name=String(body.name|| (kind==='tv'?'NetflixPro TV':'NetflixPro phone')).trim().slice(0,60);
-        devices=devices.filter(d=>d.id!==deviceId);
-        if (devices.length>=8) fail(409,'DEVICE_LIMIT','Close NetflixPro on an unused device and try again.');
-        devices.push({id:deviceId,kind,name,seenAtMs:time});
-        tx.set(accountRef,{devices,updatedAtMs:time},{merge:true});
-      } else if (action==='devices') {
-        result.devices=devices.filter(d=>d.kind==='tv'&&d.id!==deviceId).map(d=>({id:d.id,name:d.name}));
-      } else if (action==='handoff') {
-        if (!validId(body.targetDeviceId) || !devices.some(d=>d.id===body.targetDeviceId&&d.kind==='tv')) fail(409,'TV_UNAVAILABLE','Open NetflixPro on your signed-in TV, then refresh.');
-        const target=targetInput(body.target),position=body.positionMs;
-        if (!integer(position,0,86400000)) fail(400,'INVALID_PLAYBACK','Playback position is unavailable.');
-        tx.set(command(db,uid,body.targetDeviceId),{id:uuid(),target,positionMs:position,issuedAtMs:time,expiresAtMs:time+30000});
+    tx.set(rateRef,{times:[...recent,time],expiresAtMs:time+120000});
+  });
+  return db.runTransaction(async tx=>{
+    // All membership, claim, and room reads precede writes.
+    const [subSnap,accountSnap,roomSnap]=await Promise.all([tx.get(subRef),tx.get(accountRef),roomRef?tx.get(roomRef):null]);
+    const sub=subSnap.exists?subSnap.data():{};
+    admit(sub);
+    const account=accountSnap.exists?accountSnap.data():{};
+    const claimed=account.rooms?.[deviceId];
+    // Claims are leases. Read their canonical room before deciding whether an ended
+    // or departed party should block a new one; never clear another party's claim.
+    const previousRoom=claimed?.code && claimed.code!==code && ['create','join'].includes(action)
+      ? await tx.get(db.collection('viewing_rooms').doc(claimed.code)) : null;
+    const previous=previousRoom?.exists?previousRoom.data():null;
+    const claimLive=claimed && claimed.code!==code && claimed.expiresAtMs>time &&
+      integer(claimed.seenAtMs,0,time) && time-claimed.seenAtMs<90000 && previous && !previous.ended && time<previous.expiresAtMs;
+    const detachPrevious=()=>{
+      if (!previous || previous.ended) return;
+      const oldSelf=previous.members.find(m=>m.uid===uid&&m.deviceId===deviceId);
+      if (!oldSelf) return;
+      if (previous.hostUid===uid&&previous.hostDevice===deviceId) previous.ended=true;
+      else previous.members=previous.members.filter(m=>m!==oldSelf);
+      if (previous.ended) previous.revision++;
+      previous.eventRevision=(previous.eventRevision ?? previous.revision)+1;
+      tx.set(db.collection('viewing_rooms').doc(claimed.code),previous);
+      fanout(tx,db,previous,time);
+    };
+    let devices=(account.devices||[]).filter(d=>validId(d.id)&&integer(d.seenAtMs,0,time)&&time-d.seenAtMs<90000);
+    const result={serverNowMs:time};
+    if (action==='register') {
+      const name=String(body.name|| (kind==='tv'?'NetflixPro TV':'NetflixPro phone')).trim().slice(0,60);
+      devices=devices.filter(d=>d.id!==deviceId);
+      if (devices.length>=8) fail(409,'DEVICE_LIMIT','Close NetflixPro on an unused device and try again.');
+      devices.push({id:deviceId,kind,name,seenAtMs:time});
+      tx.set(accountRef,{devices,updatedAtMs:time},{merge:true});
+    } else if (action==='devices') {
+      result.devices=devices.filter(d=>d.kind==='tv'&&d.id!==deviceId).map(d=>({id:d.id,name:d.name}));
+    } else if (action==='handoff') {
+      if (!validId(body.targetDeviceId) || !devices.some(d=>d.id===body.targetDeviceId&&d.kind==='tv')) fail(409,'TV_UNAVAILABLE','Open NetflixPro on your signed-in TV, then refresh.');
+      const target=targetInput(body.target),position=body.positionMs;
+      if (!integer(position,0,86400000)) fail(400,'INVALID_PLAYBACK','Playback position is unavailable.');
+      tx.set(command(db,uid,body.targetDeviceId),{id:uuid(),target,positionMs:position,issuedAtMs:time,expiresAtMs:time+30000});
+    } else {
+      let room=roomSnap?.exists?roomSnap.data():null;
+      let publish=true;
+      if (action==='create') {
+        if (room) fail(409,'CODE_COLLISION','Please create the party again.');
+        if (claimLive) fail(409,'ALREADY_IN_PARTY','Leave your current party before creating another.');
+        detachPrevious();
+        room={code,hostUid:uid,hostDevice:deviceId,target:targetInput(body.target),playback:playbackInput(body.playback),
+          createdAtMs:time,updatedAtMs:integer(body.sampledAtMs,time-2000,time)?body.sampledAtMs:time,hostSeenAtMs:time,expiresAtMs:time+21600000,revision:1,eventRevision:0,commentsEnabled:true,messages:[],
+          members:[{uid,deviceId,memberId:uuid(),name:String(body.name||'Host').trim().slice(0,40),seenAtMs:time}],ended:false};
+        tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:{code,expiresAtMs:room.expiresAtMs,seenAtMs:time}}});
       } else {
-        let room=roomSnap?.exists?roomSnap.data():null;
-        let publish=true;
-        let saveRoom=true;
-        if (action==='create') {
-          if (room) fail(409,'CODE_COLLISION','Please create the party again.');
-          if (claimLive) fail(409,'ALREADY_IN_PARTY','Leave your current party before creating another.');
+        if (!room || room.ended || time>=room.expiresAtMs) fail(404,'PARTY_ENDED','This party has ended or its code has expired.');
+        const self=room.members.find(m=>m.uid===uid&&m.deviceId===deviceId);
+        const host=room.hostUid===uid&&room.hostDevice===deviceId;
+        if (action==='join') {
+          if (claimLive) fail(409,'ALREADY_IN_PARTY','Leave your current party before joining another.');
+          if (!self) {
+            room.members=room.members.filter(m=>(m.uid===room.hostUid&&m.deviceId===room.hostDevice)||time-m.seenAtMs<90000);
+            if (room.members.length>=8) fail(409,'PARTY_FULL','This party already has eight viewers.');
+            room.members.push({uid,deviceId,memberId:uuid(),name:String(body.name||'Viewer').trim().slice(0,40),seenAtMs:time});
+          } else self.seenAtMs=time;
           detachPrevious();
-          room={code,hostUid:uid,hostDevice:deviceId,target:targetInput(body.target),playback:playbackInput(body.playback),
-            createdAtMs:time,updatedAtMs:integer(body.sampledAtMs,time-2000,time)?body.sampledAtMs:time,hostSeenAtMs:time,expiresAtMs:time+21600000,revision:1,eventRevision:0,commentsEnabled:true,messages:[],
-            members:[{uid,deviceId,memberId:uuid(),name:String(body.name||'Host').trim().slice(0,40),seenAtMs:time}],ended:false};
           tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:{code,expiresAtMs:room.expiresAtMs,seenAtMs:time}}});
         } else {
-          if (!room || room.ended || time>=room.expiresAtMs) fail(404,'PARTY_ENDED','This party has ended or its code has expired.');
-          const self=room.members.find(m=>m.uid===uid&&m.deviceId===deviceId);
-          const host=room.hostUid===uid&&room.hostDevice===deviceId;
-          if (action==='join') {
-            if (claimLive) fail(409,'ALREADY_IN_PARTY','Leave your current party before joining another.');
-            if (!self) {
-              room.members=room.members.filter(m=>(m.uid===room.hostUid&&m.deviceId===room.hostDevice)||time-m.seenAtMs<90000);
-              if (room.members.length>=8) fail(409,'PARTY_FULL','This party already has eight viewers.');
-              room.members.push({uid,deviceId,memberId:uuid(),name:String(body.name||'Viewer').trim().slice(0,40),seenAtMs:time});
-            } else { self.seenAtMs=time; publish=false; }
-            detachPrevious();
+          if (!self || !['leave','end'].includes(action) && account.rooms?.[deviceId]?.code!==code)
+            fail(403,'NOT_A_MEMBER','Join the party before using its controls.');
+          self.seenAtMs=time;
+          if (action==='control') {
+            if (!host) fail(403,'HOST_ONLY','The host controls party playback.');
+            if (body.commandId !== undefined && !validId(body.commandId)) fail(400,'INVALID_ACTION','Invalid playback command.');
+            const duplicate=body.commandId && (room.recentCommands||[]).includes(body.commandId);
+            if (!duplicate) {
+              if (!integer(body.expectedRevision,1,Number.MAX_SAFE_INTEGER) || body.expectedRevision!==room.revision)
+                fail(409,'STALE_CONTROL','The party changed. Reconnect to sync playback.');
+              const target=body.target?targetInput(body.target):room.target;
+              const same=sameTitle(target,room.target);
+              // A changed episode must reset its position explicitly; never carry the old episode's seek target.
+              if (!same && body.playback?.positionMs!==0) fail(400,'INVALID_PLAYBACK','A new party title must start at its beginning.');
+              room.target=target;room.playback=playbackInput(body.playback);room.updatedAtMs=integer(body.sampledAtMs,time-2000,time)?body.sampledAtMs:time;room.hostSeenAtMs=time;room.revision++;
+              if (body.commandId) room.recentCommands=[...(room.recentCommands||[]),body.commandId].slice(-16);
+            } else publish=false;
+          } else if (action==='comment') {
+            if (!validId(body.messageId)) fail(400,'INVALID_COMMENT','Invalid message identifier.');
+            const text=commentInput(body.text);
+            const existing=(room.messages||[]).find(m=>m.id===body.messageId);
+            if (existing && existing.memberId!==self.memberId) fail(409,'MESSAGE_CONFLICT','Send this as a new message.');
+            if (!existing) {
+              if (room.commentsEnabled===false) fail(403,'COMMENTS_DISABLED','The host has paused comments.');
+              room.messages=[...(room.messages||[]),{id:body.messageId,memberId:self.memberId,name:self.name,text,createdAtMs:time}].slice(-40);
+            } else publish=false;
+          } else if (action==='moderate') {
+            if (!host) fail(403,'HOST_ONLY','Only the host can manage party comments.');
+            if ((body.commentsEnabled!==undefined && typeof body.commentsEnabled!=='boolean') ||
+                (body.deleteMessageId!==undefined && !validId(body.deleteMessageId)) || (body.commentsEnabled===undefined && body.deleteMessageId===undefined))
+              fail(400,'INVALID_ACTION','Choose a comment setting or message.');
+            if (body.commentsEnabled!==undefined) room.commentsEnabled=body.commentsEnabled;
+            if (body.deleteMessageId!==undefined) room.messages=(room.messages||[]).filter(m=>m.id!==body.deleteMessageId);
+          } else if (action==='heartbeat') {
+            if (host) room.hostSeenAtMs=time; else publish=false;
             tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:{code,expiresAtMs:room.expiresAtMs,seenAtMs:time}}});
-          } else {
-            if (!self || !['leave','end'].includes(action) && account.rooms?.[deviceId]?.code!==code)
-              fail(403,'NOT_A_MEMBER','Join the party before using its controls.');
-            self.seenAtMs=time;
-            if (action==='control') {
-              if (!host) fail(403,'HOST_ONLY','The host controls party playback.');
-              if (body.commandId !== undefined && !validId(body.commandId)) fail(400,'INVALID_ACTION','Invalid playback command.');
-              const duplicate=body.commandId && (room.recentCommands||[]).includes(body.commandId);
-              if (!duplicate) {
-                if (!integer(body.expectedRevision,1,Number.MAX_SAFE_INTEGER) || body.expectedRevision!==room.revision)
-                  fail(409,'STALE_CONTROL','The party changed. Reconnect to sync playback.');
-                const target=body.target?targetInput(body.target):room.target;
-                const same=sameTitle(target,room.target);
-                // A changed episode must reset its position explicitly; never carry the old episode's seek target.
-                if (!same && body.playback?.positionMs!==0) fail(400,'INVALID_PLAYBACK','A new party title must start at its beginning.');
-                room.target=target;room.playback=playbackInput(body.playback);room.updatedAtMs=integer(body.sampledAtMs,time-2000,time)?body.sampledAtMs:time;room.hostSeenAtMs=time;room.revision++;
-                if (body.commandId) room.recentCommands=[...(room.recentCommands||[]),body.commandId].slice(-16);
-              } else { publish=false; saveRoom=false; }
-            } else if (action==='comment') {
-              if (!validId(body.messageId)) fail(400,'INVALID_COMMENT','Invalid message identifier.');
-              const text=commentInput(body.text);
-              const existing=(room.messages||[]).find(m=>m.id===body.messageId);
-              if (existing && existing.memberId!==self.memberId) fail(409,'MESSAGE_CONFLICT','Send this as a new message.');
-              if (!existing) {
-                if (room.commentsEnabled===false) fail(403,'COMMENTS_DISABLED','The host has paused comments.');
-                room.messages=[...(room.messages||[]),{id:body.messageId,memberId:self.memberId,name:self.name,text,createdAtMs:time}].slice(-40);
-              } else { publish=false; saveRoom=false; }
-            } else if (action==='moderate') {
-              if (!host) fail(403,'HOST_ONLY','Only the host can manage party comments.');
-              if ((body.commentsEnabled!==undefined && typeof body.commentsEnabled!=='boolean') ||
-                  (body.deleteMessageId!==undefined && !validId(body.deleteMessageId)) || (body.commentsEnabled===undefined && body.deleteMessageId===undefined))
-                fail(400,'INVALID_ACTION','Choose a comment setting or message.');
-              const beforeEnabled=room.commentsEnabled !== false;
-              const beforeCount=(room.messages||[]).length;
-              if (body.commentsEnabled!==undefined) room.commentsEnabled=body.commentsEnabled;
-              if (body.deleteMessageId!==undefined) room.messages=(room.messages||[]).filter(m=>m.id!==body.deleteMessageId);
-              if (beforeEnabled===(room.commentsEnabled !== false) && beforeCount===(room.messages||[]).length) {
-                publish=false; saveRoom=false;
-              }
-            } else if (action==='heartbeat') {
-              // A recent control already proves the host is present and delivers
-              // its clock anchor to every viewer. Do not resend chat and members.
-              // Reuse at most 12 seconds: with existing 20-second heartbeats,
-              // presence renews within 32 seconds, below clients' 45-second timeout.
-              publish=host && (!integer(room.hostSeenAtMs,0,time) || time-room.hostSeenAtMs>=HOST_HEARTBEAT_REUSE_MS);
-              if (publish) room.hostSeenAtMs=time;
-              else if (host) saveRoom=false;
-              tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:{code,expiresAtMs:room.expiresAtMs,seenAtMs:time}}});
-            } else if (action==='end' || action==='leave'&&host) {
-              if (!host) fail(403,'HOST_ONLY','Only the host can end this party.');
-              room.ended=true;room.revision++;
-              // Other viewers may already be in a new room. Their next create/join
-              // checks this ended room, instead of wiping newer account leases.
-              if (account.rooms?.[deviceId]?.code===code)
-                tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:null}});
-            } else if (action==='leave') {
-              room.members=room.members.filter(m=>m!==self);
-              tx.set(mirror(db,uid,deviceId),{ended:true,roomCode:code,serverNowMs:time});
-              if (account.rooms?.[deviceId]?.code===code)
-                tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:null}});
-            }
+          } else if (action==='end' || action==='leave'&&host) {
+            if (!host) fail(403,'HOST_ONLY','Only the host can end this party.');
+            room.ended=true;room.revision++;
+            // Other viewers may already be in a new room. Their next create/join
+            // checks this ended room, instead of wiping newer account leases.
+            if (account.rooms?.[deviceId]?.code===code)
+              tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:null}});
+          } else if (action==='leave') {
+            room.members=room.members.filter(m=>m!==self);
+            tx.set(mirror(db,uid,deviceId),{ended:true,roomCode:code,serverNowMs:time});
+            if (account.rooms?.[deviceId]?.code===code)
+              tx.set(accountRef,{...account,rooms:{...(account.rooms||{}),[deviceId]:null}});
           }
         }
-        if (publish) room.eventRevision=(room.eventRevision ?? room.revision)+1;
-        if (saveRoom) tx.set(roomRef,room);if (publish) fanout(tx,db,room,time);
-        Object.assign(result,publicRoom(room,uid,deviceId,time));
       }
-      transaction.set(rateRef,rateWrite);
-      for (const write of writes) transaction.set(...write);
-      return {result};
-    } catch (error) {
-      if (!(error instanceof PaymentError)) throw error;
-      // The transaction commits only the rate record for a rejected action.
-      transaction.set(rateRef,rateWrite);
-      return {error};
+      if (publish) room.eventRevision=(room.eventRevision ?? room.revision)+1;
+      tx.set(roomRef,room);if (publish) fanout(tx,db,room,time);
+      Object.assign(result,publicRoom(room,uid,deviceId,time));
     }
+    return result;
   });
-  if (outcome.error) throw outcome.error;
-  return outcome.result;
 }
 function createViewingHandler(deps) {
   return async(req,res)=>{

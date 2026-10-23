@@ -49,17 +49,41 @@ test('Firestore retries concurrent controls atomically and rechecks membership o
  await assert.rejects(viewingAction(host,{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},deps),{code:'MEMBERSHIP_REQUIRED'});
 });
 
-test('Firestore leaves member mirrors unchanged for a redundant heartbeat and renews timely presence',{skip:!enabled},async()=>{
+test('Firestore renews host presence without moving the playback timeline',{skip:!enabled},async()=>{
  const f=await fixture();const {host,guest,room,deps}=f;
  await viewingAction(guest,{action:'join',deviceId:'phone',roomCode:room.roomCode},deps);
  const mirror=db.doc(`users/${guest}/viewing_sessions/phone`),before=await mirror.get();
  f.advance(11999);
  const quiet=await viewingAction(host,{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},deps);
- const unchanged=await mirror.get();assert.ok(unchanged.updateTime.isEqual(before.updateTime));
- assert.equal(quiet.eventRevision,before.data().eventRevision);
+ const unchanged=await mirror.get();assert.ok(!unchanged.updateTime.isEqual(before.updateTime));
+ assert.equal(quiet.eventRevision,before.data().eventRevision+1);
  f.advance(20000);
  const fresh=await viewingAction(host,{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},deps);
  const changed=await mirror.get();assert.ok(!changed.updateTime.isEqual(before.updateTime));
  assert.equal(fresh.hostSeenAtMs,now+31999);assert.equal(changed.data().hostSeenAtMs,fresh.hostSeenAtMs);
  assert.equal(changed.data().updatedAtMs,before.data().updatedAtMs);
+});
+
+test('Firestore preserves same-account Premium host and TV claims under concurrent party traffic',{skip:!enabled},async()=>{
+ const f=await fixture();const {host,deps}=f;
+ await db.doc(`users/${host}/subscription/current`).update({planId:'plan_premium'});
+ let room=f.room;
+ f.advance(2000);
+ await viewingAction(host,{action:'join',deviceId:'tv',deviceKind:'tv',roomCode:room.roomCode,name:'TV'},deps);
+ for(let round=0;round<2;round++){
+  f.advance(20000);
+  const responses=await Promise.all([
+   viewingAction(host,{action:'heartbeat',deviceId:'phone',roomCode:room.roomCode},deps),
+   viewingAction(host,{action:'heartbeat',deviceId:'tv',deviceKind:'tv',roomCode:room.roomCode},deps),
+   viewingAction(host,{action:'register',deviceId:'tv',deviceKind:'tv',name:'TV'},deps),
+   viewingAction(host,{action:'comment',deviceId:'tv',deviceKind:'tv',roomCode:room.roomCode,messageId:'m'+round,text:'Hi'},deps),
+   viewingAction(host,{action:'control',deviceId:'phone',roomCode:room.roomCode,expectedRevision:room.revision,playback:{...playback,playing:round%2===0}},deps)
+  ]);
+  room=responses[4];
+  const account=(await db.doc('viewing_accounts/'+createHash('sha256').update(host).digest('hex')).get()).data();
+  assert.equal(account.rooms.phone.code,room.roomCode);assert.equal(account.rooms.tv.code,room.roomCode);
+  const tv=(await db.doc(`users/${host}/viewing_sessions/tv`).get()).data();
+  assert.equal(tv.ended,false);assert.equal(tv.isHost,false);assert.equal(tv.members.length,2);
+  assert.equal(tv.messages.length,round+1);assert.equal(tv.playback.playing,round%2===0);
+ }
 });
