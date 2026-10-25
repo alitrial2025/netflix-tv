@@ -20,12 +20,13 @@ import org.robolectric.annotation.Config
 @Config(manifest = Config.NONE, sdk = [28])
 class DirectCDNWarmRouteTest {
     @Test fun cachedWarmRouteUsesExactProviderSignatureWithoutHandshake() = exerciseRoute(false)
-    @Test fun cdnRejectionStopsWithoutDiscardingUnusedLegacySession() = exerciseRoute(true)
+    @Test fun cdnRejectionTriesLastResortWithoutDiscardingUnusedLegacySession() = exerciseRoute(true)
     @Test fun unsignedProviderRouteIsNotGivenAnotherTitlesNonce() = exerciseRoute(false, unsigned = true)
     private fun exerciseRoute(rejected: Boolean, unsigned: Boolean = false) = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val prefs = context.getSharedPreferences("directcdn_prefs", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
+        context.getSharedPreferences("captcha_fallback_prefs", Context.MODE_PRIVATE).edit().clear().commit()
         val now = System.currentTimeMillis()
         val token = "${"a".repeat(32)}::${"b".repeat(32)}::${now / 1000}::su::myes"
         val url = "https://dynamic-cdn.invalid/custom/full-hd/media" + if (unsigned) "" else "?in=$token&lang=eng"
@@ -47,10 +48,15 @@ class DirectCDNWarmRouteTest {
                     assertEquals(if (unsigned) null else token, req.url.queryParameter("in"))
                     if (rejected) "Only valid users allowed" else "#EXTM3U\n#EXTINF:10,\nsegment.jpg\n#EXT-X-ENDLIST"
                 }
+                "/verify.php" -> {
+                    assertTrue("Successful primary playback must not invoke the last resort", rejected)
+                    assertEquals("POST", req.method)
+                    "Fallback unavailable"
+                }
                 else -> throw AssertionError("Unexpected handshake or metadata call: ${req.url.encodedPath}")
             }
             Response.Builder().request(req).protocol(Protocol.HTTP_1_1)
-                .code(if (req.url.encodedPath == "/mobile/post.php") 404 else 200)
+                .code(when (req.url.encodedPath) { "/mobile/post.php" -> 404; "/verify.php" -> 503; else -> 200 })
                 .message("OK").body(body.toResponseBody()).build()
         }.build()
         // A silent preview uses the exact video route and requires no optional audio/caption probes.
@@ -60,6 +66,8 @@ class DirectCDNWarmRouteTest {
             try { resolver.resolveStream(movie, purpose = StreamPurpose.SILENT_PREVIEW); fail("Rejected media must not be returned") }
             catch (_: java.io.IOException) { }
             assertEquals(1, requested.count { it == "/custom/full-hd/media" })
+            assertEquals("Unavailable last resort gets one retry", 2, requested.count { it == "/verify.php" })
+            assertTrue(requested.indexOf("/verify.php") > requested.indexOf("/custom/full-hd/media"))
         } else {
             val result = resolver.resolveStream(movie, purpose = StreamPurpose.SILENT_PREVIEW)
             assertEquals(url, result.url)
@@ -69,7 +77,8 @@ class DirectCDNWarmRouteTest {
         }
         assertEquals(0L, resolver.sessionVersion)
         assertTrue(resolver.hasValidSession())
-        assertFalse(requested.any { it.contains("verify") || it.contains("home") })
+        assertFalse(requested.any { it.contains("home") })
+        if (!rejected) assertFalse(requested.any { it.contains("verify") })
         assertFalse("Card metadata avoids an extra TMDB fetch", requested.any { it.startsWith("/3/movie/") })
     }
 }
