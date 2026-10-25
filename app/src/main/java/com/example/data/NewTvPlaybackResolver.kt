@@ -287,7 +287,7 @@ internal class NewTvPlaybackResolver(
                 val seasons = linkedMapOf<Int, String>()
                 for (index in 0 until minOf(rows.length(), 60)) {
                     val row = rows.optJSONObject(index) ?: continue
-                    val number = Regex("(?i)(?:season|s)?\\s*([0-9]+)").find(row.optString("s").trim())
+                    val number = Regex("(?i)(?:season|s)?\\s*([0-9]+)(?:\\s*\\(\\s*[0-9]+\\s*ep(?:isodes?)?\\s*\\))?").matchEntire(row.optString("s").trim())
                         ?.groupValues?.get(1)?.toIntOrNull() ?: continue
                     val id = row.optString("id")
                     if (!PublicIdentityDiscovery.validId(id, ott) || number !in 1..60) continue
