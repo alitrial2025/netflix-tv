@@ -4,19 +4,19 @@
   "packageName": "com.netflixpro.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 42,
-  "versionName": "1.41",
+  "versionCode": 44,
+  "versionName": "1.43",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 14407917,
-  "sha256": "aa8328c23d0fc6dc714a322bea6b435826404013d0a2032c9e62807ec5190179",
+  "sizeBytes": 14424301,
+  "sha256": "a9f2a2f1bc5b3ffeb7a39478846d1b8e20cb5cb86537f0afe9480e093ac02868",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/mobile/42-aa8328c23d0fc6dc.apk",
-  "releaseNotes": "Fix Disney/Hotstar series resolution, including Perfect Crown. Verify series premieres using dated first episodes while preserving exact season and episode selection.",
+  "apkUrl": "/downloads/mobile/44-a9f2a2f1bc5b3ffe.apk",
+  "releaseNotes": "Adds the Net52 playback fallback and includes the latest season and episode playback fixes.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-10-22T19:06:29.106Z"
+  "publishedAt": "2026-10-25T11:39:33.424Z"
 }
