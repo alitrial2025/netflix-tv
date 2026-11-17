@@ -4,19 +4,19 @@
   "packageName": "com.netflixprotv.apk",
   "available": true,
   "buildType": "release",
-  "versionCode": 29092056,
-  "versionName": "17.11.2026.1",
+  "versionCode": 29092057,
+  "versionName": "17.11.2026.2",
   "minSdk": 24,
   "targetSdk": 35,
-  "sizeBytes": 7953400,
-  "sha256": "2b27fbb1c75875976cf0c9ec96d0afc97e4155f64cab9e1a6354460f27b95eaf",
+  "sizeBytes": 7952816,
+  "sha256": "7620b55124163b65fd800cf5695e1748b3ffd7e7bcd225b56a04b41008da76e8",
   "signingCertificateSha256": [
     "3cea049428d723e0fd69d7c9c00cdb35f08b3661468c1d4679a8ebefae034255"
   ],
-  "apkUrl": "/downloads/tv/29092056-2b27fbb1c7587597.apk",
-  "releaseNotes": "Improve playback stability on older and low-memory Android TVs with safer video quality settings and lower memory use during playback startup.",
+  "apkUrl": "/downloads/tv/29092057-7620b55124163b65.apk",
+  "releaseNotes": "Fix playback startup crashes and restore video playback. Improve catalogue startup, caching, and playback diagnostics.",
   "supportsUpdateGate": true,
   "mandatory": true,
   "requiresFreshInstallFromDebug": false,
-  "publishedAt": "2026-11-17T06:42:10.471Z"
+  "publishedAt": "2026-11-17T16:22:21.576Z"
 }
