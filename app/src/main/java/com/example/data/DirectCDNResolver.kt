@@ -120,6 +120,7 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
     private val publicPlayback = PublicPlaybackResolver(client, catalog = PublicProviderCatalog(context),
         backgroundCatalogRefresh = clientOverride == null, runtimeConfig = publicConfig,
         newTv = NewTvPlaybackResolver(client, endpointCache = NewTvEndpointCache(context)))
+    private val captchaFallback = CaptchaFallbackResolver(context, client, runtimeConfig = publicConfig)
     val requiresWarmSession: Boolean get() = false
 
     private val SEC_CH_UA = "\"Not(A:Brand\";v=\"99\", \"Android WebView\";v=\"133\", \"Chromium\";v=\"133\""
@@ -2280,7 +2281,13 @@ class DirectCDNResolver(private val context: Context, clientOverride: OkHttpClie
         val key = "${type}_${movie.id}_${season}_${episode}"
         streamCache[key]?.takeIf { it.sessionVersion == generation && playbackCooldownMillis(it.sourceId) == 0L && it.expiresAt - System.currentTimeMillis() > StreamSessionPolicy.EXPIRY_MARGIN_MS }?.let { return@withTimeoutOrNull it }
         val info = getTmdbInfo(movie.id, type, movie.title, movie.year)
-        val source = publicPlayback.resolve(info.title, info.year, type, season, episode, movie.id)
+        val source = try {
+            publicPlayback.resolve(info.title, info.year, type, season, episode, movie.id)
+        } catch (primaryError: PlaybackRateLimitedException) { throw primaryError }
+        catch (primaryError: java.io.IOException) {
+            try { captchaFallback.resolve(info.title, info.year, type, season, episode, movie.id) }
+            catch (_: java.io.IOException) { throw primaryError }
+        }
         val stream = NetMirrorStream(source.url, source.headers, source.captions, "Public HLS [${source.ott.uppercase()}] [${source.route.label}]", source.expiresAt, info.title, sessionVersion = generation)
         currentCoroutineContext().ensureActive()
         synchronized(sessionStateLock) {

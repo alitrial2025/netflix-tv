@@ -176,6 +176,11 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         subtitleClock.set(offset)
     }
 
+    val usesCompatibilityPlayback by lazy {
+        com.example.ui.util.TvPlaybackPolicy.needsCompatibilityMode(
+            com.example.ui.util.TvImagePolicy.isLowMemoryDevice(getApplication()), android.os.Build.VERSION.SDK_INT)
+    }
+
     private val sharedExoPlayerDelegate = lazy {
         val renderersFactory = com.example.playback.SubtitleTimingRenderersFactory(application) { subtitleClock.get() }.apply {
             setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
@@ -188,6 +193,18 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 else androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_NEVER)
             .build()
         val lowMemory = com.example.ui.util.TvImagePolicy.isLowMemoryDevice(application)
+        val videoLimits = com.example.ui.util.TvPlaybackPolicy.videoLimits(usesCompatibilityPlayback, _userSubscription.value.maxVideoHeight)
+        val trackSelector = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(application).apply {
+            parameters = buildUponParameters()
+                // Media3 otherwise treats maximum size/bitrate as soft preferences and
+                // can exceed both the TV budget and advertised decoder capabilities.
+                .setExceedRendererCapabilitiesIfNecessary(false)
+                .setExceedVideoConstraintsIfNecessary(!usesCompatibilityPlayback)
+                .setMaxVideoSize(videoLimits.width, videoLimits.height)
+                .setMaxVideoBitrate(videoLimits.bitrate)
+                .setMaxVideoFrameRate(videoLimits.frameRate)
+                .build()
+        }
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(3_000, if (lowMemory) 10_000 else 15_000, 900, 1_500)
             .setTargetBufferBytes(if (lowMemory) 8 * 1024 * 1024 else 16 * 1024 * 1024)
@@ -195,12 +212,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             .setBackBuffer(0, false)
             .build()
         androidx.media3.exoplayer.ExoPlayer.Builder(application, renderersFactory)
-            .setLoadControl(loadControl).build().apply {
+            .setTrackSelector(trackSelector).setLoadControl(loadControl).build().apply {
             setAudioAttributes(audioAttributes, true)
             playWhenReady = true
             repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
-            trackSelectionParameters = trackSelectionParameters.buildUpon()
-                .setMaxVideoSize(Int.MAX_VALUE, _userSubscription.value.maxVideoHeight.coerceAtLeast(480)).build()
             addListener(object : androidx.media3.common.Player.Listener {
                 override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) {
                     _sharedVideoFrameMediaId.value = null
@@ -2867,12 +2882,18 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    fun applySubscriptionPlaybackLimits(subscription: com.example.model.UserSubscription = _userSubscription.value) {
+    fun applySubscriptionPlaybackLimits(subscription: com.example.model.UserSubscription = _userSubscription.value,
+                                        trailer: Boolean? = null) {
         if (!sharedExoPlayerDelegate.isInitialized()) return
         val player = sharedExoPlayer
-        val trailer = player.currentMediaItem?.mediaId?.endsWith(":trailer") == true
+        val isTrailer = trailer ?: (player.currentMediaItem?.mediaId?.endsWith(":trailer") == true)
+        val limits = com.example.ui.util.TvPlaybackPolicy.videoLimits(usesCompatibilityPlayback, subscription.maxVideoHeight, isTrailer)
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-            .setMaxVideoSize(Int.MAX_VALUE, if (trailer) 1080 else subscription.maxVideoHeight.coerceAtLeast(480)).build()
+            .setMaxVideoSize(limits.width, limits.height)
+            .setMaxVideoBitrate(limits.bitrate)
+            .setMaxVideoFrameRate(limits.frameRate)
+            .setForceLowestBitrate(false)
+            .build()
         player.setAudioAttributes(androidx.media3.common.AudioAttributes.Builder()
             .setUsage(androidx.media3.common.C.USAGE_MEDIA).setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
             .setSpatializationBehavior(if (subscription.isSpatialAudioAllowed) androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_AUTO
