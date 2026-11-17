@@ -102,7 +102,7 @@ internal object PublicIdentityDiscovery {
     }
 
     fun scripts(html: String): List<JSONObject> = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
-        .findAll(html).mapNotNull { try { JSONObject(it.groupValues[1]) } catch (_: org.json.JSONException) { null } }.toList()
+        .scanMatches(html).mapNotNull { try { JSONObject(it.groupValues[1]) } catch (_: org.json.JSONException) { null } }.toList()
 
     fun seriesTitle(title: String, type: String) = if (type == "tv")
         title.replace(Regex("(?i)\\s*[-:]?\\s*(?:Season\\s+|S)(\\d+)\\s*$"), "") else title

@@ -302,9 +302,8 @@ class MainActivity : ComponentActivity() {
                                 enterTransition = { fadeIn(animationSpec = tween(TvMotion.duration(140), easing = FastOutSlowInEasing)) },
                                 exitTransition = { fadeOut(animationSpec = tween(TvMotion.duration(130), easing = FastOutSlowInEasing)) }
                             ) {
-                                // Splash holds until the ViewModel's initial data (profiles +
-                                // home rows) has loaded, so the transition into the app is
-                                // instant — like the real Netflix TV app.
+                                // Admission and profiles gate entry. Catalogue requests
+                                // continue in the background while the user picks a profile.
                                 LaunchedEffect(viewModel) { viewModel.prepareStartup() }
                                 val isWarmupFinished by viewModel.startupReady.collectAsState()
                                 SplashScreen(
@@ -714,6 +713,9 @@ class MainActivity : ComponentActivity() {
                                         Movie(
                                             id = movieId,
                                             title = resolvedTitle,
+                                            // Launcher links carry no release year. Resolve it
+                                            // from TMDB instead of treating Movie's UI default as identity.
+                                            year = "",
                                             description = "",
                                             backdropUrl = "",
                                             posterUrl = "",

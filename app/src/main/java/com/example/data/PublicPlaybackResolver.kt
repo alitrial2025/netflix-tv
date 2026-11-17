@@ -857,7 +857,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
 
         internal fun parsePrimeSeasons(html: String, title: String, currentId: String = ""): Map<Int, String> {
             val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
-            for (script in scripts.findAll(html)) {
+            for (script in scripts.scanMatches(html)) {
                 val root = try { JSONObject(script.groupValues[1]) } catch (_: org.json.JSONException) { continue }
                 val state = root.optJSONObject("init")?.optJSONObject("preparations")?.optJSONObject("body")
                     ?.optJSONObject("atf")?.optJSONObject("state") ?: continue
@@ -903,7 +903,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
                 return modern.seasons
             }
             val scripts = Regex("""<script[^>]*type=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
-            val identities = scripts.findAll(html).flatMap { match ->
+            val identities = scripts.scanMatches(html).flatMap { match ->
                 val data = try { JSONTokener(match.groupValues[1]).nextValue() } catch (_: org.json.JSONException) { null }
                 when (data) { is JSONObject -> listOf(data); is JSONArray -> objects(data); else -> emptyList() }
             }
@@ -911,7 +911,7 @@ internal class PublicPlaybackResolver(client: OkHttpClient, baseUrl: String = "h
             val selector = Regex("""<select\b[^>]*name=["']seasonSelect["'][^>]*>([\s\S]*?)</select>""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1)
                 ?: throw IOException("Netflix public seasons unavailable")
             val options = Regex("""<option\b[^>]*value=["']([0-9]{5,20})["'][^>]*>([\s\S]*?)</option>""", RegexOption.IGNORE_CASE)
-                .findAll(selector).map { it.groupValues[1] to it.groupValues[2].replace(Regex("<[^>]+>"), "").trim() }.toList()
+                .scanMatches(selector).map { it.groupValues[1] to it.groupValues[2].replace(Regex("<[^>]+>"), "").trim() }.toList()
             val pairs = options.map { (id, label) ->
                 val explicit = Regex("(?i)^Season\\s+([0-9]+)$").matchEntire(label)?.groupValues?.get(1)?.toIntOrNull()
                 val branded = if (PublicIdentityDiscovery.sameTitle(label, title)) 1 else {

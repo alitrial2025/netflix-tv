@@ -56,7 +56,7 @@ internal object StreamSessionPolicy {
         // ordinary JSON metadata must not poison the provider's shared queue.
         if (payload.startsWith("#EXTM3U")) return false
         if (payload.startsWith('{') || payload.startsWith('[')) {
-            return errorField.findAll(payload).any { limitMessage.containsMatchIn(it.groupValues[1]) }
+            return errorField.scanMatches(payload).any { limitMessage.containsMatchIn(it.groupValues[1]) }
         }
         return limitMessage.containsMatchIn(payload)
     }

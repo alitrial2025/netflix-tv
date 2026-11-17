@@ -36,8 +36,8 @@ android {
         applicationId = "com.netflixprotv.apk"
         minSdk = 24
         targetSdk = 35
-        versionCode = 29092056
-        versionName = "17.11.2026.1"
+        versionCode = 29092057
+        versionName = "17.11.2026.2"
         buildConfigField("String", "TMDB_API_KEY", "\"8baba8ab6b8bbe247645bcae7df63d0d\"")
     }
 
@@ -139,6 +139,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     testImplementation(libs.androidx.junit)
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.runner)

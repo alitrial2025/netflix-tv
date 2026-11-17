@@ -372,13 +372,7 @@ fun PlayerScreen(
                 isBuffering = (playbackState == Player.STATE_BUFFERING)
                 if (playbackState == Player.STATE_READY) {
                     isLoading = false
-                    val videoGroups = exoPlayer.currentTracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
-                    if (viewModel.usesCompatibilityPlayback && videoGroups.isNotEmpty() && videoGroups.none { it.isSelected }) {
-                        // A single-rendition HLS source may have no track inside the
-                        // device budget. Do not leave audio playing under a 0% poster.
-                        playbackError = "This stream is not compatible with this TV's video capabilities."
-                        exoPlayer.pause()
-                    }
+
                 }
             }
             override fun onRenderedFirstFrame() {
@@ -563,8 +557,11 @@ fun PlayerScreen(
             ensureActive()
             if (!viewModel.ownsSharedPlayback(playbackOwner)) return@LaunchedEffect
             exoPlayer.volume = 1f
-            viewModel.applySubscriptionPlaybackLimits(userSubscription, trailer = isTrailerPlayback)
             exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
+                .setMaxVideoSize(Int.MAX_VALUE, if (isTrailerPlayback) 1080 else userSubscription.maxVideoHeight.coerceAtLeast(480))
+                .setMaxVideoBitrate(Int.MAX_VALUE)
+                .setMaxVideoFrameRate(Int.MAX_VALUE)
+                .setForceLowestBitrate(false)
                 .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
                 .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
                 .setPreferredAudioLanguages("en", "eng")
@@ -1031,8 +1028,7 @@ fun PlayerScreen(
         AndroidView(
             factory = { ctx ->
                 val view = android.view.LayoutInflater.from(ctx)
-                    .inflate(if (viewModel.usesCompatibilityPlayback) com.example.R.layout.compatible_player_view
-                        else com.example.R.layout.media_player_view, null) as PlayerView
+                    .inflate(com.example.R.layout.media_player_view, null) as PlayerView
                 view.apply {
                     useController = false
                     isFocusable = false

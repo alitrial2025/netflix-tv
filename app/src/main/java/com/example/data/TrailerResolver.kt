@@ -366,9 +366,9 @@ class TrailerResolver(
             if (embedHtml.isEmpty()) return@withContext null
 
             // Find stream candidates
-            val rawMp4s = Regex("""https:[^"' ]+\.mp4[^"' ]*""").findAll(embedHtml).map { it.value }.toList()
-            val rawM3u8s = Regex("""https:[^"' ]+\.m3u8[^"' ]*""").findAll(embedHtml).map { it.value }.toList()
-            val rawMpds = Regex("""https:[^"' ]+\\.mpd[^"' ]*""").findAll(embedHtml).map { it.value }.toList()
+            val rawMp4s = Regex("""https:[^"' ]+\.mp4[^"' ]*""").scanMatches(embedHtml).map { it.value }.toList()
+            val rawM3u8s = Regex("""https:[^"' ]+\.m3u8[^"' ]*""").scanMatches(embedHtml).map { it.value }.toList()
+            val rawMpds = Regex("""https:[^"' ]+\\.mpd[^"' ]*""").scanMatches(embedHtml).map { it.value }.toList()
 
             val candidates = mutableListOf<TrailerStream>()
             rawMp4s.forEach { candidates.add(TrailerStream(cleanUrl(it), "mp4")) }

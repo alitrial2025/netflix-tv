@@ -18,12 +18,12 @@ internal object CdnRoutePolicy {
         val raw = Regex("""in=([^\s"'<>;&]+)""").find(body)?.groupValues?.get(1) ?: return null
         return parse(java.net.URLDecoder.decode(raw, "UTF-8"))
     }
-    fun manifestTokensAreFresh(body: String, now: Long): Boolean = Regex("""in=([^\s"'<>;&]+)""").findAll(body).all { match ->
+    fun manifestTokensAreFresh(body: String, now: Long): Boolean = Regex("""in=([^\s"'<>;&]+)""").scanMatches(body).all { match ->
         val token = parse(java.net.URLDecoder.decode(match.groupValues[1], "UTF-8"))
         token == null || StreamSessionPolicy.isFresh(StreamSessionPolicy.tokenIssuedAt(token.timestamp, now), now)
     }
     fun earliestManifestExpiry(body: String, fetchedAt: Long): Long? =
-        Regex("""in=([^\s"'<>;&]+)""").findAll(body).mapNotNull { match ->
+        Regex("""in=([^\s"'<>;&]+)""").scanMatches(body).mapNotNull { match ->
             parse(java.net.URLDecoder.decode(match.groupValues[1], "UTF-8"))?.let {
                 StreamSessionPolicy.tokenIssuedAt(it.timestamp, fetchedAt) + StreamSessionPolicy.TTL_MS
             }

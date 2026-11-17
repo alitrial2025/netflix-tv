@@ -22,6 +22,10 @@ object AppDiagnosticsLogger {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     private var initialized = false
 
+    // Formatting happens on callers' threads (main, resolver and Firebase).
+    // SimpleDateFormat mutates its Calendar even when only formatting a Date.
+    private fun timestamp(): String = synchronized(dateFormat) { dateFormat.format(Date()) }
+
     @Synchronized
     fun init(context: Context) {
         if (initialized) return
@@ -95,7 +99,7 @@ object AppDiagnosticsLogger {
             appendLine("=============================================================")
             appendLine("         NETFLIX PRO TV - DIAGNOSTICS & TELEMETRY LOG        ")
             appendLine("=============================================================")
-            appendLine("Session Started: ${dateFormat.format(Date())}")
+            appendLine("Session Started: ${timestamp()}")
             appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, SDK ${Build.VERSION.SDK_INT})")
             appendLine("Active Log Locations:")
             targetFiles.forEach { appendLine("  -> ${it.absolutePath}") }
@@ -106,7 +110,7 @@ object AppDiagnosticsLogger {
 
     // Capture general flow "What's Happening"
     fun event(category: String, message: String) {
-        val timestamp = dateFormat.format(Date())
+        val timestamp = timestamp()
         val logLine = "[$timestamp] [EVENT] [$category] $message"
         Log.i(TAG, logLine)
         writeLine(logLine)
@@ -114,7 +118,7 @@ object AppDiagnosticsLogger {
 
     // Capture Performance Hotspots
     fun performance(hotspot: String, durationMs: Long, thresholdMs: Long, message: String = "") {
-        val timestamp = dateFormat.format(Date())
+        val timestamp = timestamp()
         val isHot = durationMs > thresholdMs
         val prefix = if (isHot) "[PERF_HOTSPOT_WARNING]" else "[PERF_OK]"
         val details = if (message.isNotBlank()) " - $message" else ""
@@ -129,7 +133,7 @@ object AppDiagnosticsLogger {
 
     // Capture exceptions, fallbacks or failures
     fun error(tag: String, message: String, throwable: Throwable? = null) {
-        val timestamp = dateFormat.format(Date())
+        val timestamp = timestamp()
         val stackTrace = throwable?.stackTraceToString()?.trim() ?: ""
         val logLine = if (stackTrace.isNotEmpty()) {
             "[$timestamp] [ERROR] [$tag] $message\nStacktrace:\n$stackTrace\n-------------------------------------------------------------"
@@ -165,13 +169,18 @@ object AppDiagnosticsLogger {
     }
 
     fun readLogFileContent(maxLines: Int = 400): String {
+        if (maxLines <= 0) return ""
         // Try reading from file first
         for (file in targetFiles) {
             if (file.exists() && file.length() > 0L) {
                 try {
-                    val lines = file.useLines { it.toList() }
+                    val lines = ArrayDeque<String>()
+                    file.useLines { source -> source.forEach { line ->
+                        if (lines.size >= maxLines) lines.removeFirst()
+                        lines.addLast(line)
+                    } }
                     if (lines.isNotEmpty()) {
-                        return lines.takeLast(maxLines).joinToString("\n")
+                        return lines.joinToString("\n")
                     }
                 } catch (_: Exception) {}
             }

@@ -64,7 +64,7 @@ internal object PublicProviderIdentity {
     }
     private fun airtelTitles(html: String, title: String): List<JSONObject> {
         val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>",RegexOption.IGNORE_CASE)
-        return scripts.findAll(html).mapNotNull { match ->
+        return scripts.scanMatches(html).mapNotNull { match ->
             val obj = try { JSONObject(match.groupValues[1]) } catch (_: org.json.JSONException) { return@mapNotNull null }
             obj.takeIf { it.optString("@type") in listOf("VideoObject", "TVSeries") && PublicIdentityDiscovery.sameTitle(it.optString("name"), title) }
         }.toList()
@@ -76,7 +76,7 @@ internal object PublicProviderIdentity {
         val namespace = if (type == "tv") "TVSHOW" else "MOVIE"
         val unescaped = html.replace("\\/", "/")
         return Regex("""["'](?:https://www\.airtelxstream\.in)?(/$group/([^/"'\s<>\\]+)/HOTSTAR_DTH_${namespace}_([0-9]{5,20}))["']""")
-            .findAll(unescaped).mapNotNull {
+            .scanMatches(unescaped).mapNotNull {
                 val url = ("https://www.airtelxstream.in" + it.groupValues[1]).toHttpUrlOrNull() ?: return@mapNotNull null
                 if (!PublicIdentityDiscovery.sameTitle(url.pathSegments[1], title)) return@mapNotNull null
                 it.groupValues[3] to url.encodedPath
@@ -84,7 +84,7 @@ internal object PublicProviderIdentity {
     }
     fun linkedHotstarIds(html: String): List<String> {
         val unescaped = html.replace("\\/","/")
-        return Regex("""https://[^\s"'\\<>]+""").findAll(unescaped).mapNotNull { match ->
+        return Regex("""https://[^\s"'\\<>]+""").scanMatches(unescaped).mapNotNull { match ->
             val url = match.value.toHttpUrlOrNull() ?: return@mapNotNull null
             if (url.host !in listOf("hotstar.com", "www.hotstar.com") || url.port != 443 ||
                 url.username.isNotEmpty() || url.password.isNotEmpty()) return@mapNotNull null
@@ -105,7 +105,7 @@ internal object PublicProviderIdentity {
         if (modern != null) return PublicIdentityDiscovery.sameTitle(modern.title, title) && modern.type == type &&
             (if (type == "tv") typedMapping else modern.year == year)
         val scripts = Regex("""<script[^>]*type=["']application/ld\+json["'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
-        return scripts.findAll(html).any { match ->
+        return scripts.scanMatches(html).any { match ->
             val data = try { org.json.JSONTokener(match.groupValues[1]).nextValue() } catch (_: org.json.JSONException) { null }
             val rows = if (data is JSONObject) listOf(data) else if (data is org.json.JSONArray)
                 (0 until data.length()).mapNotNull(data::optJSONObject) else emptyList()
@@ -116,7 +116,7 @@ internal object PublicProviderIdentity {
     }
     fun matchesPrime(html: String, title: String, year: String, type: String, typedMapping: Boolean = false): Boolean {
         val scripts = Regex("<script[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
-        return scripts.findAll(html).any { match ->
+        return scripts.scanMatches(html).any { match ->
             val root = try { JSONObject(match.groupValues[1]) } catch (_: org.json.JSONException) { return@any false }
             val details = root.optJSONObject("init")?.optJSONObject("preparations")?.optJSONObject("body")
                 ?.optJSONObject("atf")?.optJSONObject("state")?.optJSONObject("detail")?.optJSONObject("headerDetail") ?: return@any false

@@ -33,7 +33,7 @@ internal object NetflixPublicMetadata {
         return try { parseModel(html, expectedId) } catch (_: org.json.JSONException) { null }
     }
     private fun parseModel(html: String, expectedId: String?): Title? {
-        val contexts = script.findAll(html).mapNotNull { assignment.find(it.groupValues[1])?.groupValues?.get(1) }.toList()
+        val contexts = script.scanMatches(html).mapNotNull { assignment.find(it.groupValues[1])?.groupValues?.get(1) }.toList()
         if (contexts.size != 1) return null
         val tokener = JSONTokener(jsonText(contexts.single()))
         val root = tokener.nextValue() as? JSONObject ?: return null

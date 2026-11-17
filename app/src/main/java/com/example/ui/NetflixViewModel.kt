@@ -40,8 +40,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlin.coroutines.resume
 import com.example.model.isKidSafeMovie
 import kotlinx.coroutines.async
@@ -176,11 +174,6 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
         subtitleClock.set(offset)
     }
 
-    val usesCompatibilityPlayback by lazy {
-        com.example.ui.util.TvPlaybackPolicy.needsCompatibilityMode(
-            com.example.ui.util.TvImagePolicy.isLowMemoryDevice(getApplication()), android.os.Build.VERSION.SDK_INT)
-    }
-
     private val sharedExoPlayerDelegate = lazy {
         val renderersFactory = com.example.playback.SubtitleTimingRenderersFactory(application) { subtitleClock.get() }.apply {
             setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
@@ -193,18 +186,6 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 else androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_NEVER)
             .build()
         val lowMemory = com.example.ui.util.TvImagePolicy.isLowMemoryDevice(application)
-        val videoLimits = com.example.ui.util.TvPlaybackPolicy.videoLimits(usesCompatibilityPlayback, _userSubscription.value.maxVideoHeight)
-        val trackSelector = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(application).apply {
-            parameters = buildUponParameters()
-                // Media3 otherwise treats maximum size/bitrate as soft preferences and
-                // can exceed both the TV budget and advertised decoder capabilities.
-                .setExceedRendererCapabilitiesIfNecessary(false)
-                .setExceedVideoConstraintsIfNecessary(!usesCompatibilityPlayback)
-                .setMaxVideoSize(videoLimits.width, videoLimits.height)
-                .setMaxVideoBitrate(videoLimits.bitrate)
-                .setMaxVideoFrameRate(videoLimits.frameRate)
-                .build()
-        }
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(3_000, if (lowMemory) 10_000 else 15_000, 900, 1_500)
             .setTargetBufferBytes(if (lowMemory) 8 * 1024 * 1024 else 16 * 1024 * 1024)
@@ -212,10 +193,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             .setBackBuffer(0, false)
             .build()
         androidx.media3.exoplayer.ExoPlayer.Builder(application, renderersFactory)
-            .setTrackSelector(trackSelector).setLoadControl(loadControl).build().apply {
+            .setLoadControl(loadControl).build().apply {
             setAudioAttributes(audioAttributes, true)
             playWhenReady = true
             repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+            trackSelectionParameters = trackSelectionParameters.buildUpon()
+                .setMaxVideoSize(Int.MAX_VALUE, _userSubscription.value.maxVideoHeight.coerceAtLeast(480)).build()
             addListener(object : androidx.media3.common.Player.Listener {
                 override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) {
                     _sharedVideoFrameMediaId.value = null
@@ -1851,8 +1834,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                             if (hasStartupNetwork()) {
                                 if (_profiles.value.isEmpty() && _isProfilesLoading.value)
                                     _isProfilesLoading.first { !it }
-                                _isLoading.first { !it }
-                                preloadStartupArtwork()
+                                // Profile selection needs admission and profiles. Home
+                                // observes catalogue loading and can render its own state;
+                                // a cold catalogue request must not block the profile picker.
                             }
                         }
                     },
@@ -1877,6 +1861,10 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 if ((!preparationCompleted || !_appSessionReady.value) && _appSessionError.value == null)
                     _appSessionError.value = "App preparation took too long. Check your connection and retry."
                 _startupReady.value = preparationCompleted && _appSessionReady.value
+                if (_startupReady.value) viewModelScope.launch(Dispatchers.IO) {
+                    awaitHomeIdle()
+                    preloadStartupArtwork()
+                }
             }
         }
     }
@@ -2218,44 +2206,44 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
             com.example.ui.util.AppDiagnosticsLogger.event("Catalog", "Starting catalogue load...")
             _isLoading.value = _categoryRows.value.isEmpty()
             try {
-                // Bound simultaneous JSON parsing during cold start; publish the four
-                // initial rails together so focus/hero selection does not churn on entry.
-                val (trending, popularMovies, popularTv, topRatedMovies) = coroutineScope {
-                    val permits = Semaphore(
-                        if (com.example.ui.util.TvImagePolicy.isLowMemoryDevice(getApplication())) 1 else 2
-                    )
-                    suspend fun core(fetch: suspend () -> List<Movie>): List<Movie> = permits.withPermit {
-                        fetch().also { currentCoroutineContext().ensureActive() }
-                    }
-                    val trendingDef = async { core { repository.getTrending(fetchLogos = false) } }
-                    val popMoviesDef = async { core { repository.getPopularMovies(fetchLogos = false) } }
-                    val popTvDef = async { core { repository.getPopularTvShows(fetchLogos = false) } }
-                    val topRatedDef = async { core { repository.getTopRatedMovies(fetchLogos = false) } }
-                    listOf(trendingDef.await(), popMoviesDef.await(), popTvDef.await(), topRatedDef.await())
-                }
-                val coreTime = System.currentTimeMillis() - startTime
-                com.example.ui.util.AppDiagnosticsLogger.performance("InitialCatalogCore", coreTime, 1200L, "First-paint rails (trending, popular, etc.) assembled")
-
-                val earlyRows = mutableListOf<Pair<String, List<Movie>>>()
-                if (trending.isNotEmpty()) earlyRows.add("Trending Now" to trending)
-                if (popularMovies.isNotEmpty()) earlyRows.add("Popular Movies" to popularMovies)
-                if (popularTv.isNotEmpty()) earlyRows.add("Binge-Worthy TV Series" to popularTv)
-                if (topRatedMovies.isNotEmpty()) earlyRows.add("Top 10 Blockbusters" to topRatedMovies)
-
-                if (earlyRows.isNotEmpty()) {
-                    earlyRows.forEach { (_, movies) -> movies.forEach { allMoviesMap[it.id] = it } }
-                    originalCategoryRows = earlyRows
+                fun publishCore(rows: List<Pair<String, List<Movie>>>) {
+                    if (rows.isEmpty()) return
+                    rows.forEach { (_, movies) -> movies.forEach { allMoviesMap[it.id] = it } }
+                    originalCategoryRows = rows
                     _selectedProfile.value?.let { currentProf ->
                         applyProfilePersonalization(currentProf, preserveCurrentMovie = true)
                     } ?: run {
-                        _categoryRows.value = earlyRows + releaseRows()
+                        _categoryRows.value = rows + releaseRows()
                         if (_currentMovie.value == null) {
-                            val firstMovie = earlyRows.first().second.firstOrNull()
+                            val firstMovie = rows.first().second.firstOrNull()
                             _currentMovie.value = firstMovie
                             firstMovie?.let { fetchLogoForMovie(it) }
                         }
                     }
+                    _isLoading.value = false
                 }
+                // Keep parsing bounded, but release Splash as soon as one useful feed
+                // arrives. A slow fourth request must not hold the first three hostage.
+                val earlyRows = com.example.ui.util.loadInitialCatalog(
+                    feeds = listOf(
+                        "Trending Now" to { repository.getTrending(fetchLogos = false) },
+                        "Popular Movies" to { repository.getPopularMovies(fetchLogos = false) },
+                        "Binge-Worthy TV Series" to { repository.getPopularTvShows(fetchLogos = false) },
+                        "Top 10 Blockbusters" to { repository.getTopRatedMovies(fetchLogos = false) }
+                    ),
+                    concurrency = if (com.example.ui.util.TvImagePolicy.isLowMemoryDevice(getApplication())) 1 else 2,
+                    onFirstContent = { rows ->
+                        publishCore(rows)
+                        com.example.ui.util.AppDiagnosticsLogger.performance("InitialCatalogFirstContent",
+                            System.currentTimeMillis() - startTime, 1200L, "First useful catalogue feed published")
+                    }
+                )
+                publishCore(earlyRows)
+                com.example.ui.util.AppDiagnosticsLogger.event("Catalog",
+                    "Initial feeds settled after ${System.currentTimeMillis() - startTime}ms")
+                val trending = earlyRows.firstOrNull { it.first == "Trending Now" }?.second.orEmpty()
+                val popularTv = earlyRows.firstOrNull { it.first == "Binge-Worthy TV Series" }?.second.orEmpty()
+                val topRatedMovies = earlyRows.firstOrNull { it.first == "Top 10 Blockbusters" }?.second.orEmpty()
                 _isLoading.value = false
 
                 // No wall-clock timer: Home reports its first rendered content and input
@@ -2288,6 +2276,7 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 val topRatedTv = discover { repository.getTopRatedTvShows(fetchLogos = false) }
 
                 awaitDiscoveryIdle()
+                val assemblyStarted = android.os.SystemClock.elapsedRealtime()
                 val seenIds = mutableSetOf<String>()
                 fun filterDistinct(list: List<Movie>, minCount: Int = 6): List<Movie> {
                     val fresh = list.filter { !seenIds.contains(it.id) }
@@ -2312,6 +2301,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 if (topRatedTv.isNotEmpty()) fullRows.add("All-Time Masterpiece TV Series" to filterDistinct(topRatedTv, 8))
                 if (doc.isNotEmpty()) fullRows.add("Gripping Documentaries" to filterDistinct(doc, 8))
 
+                com.example.ui.util.AppDiagnosticsLogger.performance("CatalogRowAssembly",
+                    android.os.SystemClock.elapsedRealtime() - assemblyStarted, 100L,
+                    "${fullRows.size} catalogue rails assembled")
                 if (fullRows.isNotEmpty()) {
                     fullRows.forEach { (_, movies) -> movies.forEach { allMoviesMap[it.id] = it } }
                     originalCategoryRows = fullRows
@@ -2353,7 +2345,9 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
                 }
                 com.example.tv.TvHomeChannelManager.migrateLegacyWatchNextLinks(getApplication())
                 val totalTime = System.currentTimeMillis() - startTime
-                com.example.ui.util.AppDiagnosticsLogger.performance("FullCatalogBuild", totalTime, 4000L, "Full discovery grid with ${fullRows.size} rails finalized")
+                // This includes network and intentional input-idle waits, not CPU build time.
+                com.example.ui.util.AppDiagnosticsLogger.event("Catalog",
+                    "Discovery completed after ${totalTime}ms including network/idle waits; ${fullRows.size} rails")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -2882,18 +2876,12 @@ class NetflixViewModel(application: Application) : AndroidViewModel(application)
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    fun applySubscriptionPlaybackLimits(subscription: com.example.model.UserSubscription = _userSubscription.value,
-                                        trailer: Boolean? = null) {
+    fun applySubscriptionPlaybackLimits(subscription: com.example.model.UserSubscription = _userSubscription.value) {
         if (!sharedExoPlayerDelegate.isInitialized()) return
         val player = sharedExoPlayer
-        val isTrailer = trailer ?: (player.currentMediaItem?.mediaId?.endsWith(":trailer") == true)
-        val limits = com.example.ui.util.TvPlaybackPolicy.videoLimits(usesCompatibilityPlayback, subscription.maxVideoHeight, isTrailer)
+        val trailer = player.currentMediaItem?.mediaId?.endsWith(":trailer") == true
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-            .setMaxVideoSize(limits.width, limits.height)
-            .setMaxVideoBitrate(limits.bitrate)
-            .setMaxVideoFrameRate(limits.frameRate)
-            .setForceLowestBitrate(false)
-            .build()
+            .setMaxVideoSize(Int.MAX_VALUE, if (trailer) 1080 else subscription.maxVideoHeight.coerceAtLeast(480)).build()
         player.setAudioAttributes(androidx.media3.common.AudioAttributes.Builder()
             .setUsage(androidx.media3.common.C.USAGE_MEDIA).setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
             .setSpatializationBehavior(if (subscription.isSpatialAudioAllowed) androidx.media3.common.C.SPATIALIZATION_BEHAVIOR_AUTO

@@ -37,6 +37,7 @@ class NetflixApplication : Application(), ImageLoaderFactory, Configuration.Prov
 
     override fun onCreate() {
         super.onCreate()
+        com.example.api.TmdbClient.initializeCache(cacheDir.resolve("tmdb_http"))
         com.example.ui.util.AppDiagnosticsLogger.init(this)
         com.example.ui.util.AppDiagnosticsLogger.event("AppStartup", "Application onCreate launched.")
         // Firebase first — its analytics transport warms up early, and any
